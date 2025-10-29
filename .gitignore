@@ -1,0 +1,89 @@
+# ----------------------------
+# Global
+# ----------------------------
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Python environment files
+.venv/
+.env
+*.env
+
+# Byte-compiled / cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Logs and runtime files
+*.log
+*.pid
+
+# Coverage and test outputs
+htmlcov/
+.coverage
+.tox/
+.nox/
+.pytest_cache/
+coverage.xml
+*.cover
+*.py,cover
+
+# Build and distribution artifacts
+build/
+dist/
+.eggs/
+*.egg-info/
+*.egg
+
+# Local databases or cache
+instance/
+*.db
+*.sqlite3
+
+# NPM cache and config
+.npm/
+
+# ----------------------------
+# Backend (Flask-specific)
+# ----------------------------
+backend/__pycache__/
+backend/*.pyc
+backend/*.pyo
+backend/instance/
+backend/.env
+backend/.venv/
+
+# ----------------------------
+# Frontend (React-specific)
+# ----------------------------
+frontend/node_modules/
+frontend/build/
+frontend/dist/
+frontend/.env
+frontend/.eslintcache
+frontend/.parcel-cache
+frontend/.vite/
+frontend/coverage/
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/package-lock.json
+frontend/pnpm-lock.yaml
+frontend/yarn.lock
+
+# ----------------------------
+# Misc
+# ----------------------------
+# Local Docker or deployment files
+docker-compose.override.yml
+*.local
+*.bak
+*.tmp
+
