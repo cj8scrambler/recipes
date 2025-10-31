@@ -29,11 +29,11 @@ export default function UserView() {
     setSelectedVersion(null)
     setScale(1)
     try {
-      const full = await api.getRecipe(recipe.id)
+      const full = await api.getRecipe(recipe.recipe_id)
       setSelected(full)
       // Attempt to fetch versions; backend may not provide — handle gracefully
       try {
-        const vs = await api.listRecipeVersions(recipe.id)
+        const vs = await api.listRecipeVersions(recipe.recipe_id)
         setVersions(vs || [])
       } catch {
         setVersions([])
