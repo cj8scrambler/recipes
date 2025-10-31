@@ -25,7 +25,7 @@ echo "DATABASE_URL=mysql+pymysql://myusername:mySecretPassword@db.provider.com:3
 ### Frontend
 I don't like installing nodejs locall, so I use a docker container for the frontend.  This script will set up the docker container and then install the frontend app:
 ```
-docker/run.sh "cd frontend && npm install"
+docker/run.sh "cd frontend && npm ci"
 ```
 
 ## Running everything locally
@@ -39,6 +39,6 @@ flask run
 ### Frontend
 I run it in a docker container:
 ```
-docker/run.sh "cd frontend && npm run dev -- -host"
+docker/run.sh "cd frontend && npm run dev"
 ```
 Open a local browser at: http://localhost:5173

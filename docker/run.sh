@@ -44,6 +44,7 @@ fi
 set -- "${@:-bash}"
 
 docker run "${DOCKER_OPTS[@]}" \
+  --network host \
   --user "$UID_GID" \
   "${ENV_VARS[@]}" \
   "${MOUNTS[@]}" \
