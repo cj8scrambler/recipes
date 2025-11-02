@@ -158,6 +158,17 @@ def get_recipes():
         print(f"Database error in get_recipes: {e}")
         return jsonify({"error": "Failed to fetch recipes from database."}), 500
 
+@app.route('/api/recipes/<int:recipe_id>', methods=['GET'])
+def get_recipe(recipe_id):
+    try:
+        recipe = db.session.execute(db.select(Recipe).filter_by(recipe_id=recipe_id)).scalar_one_or_none()
+        if recipe is None:
+            return jsonify({"error": "Recipe not found."}), 404
+        return jsonify(serialize_recipe(recipe))
+    except Exception as e:
+        print(f"Database error in get_recipes: {e}")
+        return jsonify({"error": "Failed to fetch recipes from database."}), 500
+
 @app.route("/api/admin/ingredients", methods=['GET'])
 def get_admin_ingredients():
     """Endpoint for the Admin Ingredient List. Queries MySQL for all ingredients."""
