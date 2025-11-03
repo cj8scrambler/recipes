@@ -84,7 +84,7 @@ export default function AdminDashboard() {
           <RecipeList recipes={recipes} onSelect={(r) => setEditingRecipe(r)} />
           <ul>
             {recipes.map(r => (
-              <li key={r.id}>
+              <li key={r.recipe_id}>
                 {r.name}
                 <button onClick={() => setEditingRecipe(r)}>Edit</button>
                 <button onClick={() => removeRecipe(r.id)}>Delete</button>
@@ -97,10 +97,10 @@ export default function AdminDashboard() {
           <button onClick={() => setEditingIngredient({})}>New Ingredient</button>
           <ul>
             {ingredients.map(i => (
-              <li key={i.id}>
+              <li key={i.ingredient_id}>
                 {i.name} {i.unit ? `(${i.unit})` : ''}
                 <button onClick={() => setEditingIngredient(i)}>Edit</button>
-                <button onClick={() => removeIngredient(i.id)}>Delete</button>
+                <button onClick={() => removeIngredient(i.ingredient_id)}>Delete</button>
               </li>
             ))}
           </ul>

@@ -43,6 +43,13 @@ export default function UserView() {
     }
   }
 
+  function formatRecipeUnits(number, maxDecimals) {
+    // Round to the specified maximum decimal places and convert to string
+    const fixedString = number.toFixed(maxDecimals);
+    // Convert back to a float to remove trailing zeros
+    return parseFloat(fixedString);
+  }
+
   function scaledIngredients() {
     if (!selected) return []
     const factor = scale / (selected.servings || 1)
@@ -99,7 +106,7 @@ export default function UserView() {
               <ul>
                 {scaledIngredients().map((ing, idx) => (
                   <li key={idx}>
-                    {ing.quantity ? `${Number(ing.quantity).toFixed(2)} ` : ''}{ing.unit || ''} {ing.name}
+                    {ing.quantity ? formatRecipeUnits(ing.quantity,2): ''}{ing.unit || ''} {ing.unit_abv} {ing.name}
                     {ing.note ? ` — ${ing.note}` : ''}
                   </li>
                 ))}

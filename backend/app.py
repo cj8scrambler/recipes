@@ -23,9 +23,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False # Recommended setting for m
 db = SQLAlchemy(app)
 
 # Configure CORS to allow the React frontend to connect
-#CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"]}})
+CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"]}})
 # allow everything for now
-CORS(app)
+#CORS(app)
 
 
 # --- 2. Database Models (SQLAlchemy ORM) ---
@@ -113,8 +113,10 @@ def serialize_recipe_ingredient(ri):
     """Converts a RecipeIngredient ORM object to a dictionary for JSON response."""
     return {
         'ingredient_id': ri.ingredient_id,
+        'name': ri.ingredient.name,
         'quantity': ri.quantity,
         'unit_id': ri.unit_id,
+        'unit_abv': ri.unit.abbreviation,
         'notes': ri.notes
     }
 
@@ -169,7 +171,7 @@ def get_recipe(recipe_id):
         print(f"Database error in get_recipes: {e}")
         return jsonify({"error": "Failed to fetch recipes from database."}), 500
 
-@app.route("/api/admin/ingredients", methods=['GET'])
+@app.route("/api/ingredients", methods=['GET'])
 def get_admin_ingredients():
     """Endpoint for the Admin Ingredient List. Queries MySQL for all ingredients."""
     try:

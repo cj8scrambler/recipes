@@ -7,7 +7,7 @@ export default function RecipeList({ recipes = [], onSelect }) {
       {recipes.length === 0 && <p>No recipes found.</p>}
       <ul>
         {recipes.map(r => (
-          <li key={r.id}>
+          <li key={r.recipe_id}>
             <button className="link-button" onClick={() => onSelect(r)}>{r.name}</button>
           </li>
         ))}
