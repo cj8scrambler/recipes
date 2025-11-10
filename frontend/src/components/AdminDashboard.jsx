@@ -27,8 +27,8 @@ export default function AdminDashboard() {
 
   async function saveRecipe(payload) {
     try {
-      if (payload.id) {
-        await api.updateRecipe(payload.id, payload)
+      if (payload.recipe_id) {
+        await api.updateRecipe(payload.recipe_id, payload)
       } else {
         await api.createRecipe(payload)
       }
@@ -51,8 +51,8 @@ export default function AdminDashboard() {
 
   async function saveIngredient(payload) {
     try {
-      if (payload.id) {
-        await api.updateIngredient(payload.id, payload)
+      if (payload.ingredient_id) {
+        await api.updateIngredient(payload.ingredient_id, payload)
       } else {
         await api.createIngredient(payload)
       }
@@ -87,7 +87,7 @@ export default function AdminDashboard() {
               <li key={r.recipe_id}>
                 {r.name}
                 <button onClick={() => setEditingRecipe(r)}>Edit</button>
-                <button onClick={() => removeRecipe(r.id)}>Delete</button>
+                <button onClick={() => removeRecipe(r.recipe_id)}>Delete</button>
               </li>
             ))}
           </ul>

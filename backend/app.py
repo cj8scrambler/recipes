@@ -113,10 +113,10 @@ def serialize_recipe_ingredient(ri):
     """Converts a RecipeIngredient ORM object to a dictionary for JSON response."""
     return {
         'ingredient_id': ri.ingredient_id,
-        'name': ri.ingredient.name,
+        'name': ri.ingredient.name if ri.ingredient is not None else None,
         'quantity': ri.quantity,
         'unit_id': ri.unit_id,
-        'unit_abv': ri.unit.abbreviation,
+        'unit_abv': ri.unit.abbreviation if ri.unit is not None else None,
         'notes': ri.notes
     }
 
@@ -128,7 +128,8 @@ def serialize_recipe(recipe):
         'base_servings': recipe.base_servings,
         'description': recipe.description,
         # Recursively serialize the list of RecipeIngredient objects
-        'ingredients': [serialize_recipe_ingredient(ri) for ri in recipe.ingredients]
+        'ingredients': [serialize_recipe_ingredient(ri) for ri in recipe.ingredients],
+        'instructions': recipe.instructions
     }
 
 def serialize_ingredient(ingredient):
@@ -172,14 +173,14 @@ def get_recipe(recipe_id):
         return jsonify({"error": "Failed to fetch recipes from database."}), 500
 
 @app.route("/api/ingredients", methods=['GET'])
-def get_admin_ingredients():
-    """Endpoint for the Admin Ingredient List. Queries MySQL for all ingredients."""
+def get_ingredients():
+    """Endpoint for the Ingredient List. Queries MySQL for all ingredients."""
     try:
         # Use .all() to get a list of ORM objects
         ingredients = db.session.execute(db.select(Ingredient)).scalars().all()
         return jsonify([serialize_ingredient(i) for i in ingredients])
     except Exception as e:
-        print(f"Database error in get_admin_ingredients: {e}")
+        print(f"Database error in get_ingredients: {e}")
         return jsonify({"error": "Failed to fetch ingredients from database."}), 500
 
 
