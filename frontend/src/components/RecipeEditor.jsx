@@ -29,22 +29,28 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
 
   return (
     <form className="editor" onSubmit={submit}>
-      <h3>{recipe ? 'Edit Recipe' : 'New Recipe'}</h3>
-      <label>
-        Name
-        <input value={name} onChange={(e) => setName(e.target.value)} required />
-      </label>
-      <label>
-        Servings
-        <input type="number" value={servings} onChange={(e) => setServings(e.target.value)} min="1" />
-      </label>
-      <label>
-        Instructions
-        <textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} />
-      </label>
+      <h3>{recipe?.recipe_id ? 'Edit Recipe' : 'New Recipe'}</h3>
+      <div className="form-group">
+        <label>
+          Recipe Name
+          <input value={name} onChange={(e) => setName(e.target.value)} required placeholder="e.g., Chocolate Chip Cookies" />
+        </label>
+      </div>
+      <div className="form-group">
+        <label>
+          Servings
+          <input type="number" value={servings} onChange={(e) => setServings(e.target.value)} min="1" placeholder="4" />
+        </label>
+      </div>
+      <div className="form-group">
+        <label>
+          Instructions
+          <textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} placeholder="Enter cooking instructions..." />
+        </label>
+      </div>
       <div className="editor-actions">
-        <button type="submit">Save</button>
-        <button type="button" onClick={onCancel}>Cancel</button>
+        <button type="submit">Save Recipe</button>
+        <button type="button" className="secondary" onClick={onCancel}>Cancel</button>
       </div>
     </form>
   )

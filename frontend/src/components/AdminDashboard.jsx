@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import { api } from '../api'
-import RecipeList from './RecipeList'
 import RecipeEditor from './RecipeEditor'
 import IngredientEditor from './IngredientEditor'
 
 export default function AdminDashboard() {
+  const [activeTab, setActiveTab] = useState('recipes')
   const [recipes, setRecipes] = useState([])
   const [ingredients, setIngredients] = useState([])
   const [editingRecipe, setEditingRecipe] = useState(null)
@@ -40,7 +40,7 @@ export default function AdminDashboard() {
   }
 
   async function removeRecipe(id) {
-    if (!confirm('Delete recipe?')) return
+    if (!confirm('Delete this recipe? This action cannot be undone.')) return
     try {
       await api.deleteRecipe(id)
       await loadAll()
@@ -64,7 +64,7 @@ export default function AdminDashboard() {
   }
 
   async function removeIngredient(id) {
-    if (!confirm('Delete ingredient?')) return
+    if (!confirm('Delete this ingredient? This action cannot be undone.')) return
     try {
       await api.deleteIngredient(id)
       await loadAll()
@@ -77,53 +77,89 @@ export default function AdminDashboard() {
     <div className="admin">
       <h2>Admin Dashboard</h2>
       {error && <div className="error">{error}</div>}
-      <section className="two-col">
-        <div>
-          <h3>Recipes</h3>
-          <button onClick={() => setEditingRecipe({})}>New Recipe</button>
-          <RecipeList recipes={recipes} onSelect={(r) => setEditingRecipe(r)} />
+      
+      <div className="tabs">
+        <button 
+          className={`tab ${activeTab === 'recipes' ? 'active' : ''}`}
+          onClick={() => setActiveTab('recipes')}
+        >
+          Recipes
+        </button>
+        <button 
+          className={`tab ${activeTab === 'ingredients' ? 'active' : ''}`}
+          onClick={() => setActiveTab('ingredients')}
+        >
+          Ingredients
+        </button>
+      </div>
+
+      {activeTab === 'recipes' && (
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title">Manage Recipes</h3>
+            <button onClick={() => setEditingRecipe({})}>+ New Recipe</button>
+          </div>
+          {recipes.length === 0 && (
+            <div className="empty-state">
+              <p>No recipes yet. Create your first recipe to get started.</p>
+            </div>
+          )}
           <ul>
             {recipes.map(r => (
               <li key={r.recipe_id}>
-                {r.name}
-                <button onClick={() => setEditingRecipe(r)}>Edit</button>
-                <button onClick={() => removeRecipe(r.recipe_id)}>Delete</button>
+                <span>{r.name}</span>
+                <div>
+                  <button className="small secondary" onClick={() => setEditingRecipe(r)}>Edit</button>
+                  <button className="small danger" onClick={() => removeRecipe(r.recipe_id)}>Delete</button>
+                </div>
               </li>
             ))}
           </ul>
         </div>
-        <div>
-          <h3>Ingredients</h3>
-          <button onClick={() => setEditingIngredient({})}>New Ingredient</button>
+      )}
+
+      {activeTab === 'ingredients' && (
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title">Manage Ingredients</h3>
+            <button onClick={() => setEditingIngredient({})}>+ New Ingredient</button>
+          </div>
+          {ingredients.length === 0 && (
+            <div className="empty-state">
+              <p>No ingredients yet. Add ingredients to use in your recipes.</p>
+            </div>
+          )}
           <ul>
             {ingredients.map(i => (
               <li key={i.ingredient_id}>
-                {i.name} {i.unit ? `(${i.unit})` : ''}
-                <button onClick={() => setEditingIngredient(i)}>Edit</button>
-                <button onClick={() => removeIngredient(i.ingredient_id)}>Delete</button>
+                <span>
+                  {i.name} {i.unit ? <span className="text-muted">({i.unit})</span> : ''}
+                </span>
+                <div>
+                  <button className="small secondary" onClick={() => setEditingIngredient(i)}>Edit</button>
+                  <button className="small danger" onClick={() => removeIngredient(i.ingredient_id)}>Delete</button>
+                </div>
               </li>
             ))}
           </ul>
         </div>
-      </section>
+      )}
 
-      <aside>
-        {editingRecipe && (
-          <RecipeEditor
-            recipe={editingRecipe}
-            onCancel={() => setEditingRecipe(null)}
-            onSave={saveRecipe}
-          />
-        )}
+      {editingRecipe && (
+        <RecipeEditor
+          recipe={editingRecipe}
+          onCancel={() => setEditingRecipe(null)}
+          onSave={saveRecipe}
+        />
+      )}
 
-        {editingIngredient && (
-          <IngredientEditor
-            ingredient={editingIngredient}
-            onCancel={() => setEditingIngredient(null)}
-            onSave={saveIngredient}
-          />
-        )}
-      </aside>
+      {editingIngredient && (
+        <IngredientEditor
+          ingredient={editingIngredient}
+          onCancel={() => setEditingIngredient(null)}
+          onSave={saveIngredient}
+        />
+      )}
     </div>
   )
 }
