@@ -174,8 +174,15 @@ def recipe(recipe_id):
     elif request.method == 'PUT':
         #TODO: Check authorization
         data = request.get_json()
+        
+        # Filter out relationship fields that should not be directly set
+        # These are relationship fields, not column fields
+        fields_to_skip = ['ingredients', 'tags', 'parent_recipe', 'variants']
+        
         for key, value in data.items():
-            #TODO: Handle ingredients
+            if key in fields_to_skip:
+                # Skip relationship fields - they require special handling
+                continue
             if hasattr(recipe, key):
                 setattr(recipe, key, value)
             else:
