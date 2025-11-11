@@ -232,14 +232,16 @@ def recipe(recipe_id):
                         db.session.delete(current_ingredients[ingredient_id])
                         
             except Exception as e:
-                return jsonify({"error": f"Failed to update ingredients: {str(e)}"}), 500
+                print(f"Error updating ingredients: {e}")  # Log for debugging
+                return jsonify({"error": "Failed to update ingredients"}), 500
         
         try:
             db.session.commit()
             return jsonify(serialize_recipe(recipe))
         except Exception as e:
             db.session.rollback()
-            return jsonify({"error": f"Database commit failure: {str(e)}"}), 500
+            print(f"Database commit error: {e}")  # Log for debugging
+            return jsonify({"error": "Database commit failure"}), 500
     else:
         return jsonify({"error": "Method not allowed."}), 405
 
