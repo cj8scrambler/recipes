@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { formatRecipeUnits } from '../utils'
 
 export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
   const [name, setName] = useState('')
@@ -48,7 +49,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
           <ul style={{marginTop: '0.5em', paddingLeft: '1.5em'}}>
             {recipe.ingredients.map((ing, idx) => (
               <li key={idx}>
-                {ing.quantity && ing.unit_abv ? `${ing.quantity} ${ing.unit_abv}` : ''} {ing.name}
+                {ing.quantity && ing.unit_abv ? `${formatRecipeUnits(ing.quantity, 2)} ${ing.unit_abv}` : ''} {ing.name}
                 {ing.notes ? <span className="text-muted"> — {ing.notes}</span> : ''}
               </li>
             ))}

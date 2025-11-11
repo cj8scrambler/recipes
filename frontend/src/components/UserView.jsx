@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { api } from '../api'
+import { formatRecipeUnits } from '../utils'
 import RecipeList from './RecipeList'
 
 export default function UserView() {
@@ -41,13 +42,6 @@ export default function UserView() {
     } catch (err) {
       setError(err.message)
     }
-  }
-
-  function formatRecipeUnits(number, maxDecimals) {
-    // Round to the specified maximum decimal places and convert to string
-    const fixedString = number.toFixed(maxDecimals);
-    // Convert back to a float to remove trailing zeros, then to string to avoid scientific notation
-    return parseFloat(fixedString).toString();
   }
 
   function scaledIngredients() {
