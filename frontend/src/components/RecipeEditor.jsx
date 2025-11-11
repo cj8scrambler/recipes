@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { formatRecipeUnits } from '../utils'
 
 export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
   const [name, setName] = useState('')
@@ -9,7 +10,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
     if (recipe) {
       setName(recipe.name || '')
       setInstructions(recipe.instructions || '')
-      setServings(recipe.servings || 1)
+      setServings(recipe.base_servings || 1)
     } else {
       setName('')
       setInstructions('')
@@ -23,7 +24,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
       ...recipe,
       name,
       instructions,
-      servings: Number(servings)
+      base_servings: Number(servings)
     })
   }
 
@@ -42,6 +43,19 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
           <input type="number" value={servings} onChange={(e) => setServings(e.target.value)} min="1" placeholder="4" />
         </label>
       </div>
+      {recipe?.ingredients && recipe.ingredients.length > 0 && (
+        <div className="form-group">
+          <label>Ingredients</label>
+          <ul style={{marginTop: '0.5em', paddingLeft: '1.5em'}}>
+            {recipe.ingredients.map((ing, idx) => (
+              <li key={idx}>
+                {ing.quantity && ing.unit_abv ? `${formatRecipeUnits(ing.quantity, 2)} ${ing.unit_abv}` : ''} {ing.name}
+                {ing.notes ? <span className="text-muted"> — {ing.notes}</span> : ''}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div className="form-group">
         <label>
           Instructions
