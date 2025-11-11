@@ -77,27 +77,35 @@ export default function UserView() {
       </div>
       <div className="content">
         {error && <div className="error">{error}</div>}
-        {!selected && <p>Select a recipe to view details.</p>}
+        {!selected && (
+          <div className="empty-state">
+            <p>Select a recipe from the list to view details, ingredients, and cooking instructions.</p>
+          </div>
+        )}
         {selected && (
           <article>
             <h2>{selected.name}</h2>
             <div className="meta">
-              <label>
-                Servings:
-                <input type="number" value={scale} min="0.25" step="0.25" onChange={(e) => setScale(Number(e.target.value))} />
-              </label>
-              {(versions.length > 0) && (
+              <div className="form-group">
                 <label>
-                  Version:
-                  <select onChange={(e) => {
-                    const v = versions.find(x => String(x.id) === e.target.value)
-                    setSelectedVersion(v || null)
-                    if (v) switchVersion(v)
-                  }}>
-                    <option value="">Default</option>
-                    {versions.map(v => <option value={v.id} key={v.id}>{v.name || v.id}</option>)}
-                  </select>
+                  Servings
+                  <input type="number" value={scale} min="0.25" step="0.25" onChange={(e) => setScale(Number(e.target.value))} />
                 </label>
+              </div>
+              {(versions.length > 0) && (
+                <div className="form-group">
+                  <label>
+                    Version
+                    <select onChange={(e) => {
+                      const v = versions.find(x => String(x.id) === e.target.value)
+                      setSelectedVersion(v || null)
+                      if (v) switchVersion(v)
+                    }}>
+                      <option value="">Default</option>
+                      {versions.map(v => <option value={v.id} key={v.id}>{v.name || v.id}</option>)}
+                    </select>
+                  </label>
+                </div>
               )}
             </div>
 
@@ -106,8 +114,10 @@ export default function UserView() {
               <ul>
                 {scaledIngredients().map((ing, idx) => (
                   <li key={idx}>
-                    {ing.quantity ? formatRecipeUnits(ing.quantity, 2) : ''} {ing.unit_abv || ' '} {ing.name}
-                    {ing.note ? ` — ${ing.note}` : ''}
+                    <span>
+                      {ing.quantity ? <strong>{formatRecipeUnits(ing.quantity, 2)} {ing.unit_abv || ''}</strong> : ''} {ing.name}
+                      {ing.note ? <span className="text-muted"> — {ing.note}</span> : ''}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -115,7 +125,7 @@ export default function UserView() {
 
             <section>
               <h3>Instructions</h3>
-              <pre className="instructions">{selected.instructions}</pre>
+              <div className="instructions">{selected.instructions}</div>
             </section>
           </article>
         )}
