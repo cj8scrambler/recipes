@@ -1,7 +1,7 @@
 # backend_app.py
 
 import os # Import the os module to read environment variables
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Enum, ForeignKey, Column, Integer, String, Float, Boolean
@@ -161,16 +161,31 @@ def get_recipes():
         print(f"Database error in get_recipes: {e}")
         return jsonify({"error": "Failed to fetch recipes from database."}), 500
 
-@app.route('/api/recipes/<int:recipe_id>', methods=['GET'])
-def get_recipe(recipe_id):
+@app.route('/api/recipes/<int:recipe_id>', methods=['GET', 'PUT'])
+def recipe(recipe_id):
     try:
         recipe = db.session.execute(db.select(Recipe).filter_by(recipe_id=recipe_id)).scalar_one_or_none()
         if recipe is None:
             return jsonify({"error": "Recipe not found."}), 404
-        return jsonify(serialize_recipe(recipe))
     except Exception as e:
-        print(f"Database error in get_recipes: {e}")
         return jsonify({"error": "Failed to fetch recipes from database."}), 500
+    if request.method == 'GET':
+        return jsonify(serialize_recipe(recipe))
+    elif request.method == 'PUT':
+        #TODO: Check authorization
+        data = request.get_json()
+        for key, value in data.items():
+            #TODO: Handle ingredients
+            if hasattr(recipe, key):
+                setattr(recipe, key, value)
+            else:
+                return jsonify({"error": f"Invalid field {key}"}), 500
+        try:
+            db.session.commit()
+        except Exception as e:
+            return jsonify({"error": "Database commit failure"}), 500
+    else:
+        return jsonify({"error": "Method not allowed."}), 405
 
 @app.route("/api/ingredients", methods=['GET'])
 def get_ingredients():
