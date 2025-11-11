@@ -9,7 +9,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
     if (recipe) {
       setName(recipe.name || '')
       setInstructions(recipe.instructions || '')
-      setServings(recipe.servings || 1)
+      setServings(recipe.base_servings || 1)
     } else {
       setName('')
       setInstructions('')
@@ -23,7 +23,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
       ...recipe,
       name,
       instructions,
-      servings: Number(servings)
+      base_servings: Number(servings)
     })
   }
 

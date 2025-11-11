@@ -107,7 +107,14 @@ export default function AdminDashboard() {
           <ul>
             {recipes.map(r => (
               <li key={r.recipe_id}>
-                <span>{r.name}</span>
+                <div>
+                  <span>{r.name}</span>
+                  {r.ingredients && r.ingredients.length > 0 && (
+                    <div className="text-muted" style={{fontSize: '0.9em', marginTop: '0.25em'}}>
+                      Ingredients: {r.ingredients.map(ing => ing.name).join(', ')}
+                    </div>
+                  )}
+                </div>
                 <div>
                   <button className="small secondary" onClick={() => setEditingRecipe(r)}>Edit</button>
                   <button className="small danger" onClick={() => removeRecipe(r.recipe_id)}>Delete</button>
