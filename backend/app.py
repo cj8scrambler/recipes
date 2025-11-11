@@ -1,7 +1,7 @@
 # backend_app.py
 
 import os # Import the os module to read environment variables
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Enum, ForeignKey, Column, Integer, String, Float, Boolean
@@ -161,16 +161,89 @@ def get_recipes():
         print(f"Database error in get_recipes: {e}")
         return jsonify({"error": "Failed to fetch recipes from database."}), 500
 
-@app.route('/api/recipes/<int:recipe_id>', methods=['GET'])
-def get_recipe(recipe_id):
+@app.route('/api/recipes/<int:recipe_id>', methods=['GET', 'PUT'])
+def recipe(recipe_id):
     try:
         recipe = db.session.execute(db.select(Recipe).filter_by(recipe_id=recipe_id)).scalar_one_or_none()
         if recipe is None:
             return jsonify({"error": "Recipe not found."}), 404
-        return jsonify(serialize_recipe(recipe))
     except Exception as e:
-        print(f"Database error in get_recipes: {e}")
         return jsonify({"error": "Failed to fetch recipes from database."}), 500
+    if request.method == 'GET':
+        return jsonify(serialize_recipe(recipe))
+    elif request.method == 'PUT':
+        #TODO: Check authorization
+        data = request.get_json()
+        
+        # Handle ingredients separately if provided
+        ingredients_data = data.get('ingredients', None)
+        
+        # Filter out relationship fields that should not be directly set
+        # These are relationship fields, not column fields
+        fields_to_skip = ['ingredients', 'tags', 'parent_recipe', 'variants']
+        
+        # Update basic recipe fields
+        for key, value in data.items():
+            if key in fields_to_skip:
+                # Skip relationship fields - they require special handling
+                continue
+            if hasattr(recipe, key):
+                setattr(recipe, key, value)
+            else:
+                return jsonify({"error": f"Invalid field {key}"}), 500
+        
+        # Handle ingredients update if provided
+        if ingredients_data is not None:
+            try:
+                # Get current ingredient IDs for this recipe
+                current_ingredients = {ri.ingredient_id: ri for ri in recipe.ingredients}
+                
+                # Get incoming ingredient IDs
+                incoming_ingredient_ids = set()
+                
+                for ing_data in ingredients_data:
+                    ingredient_id = ing_data.get('ingredient_id')
+                    if not ingredient_id:
+                        continue
+                    
+                    incoming_ingredient_ids.add(ingredient_id)
+                    
+                    # Check if this ingredient already exists in the recipe
+                    if ingredient_id in current_ingredients:
+                        # Update existing ingredient
+                        recipe_ingredient = current_ingredients[ingredient_id]
+                        recipe_ingredient.quantity = ing_data.get('quantity', recipe_ingredient.quantity)
+                        recipe_ingredient.unit_id = ing_data.get('unit_id', recipe_ingredient.unit_id)
+                        recipe_ingredient.notes = ing_data.get('notes', recipe_ingredient.notes)
+                    else:
+                        # Add new ingredient
+                        new_recipe_ingredient = RecipeIngredient(
+                            recipe_id=recipe.recipe_id,
+                            ingredient_id=ingredient_id,
+                            quantity=ing_data.get('quantity'),
+                            unit_id=ing_data.get('unit_id'),
+                            notes=ing_data.get('notes')
+                        )
+                        db.session.add(new_recipe_ingredient)
+                
+                # Remove ingredients that are no longer in the list
+                for ingredient_id in current_ingredients:
+                    if ingredient_id not in incoming_ingredient_ids:
+                        db.session.delete(current_ingredients[ingredient_id])
+                        
+            except Exception as e:
+                print(f"Error updating ingredients: {e}")  # Log for debugging
+                return jsonify({"error": "Failed to update ingredients"}), 500
+        
+        try:
+            db.session.commit()
+            return jsonify(serialize_recipe(recipe))
+        except Exception as e:
+            db.session.rollback()
+            print(f"Database commit error: {e}")  # Log for debugging
+            return jsonify({"error": "Database commit failure"}), 500
+    else:
+        return jsonify({"error": "Method not allowed."}), 405
 
 @app.route("/api/ingredients", methods=['GET'])
 def get_ingredients():
