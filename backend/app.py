@@ -142,6 +142,17 @@ def serialize_ingredient(ingredient):
         'gluten_status': ingredient.gluten_status
     }
 
+def serialize_unit(unit):
+    """Converts a Unit ORM object to a dictionary."""
+    return {
+        'unit_id': unit.unit_id,
+        'name': unit.name,
+        'abbreviation': unit.abbreviation,
+        'category': unit.category,
+        'system': unit.system,
+        'base_conversion_factor': unit.base_conversion_factor
+    }
+
 
 # --- 4. API Endpoints ---
 
@@ -255,6 +266,16 @@ def get_ingredients():
     except Exception as e:
         print(f"Database error in get_ingredients: {e}")
         return jsonify({"error": "Failed to fetch ingredients from database."}), 500
+
+@app.route("/api/units", methods=['GET'])
+def get_units():
+    """Endpoint to get all units."""
+    try:
+        units = db.session.execute(db.select(Unit)).scalars().all()
+        return jsonify([serialize_unit(u) for u in units])
+    except Exception as e:
+        print(f"Database error in get_units: {e}")
+        return jsonify({"error": "Failed to fetch units from database."}), 500
 
 
 # --- 5. Running the Application ---
