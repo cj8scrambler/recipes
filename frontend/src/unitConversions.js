@@ -58,40 +58,45 @@ export function getDisplayUnit(baseQuantity, category, units, preferredSystem = 
   categoryUnits.sort((a, b) => a.base_conversion_factor - b.base_conversion_factor);
   
   if (preferredSystem === 'US Customary' && category === 'Volume') {
-    // US Volume: tsp -> tbsp -> fl oz -> cup -> pint -> quart -> gallon
-    // Thresholds: 3 tsp = 1 tbsp, 2 tbsp = 1 fl oz, 8 fl oz = 1 cup, 2 cups = 1 pint, etc.
+    // US Volume: tsp -> tbsp -> cup -> pint -> quart -> gallon
+    // Per problem statement: use tsp unless >3 tsp, then tbsp unless >4 tbsp, then cups unless >2 cups, etc.
     const tsp = categoryUnits.find(u => u.abbreviation === 'tsp');
     const tbsp = categoryUnits.find(u => u.abbreviation === 'tbsp');
-    const floz = categoryUnits.find(u => u.abbreviation === 'fl oz');
     const cup = categoryUnits.find(u => u.abbreviation === 'c');
     const pint = categoryUnits.find(u => u.abbreviation === 'pt');
     const quart = categoryUnits.find(u => u.abbreviation === 'qt');
     const gallon = categoryUnits.find(u => u.abbreviation === 'gal');
     
-    // Convert and check thresholds from largest to smallest
+    // Check from largest to smallest
     if (gallon) {
       const qty = baseQuantity / gallon.base_conversion_factor;
       if (qty >= 1) return { quantity: qty, unit: gallon };
     }
-    if (quart) {
-      const qty = baseQuantity / quart.base_conversion_factor;
-      if (qty >= 4) return { quantity: qty, unit: quart };
+    if (quart && pint) {
+      const qtyInPints = baseQuantity / pint.base_conversion_factor;
+      if (qtyInPints > 2) {
+        const qtyInQuarts = baseQuantity / quart.base_conversion_factor;
+        if (qtyInQuarts > 4) return { quantity: qtyInQuarts, unit: quart };
+        return { quantity: qtyInQuarts, unit: quart };
+      }
     }
-    if (pint) {
-      const qty = baseQuantity / pint.base_conversion_factor;
-      if (qty >= 2) return { quantity: qty, unit: pint };
+    if (pint && cup) {
+      const qtyInCups = baseQuantity / cup.base_conversion_factor;
+      if (qtyInCups > 2) {
+        return { quantity: baseQuantity / pint.base_conversion_factor, unit: pint };
+      }
     }
-    if (cup) {
-      const qty = baseQuantity / cup.base_conversion_factor;
-      if (qty >= 2) return { quantity: qty, unit: cup };
+    if (cup && tbsp) {
+      const qtyInTbsp = baseQuantity / tbsp.base_conversion_factor;
+      if (qtyInTbsp > 4) {
+        return { quantity: baseQuantity / cup.base_conversion_factor, unit: cup };
+      }
     }
-    if (floz) {
-      const qty = baseQuantity / floz.base_conversion_factor;
-      if (qty >= 8) return { quantity: qty, unit: floz };
-    }
-    if (tbsp) {
-      const qty = baseQuantity / tbsp.base_conversion_factor;
-      if (qty >= 3) return { quantity: qty, unit: tbsp };
+    if (tbsp && tsp) {
+      const qtyInTsp = baseQuantity / tsp.base_conversion_factor;
+      if (qtyInTsp > 3) {
+        return { quantity: baseQuantity / tbsp.base_conversion_factor, unit: tbsp };
+      }
     }
     if (tsp) {
       const qty = baseQuantity / tsp.base_conversion_factor;
@@ -99,7 +104,7 @@ export function getDisplayUnit(baseQuantity, category, units, preferredSystem = 
     }
   } else if (preferredSystem === 'Metric' && category === 'Volume') {
     // Metric Volume: mL -> cL -> dL -> L
-    // Thresholds: 10 mL = 1 cL, 10 cL = 1 dL, 10 dL = 1 L
+    // Use larger unit when appropriate
     const liter = categoryUnits.find(u => u.abbreviation === 'L');
     const deciliter = categoryUnits.find(u => u.abbreviation === 'dL');
     const centiliter = categoryUnits.find(u => u.abbreviation === 'cL');
@@ -111,11 +116,11 @@ export function getDisplayUnit(baseQuantity, category, units, preferredSystem = 
     }
     if (deciliter) {
       const qty = baseQuantity / deciliter.base_conversion_factor;
-      if (qty >= 10) return { quantity: qty, unit: deciliter };
+      if (qty >= 1) return { quantity: qty, unit: deciliter };
     }
     if (centiliter) {
       const qty = baseQuantity / centiliter.base_conversion_factor;
-      if (qty >= 10) return { quantity: qty, unit: centiliter };
+      if (qty >= 1) return { quantity: qty, unit: centiliter };
     }
     if (milliliter) {
       const qty = baseQuantity / milliliter.base_conversion_factor;
