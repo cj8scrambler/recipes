@@ -151,7 +151,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
               </select>
               <input 
                 type="number" 
-                step="0.01"
+                step="0.1"
                 value={ing.quantity} 
                 onChange={(e) => updateIngredient(idx, 'quantity', e.target.value)}
                 placeholder="Qty"
@@ -163,18 +163,34 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
                 required
               >
                 <option value="">Select unit</option>
-                {units
-                  .filter(u => {
-                    // If no unit selected yet, show all units
-                    if (!selectedUnit) return true
-                    // If unit is selected, only show units of the same category
-                    return u.category === selectedUnit.category
-                  })
-                  .map(u => (
-                    <option key={u.unit_id} value={u.unit_id}>
-                      {u.name} ({u.abbreviation})
-                    </option>
-                  ))}
+                {/* Group units by category for easier navigation */}
+                {selectedUnit && (
+                  <optgroup label={`${selectedUnit.category} (Current)`}>
+                    {units
+                      .filter(u => u.category === selectedUnit.category)
+                      .map(u => (
+                        <option key={u.unit_id} value={u.unit_id}>
+                          {u.name} ({u.abbreviation})
+                        </option>
+                      ))}
+                  </optgroup>
+                )}
+                {/* Show other categories for switching */}
+                {['Volume', 'Weight', 'Item', 'Temperature']
+                  .filter(cat => !selectedUnit || cat !== selectedUnit.category)
+                  .map(category => {
+                    const categoryUnits = units.filter(u => u.category === category)
+                    if (categoryUnits.length === 0) return null
+                    return (
+                      <optgroup key={category} label={category}>
+                        {categoryUnits.map(u => (
+                          <option key={u.unit_id} value={u.unit_id}>
+                            {u.name} ({u.abbreviation})
+                          </option>
+                        ))}
+                      </optgroup>
+                    )
+                  })}
               </select>
               <input 
                 type="text"

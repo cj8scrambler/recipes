@@ -58,10 +58,11 @@ export function getDisplayUnit(baseQuantity, category, units, preferredSystem = 
   categoryUnits.sort((a, b) => a.base_conversion_factor - b.base_conversion_factor);
   
   if (preferredSystem === 'US Customary' && category === 'Volume') {
-    // US Volume: tsp -> tbsp -> cup -> pint -> quart -> gallon
-    // Per problem statement: use tsp unless >3 tsp, then tbsp unless >4 tbsp, then cups unless >2 cups, etc.
+    // US Volume: tsp -> tbsp -> fl oz -> cup -> pint -> quart -> gallon
+    // Use tsp unless >3 tsp, then tbsp unless >2 tbsp, then fl oz unless >= 1 cup, then cups unless >2 cups, etc.
     const tsp = categoryUnits.find(u => u.abbreviation === 'tsp');
     const tbsp = categoryUnits.find(u => u.abbreviation === 'tbsp');
+    const floz = categoryUnits.find(u => u.abbreviation === 'fl oz');
     const cup = categoryUnits.find(u => u.abbreviation === 'c');
     const pint = categoryUnits.find(u => u.abbreviation === 'pt');
     const quart = categoryUnits.find(u => u.abbreviation === 'qt');
@@ -86,10 +87,16 @@ export function getDisplayUnit(baseQuantity, category, units, preferredSystem = 
         return { quantity: baseQuantity / pint.base_conversion_factor, unit: pint };
       }
     }
-    if (cup && tbsp) {
+    if (cup && floz) {
+      const qtyInCups = baseQuantity / cup.base_conversion_factor;
+      if (qtyInCups >= 1) {
+        return { quantity: qtyInCups, unit: cup };
+      }
+    }
+    if (floz && tbsp) {
       const qtyInTbsp = baseQuantity / tbsp.base_conversion_factor;
-      if (qtyInTbsp > 4) {
-        return { quantity: baseQuantity / cup.base_conversion_factor, unit: cup };
+      if (qtyInTbsp > 2) {
+        return { quantity: baseQuantity / floz.base_conversion_factor, unit: floz };
       }
     }
     if (tbsp && tsp) {
@@ -103,20 +110,15 @@ export function getDisplayUnit(baseQuantity, category, units, preferredSystem = 
       return { quantity: qty, unit: tsp };
     }
   } else if (preferredSystem === 'Metric' && category === 'Volume') {
-    // Metric Volume: mL -> cL -> dL -> L
-    // Use larger unit when appropriate
+    // Metric Volume: mL -> cL -> L
+    // Use larger unit when appropriate (skipping dL as it's not commonly used)
     const liter = categoryUnits.find(u => u.abbreviation === 'L');
-    const deciliter = categoryUnits.find(u => u.abbreviation === 'dL');
     const centiliter = categoryUnits.find(u => u.abbreviation === 'cL');
     const milliliter = categoryUnits.find(u => u.abbreviation === 'mL');
     
     if (liter) {
       const qty = baseQuantity / liter.base_conversion_factor;
       if (qty >= 1) return { quantity: qty, unit: liter };
-    }
-    if (deciliter) {
-      const qty = baseQuantity / deciliter.base_conversion_factor;
-      if (qty >= 1) return { quantity: qty, unit: deciliter };
     }
     if (centiliter) {
       const qty = baseQuantity / centiliter.base_conversion_factor;
