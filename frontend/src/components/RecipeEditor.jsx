@@ -21,7 +21,13 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
       setName(recipe.name || '')
       setInstructions(recipe.instructions || '')
       setServings(recipe.base_servings || 1)
-      setIngredients(recipe.ingredients || [])
+      // Ingredients from backend already have ingredient_id, quantity (in base units), unit_id, notes
+      setIngredients((recipe.ingredients || []).map(ing => ({
+        ingredient_id: ing.ingredient_id || '',
+        quantity: ing.quantity || '',
+        unit_id: ing.unit_id || '',
+        notes: ing.notes || ''
+      })))
     } else {
       setName('')
       setInstructions('')
@@ -158,7 +164,12 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
               >
                 <option value="">Select unit</option>
                 {units
-                  .filter(u => !selectedUnit || u.category === selectedUnit.category || !ing.unit_id)
+                  .filter(u => {
+                    // If no unit selected yet, show all units
+                    if (!selectedUnit) return true
+                    // If unit is selected, only show units of the same category
+                    return u.category === selectedUnit.category
+                  })
                   .map(u => (
                     <option key={u.unit_id} value={u.unit_id}>
                       {u.name} ({u.abbreviation})
