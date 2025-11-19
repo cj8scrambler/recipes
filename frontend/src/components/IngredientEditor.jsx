@@ -3,7 +3,7 @@ import { api } from '../api'
 
 export default function IngredientEditor({ ingredient = null, onCancel, onSave }) {
   const [name, setName] = useState('')
-  const [unitId, setUnitId] = useState('')
+  const [defaultUnitId, setDefaultUnitId] = useState('')
   const [notes, setNotes] = useState('')
   const [units, setUnits] = useState([])
 
@@ -14,11 +14,11 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
   useEffect(() => {
     if (ingredient) {
       setName(ingredient.name || '')
-      setUnitId(ingredient.price_unit_id || '')
+      setDefaultUnitId(ingredient.default_unit_id || '')
       setNotes(ingredient.notes || '')
     } else {
       setName('')
-      setUnitId('')
+      setDefaultUnitId('')
       setNotes('')
     }
   }, [ingredient])
@@ -37,7 +37,7 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
     onSave({
       ...ingredient,
       name,
-      price_unit_id: unitId ? parseInt(unitId) : null,
+      default_unit_id: defaultUnitId ? parseInt(defaultUnitId) : null,
       notes
     })
   }
@@ -63,7 +63,7 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
       <div className="form-group">
         <label>
           Unit of Measurement (Default)
-          <select value={unitId} onChange={(e) => setUnitId(e.target.value)}>
+          <select value={defaultUnitId} onChange={(e) => setDefaultUnitId(e.target.value)}>
             <option value="">Select unit</option>
             {Object.keys(groupedUnits).map(category => (
               <optgroup key={category} label={category}>

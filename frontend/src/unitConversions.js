@@ -80,7 +80,7 @@ export function getDisplayUnit(baseQuantity, category, units, preferredSystem = 
   
   if (preferredSystem === 'US Customary' && isVolumeCategory) {
     // US Volume: tsp -> tbsp -> fl oz -> cups -> gallons
-    // Use tsp unless >3 tsp, then tbsp unless >2 tbsp, then fl oz unless >= 1 cup, then cups unless >= 1 gallon
+    // Use tsp unless >3 tsp, then tbsp unless >2 tbsp, then fl oz unless >= 4 cups, then gallons
     const tsp = categoryUnits.find(u => u.abbreviation === 'tsp');
     const tbsp = categoryUnits.find(u => u.abbreviation === 'tbsp');
     const floz = categoryUnits.find(u => u.abbreviation === 'fl oz');
@@ -88,9 +88,11 @@ export function getDisplayUnit(baseQuantity, category, units, preferredSystem = 
     const gallon = categoryUnits.find(u => u.abbreviation === 'gal');
     
     // Check from largest to smallest
-    if (gallon) {
-      const qty = baseQuantity / gallon.base_conversion_factor;
-      if (qty >= 1) return { quantity: qty, unit: gallon };
+    if (gallon && cup) {
+      const qtyInCups = baseQuantity / cup.base_conversion_factor;
+      if (qtyInCups >= 4) {
+        return { quantity: baseQuantity / gallon.base_conversion_factor, unit: gallon };
+      }
     }
     if (cup) {
       const qtyInCups = baseQuantity / cup.base_conversion_factor;

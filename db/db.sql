@@ -15,9 +15,11 @@ CREATE TABLE Ingredients (
     name VARCHAR(255) NOT NULL UNIQUE,
     price DECIMAL(10, 2),
     price_unit_id INT,
+    default_unit_id INT,
     contains_peanuts BOOLEAN NOT NULL DEFAULT FALSE,
     gluten_status ENUM('Contains', 'Gluten-Free', 'GF_Available') NOT NULL DEFAULT 'Gluten-Free',
-    FOREIGN KEY (price_unit_id) REFERENCES Units(unit_id)
+    FOREIGN KEY (price_unit_id) REFERENCES Units(unit_id),
+    FOREIGN KEY (default_unit_id) REFERENCES Units(unit_id)
 );
 
 -- 3. Recipes Table

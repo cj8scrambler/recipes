@@ -42,7 +42,8 @@ class Unit(db.Model):
     base_conversion_factor = Column(Float(10, 5))
 
     # Relationships
-    ingredient_prices = relationship("Ingredient", back_populates="price_unit")
+    ingredient_prices = relationship("Ingredient", foreign_keys="Ingredient.price_unit_id", back_populates="price_unit")
+    ingredient_defaults = relationship("Ingredient", foreign_keys="Ingredient.default_unit_id")
     recipe_ingredients = relationship("RecipeIngredient", back_populates="unit")
 
 class Ingredient(db.Model):
@@ -51,11 +52,13 @@ class Ingredient(db.Model):
     name = Column(String(255), unique=True, nullable=False)
     price = Column(Float(10, 2))
     price_unit_id = Column(Integer, ForeignKey('Units.unit_id'))
+    default_unit_id = Column(Integer, ForeignKey('Units.unit_id'))
     contains_peanuts = Column(Boolean, default=False, nullable=False)
     gluten_status = Column(Enum('Contains', 'Gluten-Free', 'GF_Available'), default='Gluten-Free', nullable=False)
 
     # Relationships
-    price_unit = relationship("Unit", back_populates="ingredient_prices")
+    price_unit = relationship("Unit", foreign_keys=[price_unit_id], back_populates="ingredient_prices")
+    default_unit = relationship("Unit", foreign_keys=[default_unit_id])
     recipe_items = relationship("RecipeIngredient", back_populates="ingredient")
 
 class Recipe(db.Model):
@@ -139,6 +142,7 @@ def serialize_ingredient(ingredient):
         'name': ingredient.name,
         'price': ingredient.price,
         'price_unit_id': ingredient.price_unit_id,
+        'default_unit_id': ingredient.default_unit_id,
         'gluten_status': ingredient.gluten_status
     }
 
