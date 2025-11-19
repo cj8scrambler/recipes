@@ -187,7 +187,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
                   </optgroup>
                 )}
                 {/* Show other categories for switching */}
-                {['Volume', 'Weight', 'Item', 'Temperature']
+                {['Volume', 'Dry Volume', 'Liquid Volume', 'Weight', 'Item', 'Temperature']
                   .filter(cat => !selectedUnit || cat !== selectedUnit.category)
                   .map(category => {
                     const categoryUnits = units.filter(u => u.category === category)

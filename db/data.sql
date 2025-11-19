@@ -11,7 +11,7 @@ SET FOREIGN_KEY_CHECKS = 1;
 
 -- 1. Units
 -- Base for Weight is Gram (1.0)
--- Base for Volume is Milliliter (1.0)
+-- Base for Dry Volume and Liquid Volume is Milliliter (1.0)
 INSERT INTO Units (name, abbreviation, category, `system`, base_conversion_factor) VALUES
 -- Weight units
 ('Gram', 'g', 'Weight', 'Metric', 1.0),
@@ -19,17 +19,17 @@ INSERT INTO Units (name, abbreviation, category, `system`, base_conversion_facto
 ('Milligram', 'mg', 'Weight', 'Metric', 0.001),
 ('Ounce', 'oz', 'Weight', 'US Customary', 28.3495),
 ('Pound', 'lb', 'Weight', 'US Customary', 453.592),
--- Volume units - Metric
+-- Volume units - Metric (used for both dry and liquid)
 ('Milliliter', 'mL', 'Volume', 'Metric', 1.0),
 ('Liter', 'L', 'Volume', 'Metric', 1000.0),
--- Volume units - US Customary
-('US Teaspoon', 'tsp', 'Volume', 'US Customary', 4.9289),
-('US Tablespoon', 'tbsp', 'Volume', 'US Customary', 14.7868),
-('US Fluid Ounce', 'fl oz', 'Volume', 'US Customary', 29.5735),
-('US Cup', 'c', 'Volume', 'US Customary', 236.588),
-('US Pint', 'pt', 'Volume', 'US Customary', 473.176),
-('US Quart', 'qt', 'Volume', 'US Customary', 946.353),
-('US Gallon', 'gal', 'Volume', 'US Customary', 3785.41),
+-- Dry Volume units - US Customary
+('Dry Teaspoon', 'tsp', 'Dry Volume', 'US Customary', 4.9289),
+('Dry Tablespoon', 'tbsp', 'Dry Volume', 'US Customary', 14.7868),
+('Dry Cup', 'c (dry)', 'Dry Volume', 'US Customary', 236.588),
+-- Liquid Volume units - US Customary
+('Fluid Ounce', 'fl oz', 'Liquid Volume', 'US Customary', 29.5735),
+('Liquid Cup', 'c', 'Liquid Volume', 'US Customary', 236.588),
+('Gallon', 'gal', 'Liquid Volume', 'US Customary', 3785.41),
 -- Item units
 ('Item', 'item', 'Item', 'Other', NULL),
 ('Slice', 'slice', 'Item', 'Other', NULL),
@@ -39,18 +39,18 @@ INSERT INTO Units (name, abbreviation, category, `system`, base_conversion_facto
 
 -- 2. Ingredients
 -- Note: price_unit_id FKs refer to the IDs from the Units inserts
--- (e.g., 2 = 'Kilogram', 7 = 'Liter', 15 = 'Item')
+-- (e.g., 2 = 'Kilogram', 7 = 'Liter', 14 = 'Item')
 INSERT INTO Ingredients (name, price, price_unit_id, contains_peanuts, gluten_status) VALUES
 ('Chicken Breast', 15.49, 2, FALSE, 'Gluten-Free'),
 ('All-Purpose Flour', 3.99, 2, FALSE, 'Contains'),
 ('Gluten-Free AP Flour', 8.99, 2, FALSE, 'GF_Available'),
 ('Peanut Butter', 7.50, 2, TRUE, 'Gluten-Free'),
 ('Olive Oil', 12.99, 7, FALSE, 'Gluten-Free'),
-('Large Egg', 4.50, 15, FALSE, 'Gluten-Free'),
+('Large Egg', 4.50, 14, FALSE, 'Gluten-Free'),
 ('Table Salt', 2.99, 2, FALSE, 'Gluten-Free'),
 ('Water', NULL, NULL, FALSE, 'Gluten-Free'),
-('Flour Tortilla', 3.49, 15, FALSE, 'Contains'),
-('Corn Tortilla', 4.00, 15, FALSE, 'Gluten-Free');
+('Flour Tortilla', 3.49, 14, FALSE, 'Contains'),
+('Corn Tortilla', 4.00, 14, FALSE, 'Gluten-Free');
 
 -- 3. Tags
 INSERT INTO Tags (name) VALUES
@@ -80,7 +80,7 @@ INSERT INTO Recipe_Tags (recipe_id, tag_id) VALUES
 
 -- 6. Recipe_Ingredients
 -- Note: unit_id FKs refer to the IDs from the Units inserts
--- (e.g., 1 = 'Gram', 5 = 'Pound', 6 = 'Milliliter', 15 = 'Item')
+-- (e.g., 1 = 'Gram', 5 = 'Pound', 6 = 'Milliliter', 14 = 'Item')
 --
 -- Recipe 1: Grilled Chicken (serves 2)
 INSERT INTO Recipe_Ingredients (recipe_id, ingredient_id, quantity, unit_id, notes) VALUES
@@ -97,12 +97,12 @@ INSERT INTO Recipe_Ingredients (recipe_id, ingredient_id, quantity, unit_id, not
 
 -- Recipe 3: Backpacker Peanut Butter Wrap (serves 1)
 INSERT INTO Recipe_Ingredients (recipe_id, ingredient_id, quantity, unit_id, notes) VALUES
-(3, 9, 1, 15, 'Large 10-inch'),      -- 1 Flour Tortilla
+(3, 9, 1, 14, 'Large 10-inch'),      -- 1 Flour Tortilla
 (3, 4, 60, 1, 'Approx 2 tbsp');      -- 60 g Peanut Butter
 
 -- Recipe 4: Simple Scrambled Eggs (serves 1)
 INSERT INTO Recipe_Ingredients (recipe_id, ingredient_id, quantity, unit_id, notes) VALUES
-(4, 6, 3, 15, NULL),                 -- 3 Large Eggs
+(4, 6, 3, 14, NULL),                 -- 3 Large Eggs
 (4, 8, 15, 6, 'or milk'),           -- 15 mL Water
 (4, 5, 5, 6, 'for the pan'),         -- 5 mL Olive Oil
 (4, 7, 1, 1, 'to taste');            -- 1 g Table Salt

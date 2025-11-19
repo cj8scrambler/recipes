@@ -57,46 +57,18 @@ export function getDisplayUnit(baseQuantity, category, units, preferredSystem = 
   // Sort by conversion factor (smallest to largest)
   categoryUnits.sort((a, b) => a.base_conversion_factor - b.base_conversion_factor);
   
-  if (preferredSystem === 'US Customary' && category === 'Volume') {
-    // US Volume: tsp -> tbsp -> fl oz -> cup -> pint -> quart -> gallon
-    // Use tsp unless >3 tsp, then tbsp unless >2 tbsp, then fl oz unless >= 1 cup, then cups unless >2 cups, etc.
+  if (preferredSystem === 'US Customary' && category === 'Dry Volume') {
+    // US Dry Volume: tsp -> tbsp -> cups
+    // Use tsp unless >3 tsp, then tbsp unless >4 tbsp, then cups
     const tsp = categoryUnits.find(u => u.abbreviation === 'tsp');
     const tbsp = categoryUnits.find(u => u.abbreviation === 'tbsp');
-    const floz = categoryUnits.find(u => u.abbreviation === 'fl oz');
-    const cup = categoryUnits.find(u => u.abbreviation === 'c');
-    const pint = categoryUnits.find(u => u.abbreviation === 'pt');
-    const quart = categoryUnits.find(u => u.abbreviation === 'qt');
-    const gallon = categoryUnits.find(u => u.abbreviation === 'gal');
+    const cup = categoryUnits.find(u => u.abbreviation === 'c (dry)');
     
     // Check from largest to smallest
-    if (gallon) {
-      const qty = baseQuantity / gallon.base_conversion_factor;
-      if (qty >= 1) return { quantity: qty, unit: gallon };
-    }
-    if (quart && pint) {
-      const qtyInPints = baseQuantity / pint.base_conversion_factor;
-      if (qtyInPints > 2) {
-        const qtyInQuarts = baseQuantity / quart.base_conversion_factor;
-        if (qtyInQuarts > 4) return { quantity: qtyInQuarts, unit: quart };
-        return { quantity: qtyInQuarts, unit: quart };
-      }
-    }
-    if (pint && cup) {
-      const qtyInCups = baseQuantity / cup.base_conversion_factor;
-      if (qtyInCups > 2) {
-        return { quantity: baseQuantity / pint.base_conversion_factor, unit: pint };
-      }
-    }
-    if (cup && floz) {
-      const qtyInCups = baseQuantity / cup.base_conversion_factor;
-      if (qtyInCups >= 1) {
-        return { quantity: qtyInCups, unit: cup };
-      }
-    }
-    if (floz && tbsp) {
+    if (cup) {
       const qtyInTbsp = baseQuantity / tbsp.base_conversion_factor;
-      if (qtyInTbsp > 2) {
-        return { quantity: baseQuantity / floz.base_conversion_factor, unit: floz };
+      if (qtyInTbsp > 4) {
+        return { quantity: baseQuantity / cup.base_conversion_factor, unit: cup };
       }
     }
     if (tbsp && tsp) {
@@ -108,6 +80,28 @@ export function getDisplayUnit(baseQuantity, category, units, preferredSystem = 
     if (tsp) {
       const qty = baseQuantity / tsp.base_conversion_factor;
       return { quantity: qty, unit: tsp };
+    }
+  } else if (preferredSystem === 'US Customary' && category === 'Liquid Volume') {
+    // US Liquid Volume: fl oz -> cups -> gallons
+    // Use fl oz unless >= 1 cup, then cups unless >= 1 gallon
+    const floz = categoryUnits.find(u => u.abbreviation === 'fl oz');
+    const cup = categoryUnits.find(u => u.abbreviation === 'c');
+    const gallon = categoryUnits.find(u => u.abbreviation === 'gal');
+    
+    // Check from largest to smallest
+    if (gallon) {
+      const qty = baseQuantity / gallon.base_conversion_factor;
+      if (qty >= 1) return { quantity: qty, unit: gallon };
+    }
+    if (cup) {
+      const qtyInCups = baseQuantity / cup.base_conversion_factor;
+      if (qtyInCups >= 1) {
+        return { quantity: qtyInCups, unit: cup };
+      }
+    }
+    if (floz) {
+      const qty = baseQuantity / floz.base_conversion_factor;
+      return { quantity: qty, unit: floz };
     }
   } else if (preferredSystem === 'Metric' && category === 'Volume') {
     // Metric Volume: mL -> L
