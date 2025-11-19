@@ -12,12 +12,12 @@ INSERT INTO Units (name, abbreviation, category, `system`, base_conversion_facto
 ('Milliliter', 'mL', 'Volume', 'Metric', 1.0),
 ('Liter', 'L', 'Volume', 'Metric', 1000.0),
 -- Dry Volume units - US Customary
-('Dry Teaspoon', 'tsp', 'Dry Volume', 'US Customary', 4.9289),
-('Dry Tablespoon', 'tbsp', 'Dry Volume', 'US Customary', 14.7868),
-('Dry Cup', 'c (dry)', 'Dry Volume', 'US Customary', 236.588),
+('Teaspoon', 'tsp', 'Dry Volume', 'US Customary', 4.9289),
+('Tablespoon', 'tbsp', 'Dry Volume', 'US Customary', 14.7868),
+('Cup', 'c', 'Dry Volume', 'US Customary', 236.588),
 -- Liquid Volume units - US Customary
 ('Fluid Ounce', 'fl oz', 'Liquid Volume', 'US Customary', 29.5735),
-('Liquid Cup', 'c', 'Liquid Volume', 'US Customary', 236.588),
+('Cup', 'c', 'Liquid Volume', 'US Customary', 236.588),
 ('Gallon', 'gal', 'Liquid Volume', 'US Customary', 3785.41),
 -- Item units
 ('Item', 'item', 'Item', 'Other', NULL),

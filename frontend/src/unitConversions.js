@@ -12,7 +12,16 @@
  */
 export function convertUnit(quantity, fromUnit, toUnit) {
   if (!fromUnit || !toUnit) return quantity;
-  if (fromUnit.category !== toUnit.category) {
+  
+  // Volume categories (including Dry Volume and Liquid Volume) can convert between each other
+  const volumeCategories = ['Volume', 'Dry Volume', 'Liquid Volume'];
+  const fromIsVolume = volumeCategories.includes(fromUnit.category);
+  const toIsVolume = volumeCategories.includes(toUnit.category);
+  
+  // Check if categories are compatible
+  if (fromIsVolume && toIsVolume) {
+    // Volume units can convert between each other
+  } else if (fromUnit.category !== toUnit.category) {
     console.warn('Cannot convert between different unit categories');
     return quantity;
   }
@@ -62,7 +71,7 @@ export function getDisplayUnit(baseQuantity, category, units, preferredSystem = 
     // Use tsp unless >3 tsp, then tbsp unless >4 tbsp, then cups
     const tsp = categoryUnits.find(u => u.abbreviation === 'tsp');
     const tbsp = categoryUnits.find(u => u.abbreviation === 'tbsp');
-    const cup = categoryUnits.find(u => u.abbreviation === 'c (dry)');
+    const cup = categoryUnits.find(u => u.abbreviation === 'c');
     
     // Check from largest to smallest
     if (cup) {
