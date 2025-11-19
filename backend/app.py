@@ -34,9 +34,9 @@ CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173", "http://12
 class Unit(db.Model):
     __tablename__ = 'Units'
     unit_id = Column(Integer, primary_key=True)
-    name = Column(String(50), unique=True, nullable=False)
-    abbreviation = Column(String(10), unique=True, nullable=False)
-    category = Column(Enum('Weight', 'Volume', 'Temperature', 'Item'), nullable=False)
+    name = Column(String(50), nullable=False)
+    abbreviation = Column(String(10), nullable=False)
+    category = Column(Enum('Weight', 'Volume', 'Dry Volume', 'Liquid Volume', 'Temperature', 'Item'), nullable=False)
     # The 'system' column name is quoted because it is a reserved word in MySQL
     system = Column('system', Enum('Metric', 'US Customary', 'Other'), nullable=False)
     base_conversion_factor = Column(Float(10, 5))
