@@ -110,19 +110,14 @@ export function getDisplayUnit(baseQuantity, category, units, preferredSystem = 
       return { quantity: qty, unit: tsp };
     }
   } else if (preferredSystem === 'Metric' && category === 'Volume') {
-    // Metric Volume: mL -> cL -> L
-    // Use larger unit when appropriate (skipping dL as it's not commonly used)
+    // Metric Volume: mL -> L
+    // Use larger unit when appropriate (skipping cL and dL as they're not commonly used)
     const liter = categoryUnits.find(u => u.abbreviation === 'L');
-    const centiliter = categoryUnits.find(u => u.abbreviation === 'cL');
     const milliliter = categoryUnits.find(u => u.abbreviation === 'mL');
     
     if (liter) {
       const qty = baseQuantity / liter.base_conversion_factor;
       if (qty >= 1) return { quantity: qty, unit: liter };
-    }
-    if (centiliter) {
-      const qty = baseQuantity / centiliter.base_conversion_factor;
-      if (qty >= 1) return { quantity: qty, unit: centiliter };
     }
     if (milliliter) {
       const qty = baseQuantity / milliliter.base_conversion_factor;

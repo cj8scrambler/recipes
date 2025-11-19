@@ -3,6 +3,17 @@ import { api } from '../api'
 import { formatRecipeUnits } from '../utils'
 import { toBaseUnit } from '../unitConversions'
 
+/**
+ * Format quantity for display in input field - removes trailing zeros
+ */
+function formatQuantityForInput(quantity) {
+  if (quantity === '' || quantity == null) return '';
+  const num = parseFloat(quantity);
+  if (isNaN(num)) return '';
+  // Format to max 1 decimal place and remove trailing zeros
+  return parseFloat(num.toFixed(1)).toString();
+}
+
 export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
   const [name, setName] = useState('')
   const [instructions, setInstructions] = useState('')
@@ -24,7 +35,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
       // Ingredients from backend already have ingredient_id, quantity (in base units), unit_id, notes
       setIngredients((recipe.ingredients || []).map(ing => ({
         ingredient_id: ing.ingredient_id || '',
-        quantity: ing.quantity || '',
+        quantity: formatQuantityForInput(ing.quantity),
         unit_id: ing.unit_id || '',
         notes: ing.notes || ''
       })))

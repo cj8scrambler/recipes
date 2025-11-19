@@ -10,8 +10,6 @@ INSERT INTO Units (name, abbreviation, category, `system`, base_conversion_facto
 ('Pound', 'lb', 'Weight', 'US Customary', 453.592),
 -- Volume units - Metric
 ('Milliliter', 'mL', 'Volume', 'Metric', 1.0),
-('Centiliter', 'cL', 'Volume', 'Metric', 10.0),
-('Deciliter', 'dL', 'Volume', 'Metric', 100.0),
 ('Liter', 'L', 'Volume', 'Metric', 1000.0),
 -- Volume units - US Customary
 ('US Teaspoon', 'tsp', 'Volume', 'US Customary', 4.9289),
@@ -30,18 +28,18 @@ INSERT INTO Units (name, abbreviation, category, `system`, base_conversion_facto
 
 -- 2. Ingredients
 -- Note: price_unit_id FKs refer to the IDs from the Units inserts
--- (e.g., 2 = 'Kilogram', 9 = 'Liter', 21 = 'Item')
+-- (e.g., 2 = 'Kilogram', 7 = 'Liter', 19 = 'Item')
 INSERT INTO Ingredients (name, price, price_unit_id, contains_peanuts, gluten_status) VALUES
 ('Chicken Breast', 15.49, 2, FALSE, 'Gluten-Free'),
 ('All-Purpose Flour', 3.99, 2, FALSE, 'Contains'),
 ('Gluten-Free AP Flour', 8.99, 2, FALSE, 'GF_Available'),
 ('Peanut Butter', 7.50, 2, TRUE, 'Gluten-Free'),
-('Olive Oil', 12.99, 9, FALSE, 'Gluten-Free'),
-('Large Egg', 4.50, 21, FALSE, 'Gluten-Free'),
+('Olive Oil', 12.99, 7, FALSE, 'Gluten-Free'),
+('Large Egg', 4.50, 19, FALSE, 'Gluten-Free'),
 ('Table Salt', 2.99, 2, FALSE, 'Gluten-Free'),
 ('Water', NULL, NULL, FALSE, 'Gluten-Free'),
-('Flour Tortilla', 3.49, 21, FALSE, 'Contains'),
-('Corn Tortilla', 4.00, 21, FALSE, 'Gluten-Free');
+('Flour Tortilla', 3.49, 19, FALSE, 'Contains'),
+('Corn Tortilla', 4.00, 19, FALSE, 'Gluten-Free');
 
 -- 3. Tags
 INSERT INTO Tags (name) VALUES
@@ -71,7 +69,7 @@ INSERT INTO Recipe_Tags (recipe_id, tag_id) VALUES
 
 -- 6. Recipe_Ingredients
 -- Note: unit_id FKs refer to the IDs from the Units inserts
--- (e.g., 1 = 'Gram', 5 = 'Pound', 6 = 'Milliliter', 21 = 'Item')
+-- (e.g., 1 = 'Gram', 5 = 'Pound', 6 = 'Milliliter', 19 = 'Item')
 --
 -- Recipe 1: Grilled Chicken (serves 2)
 INSERT INTO Recipe_Ingredients (recipe_id, ingredient_id, quantity, unit_id, notes) VALUES
@@ -88,12 +86,12 @@ INSERT INTO Recipe_Ingredients (recipe_id, ingredient_id, quantity, unit_id, not
 
 -- Recipe 3: Backpacker Peanut Butter Wrap (serves 1)
 INSERT INTO Recipe_Ingredients (recipe_id, ingredient_id, quantity, unit_id, notes) VALUES
-(3, 9, 1, 21, 'Large 10-inch'),      -- 1 Flour Tortilla
+(3, 9, 1, 19, 'Large 10-inch'),      -- 1 Flour Tortilla
 (3, 4, 60, 1, 'Approx 2 tbsp');      -- 60 g Peanut Butter
 
 -- Recipe 4: Simple Scrambled Eggs (serves 1)
 INSERT INTO Recipe_Ingredients (recipe_id, ingredient_id, quantity, unit_id, notes) VALUES
-(4, 6, 3, 21, NULL),                 -- 3 Large Eggs
+(4, 6, 3, 19, NULL),                 -- 3 Large Eggs
 (4, 8, 15, 6, 'or milk'),           -- 15 mL Water
 (4, 5, 5, 6, 'for the pan'),         -- 5 mL Olive Oil
 (4, 7, 1, 1, 'to taste');            -- 1 g Table Salt
