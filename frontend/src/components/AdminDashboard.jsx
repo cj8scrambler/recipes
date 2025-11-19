@@ -152,7 +152,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {editingRecipe && (
+      {activeTab === 'recipes' && editingRecipe && (
         <RecipeEditor
           recipe={editingRecipe}
           onCancel={() => setEditingRecipe(null)}
@@ -160,7 +160,7 @@ export default function AdminDashboard() {
         />
       )}
 
-      {editingIngredient && (
+      {activeTab === 'ingredients' && editingIngredient && (
         <IngredientEditor
           ingredient={editingIngredient}
           onCancel={() => setEditingIngredient(null)}
