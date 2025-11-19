@@ -79,8 +79,7 @@ export function getDisplayUnit(baseQuantity, category, units, preferredSystem = 
   categoryUnits.sort((a, b) => a.base_conversion_factor - b.base_conversion_factor);
   
   if (preferredSystem === 'US Customary' && isVolumeCategory) {
-    // US Volume: tsp -> tbsp -> fl oz -> cups -> gallons
-    // Use tsp unless >3 tsp, then tbsp unless >2 tbsp, then fl oz unless >= 4 cups, then gallons
+    // US Volume: tsp -> tbsp (>3 tsp) -> fl oz (>2 tbsp) -> cups (≥8 fl oz) -> gallons (≥4 cups)
     const tsp = categoryUnits.find(u => u.abbreviation === 'tsp');
     const tbsp = categoryUnits.find(u => u.abbreviation === 'tbsp');
     const floz = categoryUnits.find(u => u.abbreviation === 'fl oz');
@@ -94,37 +93,34 @@ export function getDisplayUnit(baseQuantity, category, units, preferredSystem = 
         return { quantity: baseQuantity / gallon.base_conversion_factor, unit: gallon };
       }
     }
-    if (cup) {
-      const qtyInCups = baseQuantity / cup.base_conversion_factor;
-      if (qtyInCups >= 1) {
-        return { quantity: qtyInCups, unit: cup };
+    if (cup && floz) {
+      const qtyInFlOz = baseQuantity / floz.base_conversion_factor;
+      // Use cups if >= 8 fl oz (which equals 1 cup)
+      if (qtyInFlOz >= 8) {
+        return { quantity: baseQuantity / cup.base_conversion_factor, unit: cup };
       }
     }
-    if (floz) {
-      const qty = baseQuantity / floz.base_conversion_factor;
-      // Use fl oz if >= 2 tbsp (assuming tbsp exists and we're above that threshold)
-      if (tbsp) {
-        const qtyInTbsp = baseQuantity / tbsp.base_conversion_factor;
-        if (qtyInTbsp > 2) {
-          return { quantity: qty, unit: floz };
-        }
-      } else {
-        return { quantity: qty, unit: floz };
+    if (floz && tbsp) {
+      const qtyInTbsp = baseQuantity / tbsp.base_conversion_factor;
+      // Use fl oz if > 2 tbsp
+      if (qtyInTbsp > 2) {
+        return { quantity: baseQuantity / floz.base_conversion_factor, unit: floz };
       }
     }
     if (tbsp && tsp) {
       const qtyInTsp = baseQuantity / tsp.base_conversion_factor;
+      // Use tbsp if > 3 tsp
       if (qtyInTsp > 3) {
         return { quantity: baseQuantity / tbsp.base_conversion_factor, unit: tbsp };
       }
     }
     if (tsp) {
-      const qty = baseQuantity / tsp.base_conversion_factor;
-      return { quantity: qty, unit: tsp };
+      return { quantity: baseQuantity / tsp.base_conversion_factor, unit: tsp };
     }
-    // Fallback to smallest available
+    // Fallback to smallest available unit
     if (tbsp) return { quantity: baseQuantity / tbsp.base_conversion_factor, unit: tbsp };
     if (floz) return { quantity: baseQuantity / floz.base_conversion_factor, unit: floz };
+    if (cup) return { quantity: baseQuantity / cup.base_conversion_factor, unit: cup };
   } else if (preferredSystem === 'Metric' && isVolumeCategory) {
     // Metric Volume: mL -> L
     // Use larger unit when appropriate (skipping cL and dL as they're not commonly used)
