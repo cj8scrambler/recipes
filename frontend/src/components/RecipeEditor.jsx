@@ -79,6 +79,15 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
   function updateIngredient(index, field, value) {
     const updated = [...ingredients]
     updated[index] = { ...updated[index], [field]: value }
+    
+    // If ingredient_id is being changed, auto-select its default unit
+    if (field === 'ingredient_id' && value) {
+      const selectedIngredient = allIngredients.find(ing => ing.ingredient_id === parseInt(value))
+      if (selectedIngredient && selectedIngredient.default_unit_id) {
+        updated[index].unit_id = selectedIngredient.default_unit_id
+      }
+    }
+    
     setIngredients(updated)
   }
 
