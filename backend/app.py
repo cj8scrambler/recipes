@@ -301,16 +301,89 @@ def recipe(recipe_id):
     else:
         return jsonify({"error": "Method not allowed."}), 405
 
-@app.route("/api/ingredients", methods=['GET'])
-def get_ingredients():
-    """Endpoint for the Ingredient List. Queries MySQL for all ingredients."""
+@app.route("/api/ingredients", methods=['GET', 'POST'])
+def ingredients_list():
+    """Endpoint for listing ingredients (GET) or creating new ingredients (POST)."""
+    if request.method == 'GET':
+        try:
+            # Use .all() to get a list of ORM objects
+            ingredients = db.session.execute(db.select(Ingredient)).scalars().all()
+            return jsonify([serialize_ingredient(i) for i in ingredients])
+        except Exception as e:
+            print(f"Database error in get_ingredients: {e}")
+            return jsonify({"error": "Failed to fetch ingredients from database."}), 500
+    elif request.method == 'POST':
+        # Create new ingredient
+        try:
+            data = request.get_json()
+            
+            # Create ingredient with provided fields
+            new_ingredient = Ingredient(
+                name=data.get('name'),
+                price=data.get('price'),
+                price_unit_id=data.get('price_unit_id'),
+                default_unit_id=data.get('default_unit_id'),
+                contains_peanuts=data.get('contains_peanuts', False),
+                gluten_status=data.get('gluten_status', 'Gluten-Free')
+            )
+            
+            db.session.add(new_ingredient)
+            db.session.commit()
+            return jsonify(serialize_ingredient(new_ingredient)), 201
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error creating ingredient: {e}")
+            return jsonify({"error": "Failed to create ingredient"}), 500
+
+@app.route('/api/ingredients/<int:ingredient_id>', methods=['GET', 'PUT', 'DELETE'])
+def ingredient(ingredient_id):
+    """Endpoint for getting, updating, or deleting a specific ingredient."""
     try:
-        # Use .all() to get a list of ORM objects
-        ingredients = db.session.execute(db.select(Ingredient)).scalars().all()
-        return jsonify([serialize_ingredient(i) for i in ingredients])
+        ingredient = db.session.execute(db.select(Ingredient).filter_by(ingredient_id=ingredient_id)).scalar_one_or_none()
+        if ingredient is None:
+            return jsonify({"error": "Ingredient not found."}), 404
     except Exception as e:
-        print(f"Database error in get_ingredients: {e}")
-        return jsonify({"error": "Failed to fetch ingredients from database."}), 500
+        return jsonify({"error": "Failed to fetch ingredient from database."}), 500
+    
+    if request.method == 'GET':
+        return jsonify(serialize_ingredient(ingredient))
+    elif request.method == 'PUT':
+        # Update ingredient
+        try:
+            data = request.get_json()
+            
+            # Update fields
+            if 'name' in data:
+                ingredient.name = data['name']
+            if 'price' in data:
+                ingredient.price = data['price']
+            if 'price_unit_id' in data:
+                ingredient.price_unit_id = data['price_unit_id']
+            if 'default_unit_id' in data:
+                ingredient.default_unit_id = data['default_unit_id']
+            if 'contains_peanuts' in data:
+                ingredient.contains_peanuts = data['contains_peanuts']
+            if 'gluten_status' in data:
+                ingredient.gluten_status = data['gluten_status']
+            
+            db.session.commit()
+            return jsonify(serialize_ingredient(ingredient))
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error updating ingredient: {e}")
+            return jsonify({"error": "Failed to update ingredient"}), 500
+    elif request.method == 'DELETE':
+        # Delete ingredient
+        try:
+            db.session.delete(ingredient)
+            db.session.commit()
+            return jsonify({"message": "Ingredient deleted successfully"}), 200
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error deleting ingredient: {e}")
+            return jsonify({"error": "Failed to delete ingredient"}), 500
+    else:
+        return jsonify({"error": "Method not allowed."}), 405
 
 @app.route("/api/units", methods=['GET'])
 def get_units():
