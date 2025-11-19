@@ -161,16 +161,57 @@ def read_root():
     """Simple health check endpoint."""
     return jsonify({"message": "Recipe API is running (Flask/SQLAlchemy). Connects to MySQL."})
 
-@app.route("/api/recipes", methods=['GET'])
-def get_recipes():
-    """Endpoint for the public Recipe Browser. Queries MySQL for all recipes."""
-    try:
-        # Use .all() to get a list of ORM objects
-        recipes = db.session.execute(db.select(Recipe)).scalars().all()
-        return jsonify([serialize_recipe(r) for r in recipes])
-    except Exception as e:
-        print(f"Database error in get_recipes: {e}")
-        return jsonify({"error": "Failed to fetch recipes from database."}), 500
+@app.route("/api/recipes", methods=['GET', 'POST'])
+def recipes_list():
+    """Endpoint for listing recipes (GET) or creating new recipes (POST)."""
+    if request.method == 'GET':
+        try:
+            # Use .all() to get a list of ORM objects
+            recipes = db.session.execute(db.select(Recipe)).scalars().all()
+            return jsonify([serialize_recipe(r) for r in recipes])
+        except Exception as e:
+            print(f"Database error in get_recipes: {e}")
+            return jsonify({"error": "Failed to fetch recipes from database."}), 500
+    elif request.method == 'POST':
+        # Create new recipe
+        try:
+            data = request.get_json()
+            
+            # Create recipe with basic fields
+            new_recipe = Recipe(
+                name=data.get('name'),
+                description=data.get('description'),
+                instructions=data.get('instructions'),
+                base_servings=data.get('base_servings', 4),
+                parent_recipe_id=data.get('parent_recipe_id'),
+                variant_notes=data.get('variant_notes')
+            )
+            
+            db.session.add(new_recipe)
+            db.session.flush()  # Get the recipe_id
+            
+            # Add ingredients if provided
+            ingredients_data = data.get('ingredients', [])
+            for ing_data in ingredients_data:
+                ingredient_id = ing_data.get('ingredient_id')
+                if not ingredient_id:
+                    continue
+                    
+                new_recipe_ingredient = RecipeIngredient(
+                    recipe_id=new_recipe.recipe_id,
+                    ingredient_id=ingredient_id,
+                    quantity=ing_data.get('quantity'),
+                    unit_id=ing_data.get('unit_id'),
+                    notes=ing_data.get('notes')
+                )
+                db.session.add(new_recipe_ingredient)
+            
+            db.session.commit()
+            return jsonify(serialize_recipe(new_recipe)), 201
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error creating recipe: {e}")
+            return jsonify({"error": "Failed to create recipe"}), 500
 
 @app.route('/api/recipes/<int:recipe_id>', methods=['GET', 'PUT'])
 def recipe(recipe_id):
