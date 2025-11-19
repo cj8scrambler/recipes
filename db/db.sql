@@ -1,11 +1,12 @@
 -- 1. Units Table (Corrected)
 CREATE TABLE Units (
     unit_id INT PRIMARY KEY AUTO_INCREMENT,
-    name VARCHAR(50) NOT NULL UNIQUE,
-    abbreviation VARCHAR(10) NOT NULL UNIQUE,
+    name VARCHAR(50) NOT NULL,
+    abbreviation VARCHAR(10) NOT NULL,
     category ENUM('Weight', 'Volume', 'Dry Volume', 'Liquid Volume', 'Temperature', 'Item') NOT NULL,
     `system` ENUM('Metric', 'US Customary', 'Other') NOT NULL,
-    base_conversion_factor DECIMAL(10, 5)
+    base_conversion_factor DECIMAL(10, 5),
+    UNIQUE KEY unique_unit (name, category, `system`)
 );
 
 -- 2. Ingredients Table
