@@ -169,6 +169,7 @@ def read_root():
     return jsonify({"message": "Recipe API is running (Flask/SQLAlchemy). Connects to MySQL."})
 
 @app.route("/api/recipes", methods=['GET', 'POST'])
+@login_required
 def recipes_list():
     """Endpoint for listing recipes (GET) or creating new recipes (POST)."""
     if request.method == 'GET':
@@ -221,6 +222,7 @@ def recipes_list():
             return jsonify({"error": "Failed to create recipe"}), 500
 
 @app.route('/api/recipes/<int:recipe_id>', methods=['GET', 'PUT', 'DELETE'])
+@login_required
 def recipe(recipe_id):
     try:
         recipe = db.session.execute(db.select(Recipe).filter_by(recipe_id=recipe_id)).scalar_one_or_none()
@@ -315,6 +317,7 @@ def recipe(recipe_id):
         return jsonify({"error": "Method not allowed."}), 405
 
 @app.route("/api/ingredients", methods=['GET', 'POST'])
+@login_required
 def ingredients_list():
     """Endpoint for listing ingredients (GET) or creating new ingredients (POST)."""
     if request.method == 'GET':
@@ -349,6 +352,7 @@ def ingredients_list():
             return jsonify({"error": "Failed to create ingredient"}), 500
 
 @app.route('/api/ingredients/<int:ingredient_id>', methods=['GET', 'PUT', 'DELETE'])
+@login_required
 def ingredient(ingredient_id):
     """Endpoint for getting, updating, or deleting a specific ingredient."""
     try:
@@ -408,6 +412,7 @@ def ingredient(ingredient_id):
         return jsonify({"error": "Method not allowed."}), 405
 
 @app.route("/api/units", methods=['GET'])
+@login_required
 def get_units():
     """Endpoint to get all units."""
     try:
@@ -420,7 +425,7 @@ def get_units():
 
 # --- 5. Authentication Module ---
 # Import and register the auth blueprint for session-based authentication
-from auth import auth_bp, init_auth
+from auth import auth_bp, init_auth, login_required
 
 # Initialize auth module with the database instance
 init_auth(db)
