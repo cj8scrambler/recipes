@@ -1,0 +1,236 @@
+# GitLab CI/CD Pipeline for Recipes Application
+#
+# This pipeline:
+# - Runs tests on every push
+# - Automatically deploys to development on develop branch
+# - Manually deploys to production on main branch with release tags
+#
+# Setup Instructions:
+# 1. Copy this file to .gitlab-ci.yml in your repository root
+# 2. Add these CI/CD variables in GitLab project settings:
+#    - DEPLOY_SSH_KEY: Private SSH key for deployment
+#    - PROD_HOST: Production server hostname
+#    - PROD_USER: Production deployment user
+#    - PROD_PATH: Production installation path
+#    - DEV_HOST: Development server hostname
+#    - DEV_USER: Development deployment user
+#    - DEV_PATH: Development installation path
+
+stages:
+  - test
+  - build
+  - deploy
+
+variables:
+  MYSQL_ROOT_PASSWORD: testpassword
+  MYSQL_DATABASE: recipes_test
+  DATABASE_URL: mysql+pymysql://root:testpassword@mysql:3306/recipes_test
+
+# Test Backend
+test:backend:
+  stage: test
+  image: python:3.12
+  services:
+    - mysql:8.0
+  variables:
+    MYSQL_ROOT_PASSWORD: testpassword
+    MYSQL_DATABASE: recipes_test
+  before_script:
+    - cd backend
+    - pip install -r requirements.txt
+    - apt-get update && apt-get install -y default-mysql-client
+    - mysql -h mysql -u root -p$MYSQL_ROOT_PASSWORD recipes_test < ../db/db.sql
+  script:
+    - python manage_migrations.py init
+    - python -c "from app import app; print('✓ Backend import successful')"
+    # Add your test command here:
+    # - python -m pytest tests/
+  only:
+    - branches
+    - tags
+
+# Test Frontend
+test:frontend:
+  stage: test
+  image: node:20
+  before_script:
+    - cd frontend
+    - npm ci
+  script:
+    - npm run build
+    # Add your test command here:
+    # - npm test
+  cache:
+    paths:
+      - frontend/node_modules/
+  only:
+    - branches
+    - tags
+
+# Build Frontend (for production)
+build:frontend:
+  stage: build
+  image: node:20
+  before_script:
+    - cd frontend
+    - npm ci
+  script:
+    - npm run build
+  artifacts:
+    paths:
+      - frontend/dist/
+    expire_in: 1 day
+  cache:
+    paths:
+      - frontend/node_modules/
+  only:
+    - main
+    - tags
+
+# Deploy to Development (automatic on develop branch)
+deploy:development:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client
+    - mkdir -p ~/.ssh
+    - echo "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+    - chmod 600 ~/.ssh/deploy_key
+    - ssh-keyscan -H $DEV_HOST >> ~/.ssh/known_hosts
+  script:
+    - |
+      ssh -i ~/.ssh/deploy_key $DEV_USER@$DEV_HOST << 'EOF'
+        set -e
+        cd $DEV_PATH
+        
+        echo "Deploying to development..."
+        git pull origin develop
+        
+        # Backend
+        cd backend
+        source .venv/bin/activate
+        pip install -q -r requirements.txt
+        python manage_migrations.py upgrade
+        sudo systemctl restart recipes-backend || echo "Service restart may require manual action"
+        
+        # Frontend
+        cd ../frontend
+        npm ci --silent
+        npm run build
+        
+        echo "✓ Development deployment successful"
+      EOF
+  environment:
+    name: development
+    url: https://dev.recipes.example.com
+  only:
+    - develop
+
+# Deploy to Production (manual on tags)
+deploy:production:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client
+    - mkdir -p ~/.ssh
+    - echo "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+    - chmod 600 ~/.ssh/deploy_key
+    - ssh-keyscan -H $PROD_HOST >> ~/.ssh/known_hosts
+  script:
+    - export VERSION=$CI_COMMIT_TAG
+    - |
+      ssh -i ~/.ssh/deploy_key $PROD_USER@$PROD_HOST << EOF
+        set -e
+        cd $PROD_PATH
+        
+        # Store current version for rollback
+        CURRENT_VERSION=\$(git describe --tags --always 2>/dev/null || echo "unknown")
+        echo "Current version: \$CURRENT_VERSION"
+        echo "Deploying version: $VERSION"
+        
+        # Fetch and checkout new version
+        git fetch --all --tags
+        git checkout $VERSION
+        
+        # Backend deployment
+        cd backend
+        source .venv/bin/activate
+        pip install -q -r requirements.txt
+        
+        # Apply migrations
+        python manage_migrations.py upgrade
+        
+        # Restart backend
+        sudo systemctl restart recipes-backend
+        
+        # Check if service started successfully
+        sleep 2
+        if ! sudo systemctl is-active --quiet recipes-backend; then
+          echo "ERROR: Backend service failed to start"
+          echo "Rolling back to \$CURRENT_VERSION"
+          git checkout \$CURRENT_VERSION
+          sudo systemctl restart recipes-backend
+          exit 1
+        fi
+        
+        # Frontend deployment
+        cd ../frontend
+        npm ci --silent
+        npm run build
+        
+        echo "✓ Production deployment successful: $VERSION"
+      EOF
+  environment:
+    name: production
+    url: https://recipes.example.com
+  when: manual
+  only:
+    - tags
+
+# Rollback Production (manual trigger)
+rollback:production:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client
+    - mkdir -p ~/.ssh
+    - echo "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+    - chmod 600 ~/.ssh/deploy_key
+    - ssh-keyscan -H $PROD_HOST >> ~/.ssh/known_hosts
+  script:
+    - |
+      if [ -z "$ROLLBACK_VERSION" ]; then
+        echo "ERROR: ROLLBACK_VERSION variable must be set"
+        exit 1
+      fi
+    - |
+      ssh -i ~/.ssh/deploy_key $PROD_USER@$PROD_HOST << EOF
+        set -e
+        cd $PROD_PATH
+        
+        echo "Rolling back to version: $ROLLBACK_VERSION"
+        git checkout $ROLLBACK_VERSION
+        
+        # Backend
+        cd backend
+        source .venv/bin/activate
+        pip install -q -r requirements.txt
+        
+        # Rollback migrations if needed
+        python manage_migrations.py downgrade --target \${ROLLBACK_VERSION##v}
+        
+        sudo systemctl restart recipes-backend
+        
+        # Frontend
+        cd ../frontend
+        npm ci --silent
+        npm run build
+        
+        echo "✓ Rollback successful to $ROLLBACK_VERSION"
+      EOF
+  environment:
+    name: production
+    url: https://recipes.example.com
+  when: manual
+  only:
+    - tags
