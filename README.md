@@ -42,3 +42,15 @@ I run it in a docker container:
 docker/run.sh "cd frontend && npm run dev"
 ```
 Open a local browser at: http://localhost:5173
+
+## Production Deployment
+
+For production deployment to self-hosted Proxmox instances with database migration support, see the comprehensive [DEPLOYMENT.md](DEPLOYMENT.md) guide.
+
+Key features:
+- Production-ready WSGI server (Gunicorn) configuration
+- Database versioning and migration system with rollback support
+- Systemd service files for automatic startup
+- Deployment automation scripts
+- Separate production and development environment strategies
+- Nginx reverse proxy configuration examples
