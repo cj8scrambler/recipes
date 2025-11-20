@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { api } from '../api'
 import { formatRecipeUnits } from '../utils'
+import { getDisplayUnit, toBaseUnit } from '../unitConversions'
+import { getPreferredUnitSystem, setPreferredUnitSystem } from '../userPreferences'
 import RecipeList from './RecipeList'
 
 export default function UserView() {
@@ -10,9 +12,12 @@ export default function UserView() {
   const [versions, setVersions] = useState([])
   const [selectedVersion, setSelectedVersion] = useState(null)
   const [error, setError] = useState(null)
+  const [units, setUnits] = useState([])
+  const [preferredSystem, setPreferredSystem] = useState(getPreferredUnitSystem())
 
   useEffect(() => {
     loadRecipes()
+    loadUnits()
   }, [])
 
   async function loadRecipes() {
@@ -22,6 +27,20 @@ export default function UserView() {
     } catch (err) {
       setError(err.message)
     }
+  }
+
+  async function loadUnits() {
+    try {
+      const us = await api.listUnits()
+      setUnits(us || [])
+    } catch (err) {
+      console.error('Failed to load units:', err)
+    }
+  }
+
+  function handleSystemChange(system) {
+    setPreferredSystem(system)
+    setPreferredUnitSystem(system)
   }
 
   async function selectRecipe(recipe) {
@@ -45,12 +64,44 @@ export default function UserView() {
   }
 
   function scaledIngredients() {
-    if (!selected) return []
+    if (!selected || !units.length) return []
     const factor = scale / (selected.base_servings || 1)
-    return (selected.ingredients || []).map(i => ({
-      ...i,
-      quantity: i.quantity ? (i.quantity * factor) : i.quantity
-    }))
+    
+    return (selected.ingredients || []).map(i => {
+      const originalUnit = units.find(u => u.unit_id === i.unit_id)
+      if (!originalUnit) {
+        return { ...i, quantity: i.quantity ? (i.quantity * factor) : i.quantity }
+      }
+      
+      // Scale the quantity
+      const scaledQuantity = i.quantity * factor
+      
+      // For Item and Temperature categories, no conversion needed
+      if (originalUnit.category === 'Item' || originalUnit.category === 'Temperature') {
+        return {
+          ...i,
+          quantity: scaledQuantity,
+          displayUnit: originalUnit
+        }
+      }
+      
+      // Convert to base unit
+      const baseQuantity = toBaseUnit(scaledQuantity, originalUnit)
+      
+      // Get the appropriate display unit based on user preference
+      const { quantity: displayQuantity, unit: displayUnit } = getDisplayUnit(
+        baseQuantity,
+        originalUnit.category,
+        units,
+        preferredSystem
+      )
+      
+      return {
+        ...i,
+        quantity: displayQuantity,
+        displayUnit: displayUnit || originalUnit
+      }
+    })
   }
 
   async function switchVersion(version) {
@@ -86,6 +137,15 @@ export default function UserView() {
                   <input type="number" value={scale} min="0.25" step="0.25" onChange={(e) => setScale(Number(e.target.value))} />
                 </label>
               </div>
+              <div className="form-group">
+                <label>
+                  Unit System
+                  <select value={preferredSystem} onChange={(e) => handleSystemChange(e.target.value)}>
+                    <option value="US Customary">US Customary</option>
+                    <option value="Metric">Metric</option>
+                  </select>
+                </label>
+              </div>
               {(versions.length > 0) && (
                 <div className="form-group">
                   <label>
@@ -109,8 +169,10 @@ export default function UserView() {
                 {scaledIngredients().map((ing, idx) => (
                   <li key={idx}>
                     <span>
-                      {ing.quantity ? <strong>{formatRecipeUnits(ing.quantity, 2)} {ing.unit_abv || ''}</strong> : ''} {ing.name}
-                      {ing.note ? <span className="text-muted"> — {ing.note}</span> : ''}
+                      {ing.quantity && ing.displayUnit ? (
+                        <strong>{formatRecipeUnits(ing.quantity, 2)} {ing.displayUnit.abbreviation}</strong>
+                      ) : ''} {ing.name}
+                      {ing.notes ? <span className="text-muted"> — {ing.notes}</span> : ''}
                     </span>
                   </li>
                 ))}

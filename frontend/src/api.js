@@ -27,6 +27,9 @@ export const api = {
   updateIngredient: (id, payload) => request(`/ingredients/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   deleteIngredient: (id) => request(`/ingredients/${id}`, { method: 'DELETE' }),
 
+  // Units
+  listUnits: () => request('/units'),
+
   // Versions (if your backend exposes versions; adjust if different)
   listRecipeVersions: (id) => request(`/recipes/${id}/versions`)
 }

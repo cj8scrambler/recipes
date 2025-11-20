@@ -1,31 +1,55 @@
 import React, { useState, useEffect } from 'react'
+import { api } from '../api'
 
 export default function IngredientEditor({ ingredient = null, onCancel, onSave }) {
   const [name, setName] = useState('')
-  const [unit, setUnit] = useState('')
+  const [defaultUnitId, setDefaultUnitId] = useState('')
   const [notes, setNotes] = useState('')
+  const [units, setUnits] = useState([])
+
+  useEffect(() => {
+    loadUnits()
+  }, [])
 
   useEffect(() => {
     if (ingredient) {
       setName(ingredient.name || '')
-      setUnit(ingredient.unit || '')
+      setDefaultUnitId(ingredient.default_unit_id || '')
       setNotes(ingredient.notes || '')
     } else {
       setName('')
-      setUnit('')
+      setDefaultUnitId('')
       setNotes('')
     }
   }, [ingredient])
+
+  async function loadUnits() {
+    try {
+      const us = await api.listUnits()
+      setUnits(us || [])
+    } catch (err) {
+      console.error('Failed to load units:', err)
+    }
+  }
 
   function submit(e) {
     e.preventDefault()
     onSave({
       ...ingredient,
       name,
-      unit,
+      default_unit_id: defaultUnitId ? parseInt(defaultUnitId) : null,
       notes
     })
   }
+
+  // Group units by category for organized display
+  const groupedUnits = units.reduce((acc, unit) => {
+    if (!acc[unit.category]) {
+      acc[unit.category] = []
+    }
+    acc[unit.category].push(unit)
+    return acc
+  }, {})
 
   return (
     <form className="editor" onSubmit={submit}>
@@ -38,8 +62,19 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
       </div>
       <div className="form-group">
         <label>
-          Unit of Measurement
-          <input value={unit} onChange={(e) => setUnit(e.target.value)} placeholder="e.g., cups, grams, tsp" />
+          Unit of Measurement (Default)
+          <select value={defaultUnitId} onChange={(e) => setDefaultUnitId(e.target.value)}>
+            <option value="">Select unit</option>
+            {Object.keys(groupedUnits).map(category => (
+              <optgroup key={category} label={category}>
+                {groupedUnits[category].map(u => (
+                  <option key={u.unit_id} value={u.unit_id}>
+                    {u.name} ({u.abbreviation})
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
         </label>
       </div>
       <div className="form-group">

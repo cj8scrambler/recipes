@@ -34,15 +34,16 @@ CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173", "http://12
 class Unit(db.Model):
     __tablename__ = 'Units'
     unit_id = Column(Integer, primary_key=True)
-    name = Column(String(50), unique=True, nullable=False)
-    abbreviation = Column(String(10), unique=True, nullable=False)
-    category = Column(Enum('Weight', 'Volume', 'Temperature', 'Item'), nullable=False)
+    name = Column(String(50), nullable=False)
+    abbreviation = Column(String(10), nullable=False)
+    category = Column(Enum('Weight', 'Volume', 'Dry Volume', 'Liquid Volume', 'Temperature', 'Item'), nullable=False)
     # The 'system' column name is quoted because it is a reserved word in MySQL
     system = Column('system', Enum('Metric', 'US Customary', 'Other'), nullable=False)
     base_conversion_factor = Column(Float(10, 5))
 
     # Relationships
-    ingredient_prices = relationship("Ingredient", back_populates="price_unit")
+    ingredient_prices = relationship("Ingredient", foreign_keys="Ingredient.price_unit_id", back_populates="price_unit")
+    ingredient_defaults = relationship("Ingredient", foreign_keys="Ingredient.default_unit_id")
     recipe_ingredients = relationship("RecipeIngredient", back_populates="unit")
 
 class Ingredient(db.Model):
@@ -51,11 +52,13 @@ class Ingredient(db.Model):
     name = Column(String(255), unique=True, nullable=False)
     price = Column(Float(10, 2))
     price_unit_id = Column(Integer, ForeignKey('Units.unit_id'))
+    default_unit_id = Column(Integer, ForeignKey('Units.unit_id'))
     contains_peanuts = Column(Boolean, default=False, nullable=False)
     gluten_status = Column(Enum('Contains', 'Gluten-Free', 'GF_Available'), default='Gluten-Free', nullable=False)
 
     # Relationships
-    price_unit = relationship("Unit", back_populates="ingredient_prices")
+    price_unit = relationship("Unit", foreign_keys=[price_unit_id], back_populates="ingredient_prices")
+    default_unit = relationship("Unit", foreign_keys=[default_unit_id])
     recipe_items = relationship("RecipeIngredient", back_populates="ingredient")
 
 class Recipe(db.Model):
@@ -139,7 +142,19 @@ def serialize_ingredient(ingredient):
         'name': ingredient.name,
         'price': ingredient.price,
         'price_unit_id': ingredient.price_unit_id,
+        'default_unit_id': ingredient.default_unit_id,
         'gluten_status': ingredient.gluten_status
+    }
+
+def serialize_unit(unit):
+    """Converts a Unit ORM object to a dictionary."""
+    return {
+        'unit_id': unit.unit_id,
+        'name': unit.name,
+        'abbreviation': unit.abbreviation,
+        'category': unit.category,
+        'system': unit.system,
+        'base_conversion_factor': unit.base_conversion_factor
     }
 
 
@@ -150,16 +165,57 @@ def read_root():
     """Simple health check endpoint."""
     return jsonify({"message": "Recipe API is running (Flask/SQLAlchemy). Connects to MySQL."})
 
-@app.route("/api/recipes", methods=['GET'])
-def get_recipes():
-    """Endpoint for the public Recipe Browser. Queries MySQL for all recipes."""
-    try:
-        # Use .all() to get a list of ORM objects
-        recipes = db.session.execute(db.select(Recipe)).scalars().all()
-        return jsonify([serialize_recipe(r) for r in recipes])
-    except Exception as e:
-        print(f"Database error in get_recipes: {e}")
-        return jsonify({"error": "Failed to fetch recipes from database."}), 500
+@app.route("/api/recipes", methods=['GET', 'POST'])
+def recipes_list():
+    """Endpoint for listing recipes (GET) or creating new recipes (POST)."""
+    if request.method == 'GET':
+        try:
+            # Use .all() to get a list of ORM objects
+            recipes = db.session.execute(db.select(Recipe)).scalars().all()
+            return jsonify([serialize_recipe(r) for r in recipes])
+        except Exception as e:
+            print(f"Database error in get_recipes: {e}")
+            return jsonify({"error": "Failed to fetch recipes from database."}), 500
+    elif request.method == 'POST':
+        # Create new recipe
+        try:
+            data = request.get_json()
+            
+            # Create recipe with basic fields
+            new_recipe = Recipe(
+                name=data.get('name'),
+                description=data.get('description'),
+                instructions=data.get('instructions'),
+                base_servings=data.get('base_servings', 4),
+                parent_recipe_id=data.get('parent_recipe_id'),
+                variant_notes=data.get('variant_notes')
+            )
+            
+            db.session.add(new_recipe)
+            db.session.flush()  # Get the recipe_id
+            
+            # Add ingredients if provided
+            ingredients_data = data.get('ingredients', [])
+            for ing_data in ingredients_data:
+                ingredient_id = ing_data.get('ingredient_id')
+                if not ingredient_id:
+                    continue
+                    
+                new_recipe_ingredient = RecipeIngredient(
+                    recipe_id=new_recipe.recipe_id,
+                    ingredient_id=ingredient_id,
+                    quantity=ing_data.get('quantity'),
+                    unit_id=ing_data.get('unit_id'),
+                    notes=ing_data.get('notes')
+                )
+                db.session.add(new_recipe_ingredient)
+            
+            db.session.commit()
+            return jsonify(serialize_recipe(new_recipe)), 201
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error creating recipe: {e}")
+            return jsonify({"error": "Failed to create recipe"}), 500
 
 @app.route('/api/recipes/<int:recipe_id>', methods=['GET', 'PUT'])
 def recipe(recipe_id):
@@ -245,16 +301,99 @@ def recipe(recipe_id):
     else:
         return jsonify({"error": "Method not allowed."}), 405
 
-@app.route("/api/ingredients", methods=['GET'])
-def get_ingredients():
-    """Endpoint for the Ingredient List. Queries MySQL for all ingredients."""
+@app.route("/api/ingredients", methods=['GET', 'POST'])
+def ingredients_list():
+    """Endpoint for listing ingredients (GET) or creating new ingredients (POST)."""
+    if request.method == 'GET':
+        try:
+            # Use .all() to get a list of ORM objects
+            ingredients = db.session.execute(db.select(Ingredient)).scalars().all()
+            return jsonify([serialize_ingredient(i) for i in ingredients])
+        except Exception as e:
+            print(f"Database error in get_ingredients: {e}")
+            return jsonify({"error": "Failed to fetch ingredients from database."}), 500
+    elif request.method == 'POST':
+        # Create new ingredient
+        try:
+            data = request.get_json()
+            
+            # Create ingredient with provided fields
+            new_ingredient = Ingredient(
+                name=data.get('name'),
+                price=data.get('price'),
+                price_unit_id=data.get('price_unit_id'),
+                default_unit_id=data.get('default_unit_id'),
+                contains_peanuts=data.get('contains_peanuts', False),
+                gluten_status=data.get('gluten_status', 'Gluten-Free')
+            )
+            
+            db.session.add(new_ingredient)
+            db.session.commit()
+            return jsonify(serialize_ingredient(new_ingredient)), 201
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error creating ingredient: {e}")
+            return jsonify({"error": "Failed to create ingredient"}), 500
+
+@app.route('/api/ingredients/<int:ingredient_id>', methods=['GET', 'PUT', 'DELETE'])
+def ingredient(ingredient_id):
+    """Endpoint for getting, updating, or deleting a specific ingredient."""
     try:
-        # Use .all() to get a list of ORM objects
-        ingredients = db.session.execute(db.select(Ingredient)).scalars().all()
-        return jsonify([serialize_ingredient(i) for i in ingredients])
+        ingredient = db.session.execute(db.select(Ingredient).filter_by(ingredient_id=ingredient_id)).scalar_one_or_none()
+        if ingredient is None:
+            return jsonify({"error": "Ingredient not found."}), 404
     except Exception as e:
-        print(f"Database error in get_ingredients: {e}")
-        return jsonify({"error": "Failed to fetch ingredients from database."}), 500
+        return jsonify({"error": "Failed to fetch ingredient from database."}), 500
+    
+    if request.method == 'GET':
+        return jsonify(serialize_ingredient(ingredient))
+    elif request.method == 'PUT':
+        # Update ingredient
+        try:
+            data = request.get_json()
+            
+            # Update fields
+            if 'name' in data:
+                ingredient.name = data['name']
+            if 'price' in data:
+                ingredient.price = data['price']
+            if 'price_unit_id' in data:
+                ingredient.price_unit_id = data['price_unit_id']
+            if 'default_unit_id' in data:
+                ingredient.default_unit_id = data['default_unit_id']
+            if 'contains_peanuts' in data:
+                ingredient.contains_peanuts = data['contains_peanuts']
+            if 'gluten_status' in data:
+                ingredient.gluten_status = data['gluten_status']
+            
+            db.session.commit()
+            return jsonify(serialize_ingredient(ingredient))
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error updating ingredient: {e}")
+            return jsonify({"error": "Failed to update ingredient"}), 500
+    elif request.method == 'DELETE':
+        # Delete ingredient
+        try:
+            db.session.delete(ingredient)
+            db.session.commit()
+            return jsonify({"message": "Ingredient deleted successfully"}), 200
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error deleting ingredient: {e}")
+            return jsonify({"error": "Failed to delete ingredient"}), 500
+    else:
+        return jsonify({"error": "Method not allowed."}), 405
+
+@app.route("/api/units", methods=['GET'])
+def get_units():
+    """Endpoint to get all units."""
+    try:
+        units = db.session.execute(db.select(Unit)).scalars().all()
+        return jsonify([serialize_unit(u) for u in units])
+    except Exception as e:
+        print(f"Database error in get_units: {e}")
+        return jsonify({"error": "Failed to fetch units from database."}), 500
 
 
 # --- 5. Running the Application ---
