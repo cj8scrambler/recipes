@@ -159,11 +159,13 @@ def login():
     }))
     
     # Set secure HttpOnly cookie
+    # In production with HTTPS, secure should be True. For development, it can be False.
+    is_production = os.getenv('FLASK_ENV') == 'production'
     response.set_cookie(
         'session_id',
         session_id,
         httponly=True,
-        secure=False,  # Set to True in production with HTTPS
+        secure=is_production,  # Enable in production with HTTPS
         samesite='Lax',
         max_age=7*24*60*60  # 7 days in seconds
     )
@@ -189,8 +191,9 @@ def logout():
             db.session.commit()
     
     # Clear cookie
+    is_production = os.getenv('FLASK_ENV') == 'production'
     response = make_response(jsonify({"message": "Logged out successfully"}))
-    response.set_cookie('session_id', '', expires=0, httponly=True, samesite='Lax')
+    response.set_cookie('session_id', '', expires=0, httponly=True, secure=is_production, samesite='Lax')
     
     return response
 
