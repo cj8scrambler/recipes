@@ -384,6 +384,15 @@ def ingredient(ingredient_id):
             return jsonify({"error": "Failed to update ingredient"}), 500
     elif request.method == 'DELETE':
         # Delete ingredient
+        # First check if ingredient is used in any recipes
+        if ingredient.recipe_items:
+            # Get the list of recipes that use this ingredient
+            recipe_names = [ri.recipe.name for ri in ingredient.recipe_items]
+            recipes_str = ", ".join(recipe_names)
+            return jsonify({
+                "error": f"Cannot delete ingredient '{ingredient.name}' because it is used in the following recipe(s): {recipes_str}. Please remove it from these recipes first."
+            }), 400
+        
         try:
             db.session.delete(ingredient)
             db.session.commit()
