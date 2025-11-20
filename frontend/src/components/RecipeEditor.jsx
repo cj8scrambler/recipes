@@ -21,10 +21,12 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
   const [ingredients, setIngredients] = useState([])
   const [units, setUnits] = useState([])
   const [allIngredients, setAllIngredients] = useState([])
+  const [ingredientGroups, setIngredientGroups] = useState([])
 
   useEffect(() => {
     loadUnits()
     loadIngredients()
+    loadIngredientGroups()
   }, [])
 
   useEffect(() => {
@@ -32,12 +34,13 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
       setName(recipe.name || '')
       setInstructions(recipe.instructions || '')
       setServings(recipe.base_servings || 1)
-      // Ingredients from backend already have ingredient_id, quantity (in base units), unit_id, notes
+      // Ingredients from backend already have ingredient_id, quantity (in base units), unit_id, notes, group_id
       setIngredients((recipe.ingredients || []).map(ing => ({
         ingredient_id: ing.ingredient_id || '',
         quantity: formatQuantityForInput(ing.quantity),
         unit_id: ing.unit_id || '',
-        notes: ing.notes || ''
+        notes: ing.notes || '',
+        group_id: ing.group_id || ''
       })))
     } else {
       setName('')
@@ -65,10 +68,19 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
     }
   }
 
+  async function loadIngredientGroups() {
+    try {
+      const groups = await api.adminListIngredientGroups()
+      setIngredientGroups(groups || [])
+    } catch (err) {
+      console.error('Failed to load ingredient groups:', err)
+    }
+  }
+
   function addIngredient() {
     setIngredients([
       ...ingredients,
-      { ingredient_id: '', quantity: '', unit_id: '', notes: '' }
+      { ingredient_id: '', quantity: '', unit_id: '', notes: '', group_id: '' }
     ])
   }
 
@@ -115,7 +127,8 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
           ingredient_id: parseInt(ing.ingredient_id),
           quantity: baseUnit ? baseQuantity : parseFloat(ing.quantity),
           unit_id: baseUnit ? baseUnit.unit_id : parseInt(ing.unit_id),
-          notes: ing.notes || null
+          notes: ing.notes || null,
+          group_id: ing.group_id ? parseInt(ing.group_id) : null
         }
       })
     
@@ -152,7 +165,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
           return (
             <div key={idx} style={{ 
               display: 'grid', 
-              gridTemplateColumns: '2fr 1fr 2fr 2fr auto', 
+              gridTemplateColumns: '2fr 1fr 2fr 2fr 1.5fr auto', 
               gap: '0.5em', 
               marginBottom: '0.5em',
               alignItems: 'start'
@@ -218,6 +231,17 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
                 onChange={(e) => updateIngredient(idx, 'notes', e.target.value)}
                 placeholder="Notes (optional)"
               />
+              <select 
+                value={ing.group_id || ''} 
+                onChange={(e) => updateIngredient(idx, 'group_id', e.target.value)}
+              >
+                <option value="">No group</option>
+                {ingredientGroups.map(g => (
+                  <option key={g.group_id} value={g.group_id}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
               <button 
                 type="button" 
                 className="small danger" 
