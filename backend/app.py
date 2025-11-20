@@ -30,6 +30,12 @@ CORS(app, resources={
     }
 })
 
+# --- Import Authentication Module ---
+# Import the auth module and initialize it with the database
+# This must be done after db is created but before routes are defined
+from auth import auth_bp, init_auth, login_required
+init_auth(db)
+
 
 # --- 2. Database Models (SQLAlchemy ORM) ---
 # These classes represent the tables in your MySQL database schema.
@@ -423,14 +429,8 @@ def get_units():
         return jsonify({"error": "Failed to fetch units from database."}), 500
 
 
-# --- 5. Authentication Module ---
-# Import and register the auth blueprint for session-based authentication
-from auth import auth_bp, init_auth, login_required
-
-# Initialize auth module with the database instance
-init_auth(db)
-
-# Register the auth blueprint
+# --- 5. Register Authentication Blueprint ---
+# The auth module was imported and initialized earlier
 app.register_blueprint(auth_bp)
 
 
