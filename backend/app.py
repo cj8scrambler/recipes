@@ -195,6 +195,15 @@ def serialize_recipe(recipe, include_cost=False, units_list=None):
 
 def serialize_ingredient(ingredient):
     """Converts an Ingredient ORM object to a dictionary."""
+    # Try to get prices, but handle case where Ingredient_Prices table doesn't exist yet
+    prices_list = []
+    try:
+        if hasattr(ingredient, 'prices'):
+            prices_list = [serialize_ingredient_price(p) for p in ingredient.prices]
+    except Exception:
+        # Table may not exist yet if migration hasn't been run
+        pass
+    
     return {
         'ingredient_id': ingredient.ingredient_id,
         'name': ingredient.name,
@@ -202,7 +211,7 @@ def serialize_ingredient(ingredient):
         'price_unit_id': ingredient.price_unit_id,
         'default_unit_id': ingredient.default_unit_id,
         'gluten_status': ingredient.gluten_status,
-        'prices': [serialize_ingredient_price(p) for p in ingredient.prices] if hasattr(ingredient, 'prices') else []
+        'prices': prices_list
     }
 
 def serialize_unit(unit):
@@ -281,11 +290,17 @@ def calculate_ingredient_cost(recipe_ingredient, units_dict):
     
     # Find a price for this ingredient that matches a compatible unit
     matching_price = None
-    for price in ingredient.prices:
-        price_unit = units_dict.get(price.unit_id)
-        if price_unit and can_convert_units(recipe_unit, price_unit):
-            matching_price = price
-            break
+    try:
+        # Access prices relationship safely in case table doesn't exist
+        if hasattr(ingredient, 'prices'):
+            for price in ingredient.prices:
+                price_unit = units_dict.get(price.unit_id)
+                if price_unit and can_convert_units(recipe_unit, price_unit):
+                    matching_price = price
+                    break
+    except Exception:
+        # Table may not exist yet if migration hasn't been run
+        pass
     
     if not matching_price:
         return None, False
@@ -629,7 +644,15 @@ def ingredient_prices(ingredient_id):
     
     if request.method == 'GET':
         # Return all prices for this ingredient
-        return jsonify([serialize_ingredient_price(p) for p in ingredient.prices])
+        try:
+            if hasattr(ingredient, 'prices'):
+                return jsonify([serialize_ingredient_price(p) for p in ingredient.prices])
+            else:
+                return jsonify([])
+        except Exception as e:
+            # Table may not exist yet if migration hasn't been run
+            print(f"Error accessing ingredient prices: {e}")
+            return jsonify([])
     elif request.method == 'POST':
         # Create new price for this ingredient
         try:
