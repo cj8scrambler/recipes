@@ -74,8 +74,8 @@ class Recipe(db.Model):
 
     # Relationships
     parent_recipe = relationship("Recipe", remote_side=[recipe_id], backref='variants')
-    ingredients = relationship("RecipeIngredient", back_populates="recipe")
-    tags = relationship("RecipeTag", back_populates="recipe")
+    ingredients = relationship("RecipeIngredient", back_populates="recipe", cascade="all, delete-orphan")
+    tags = relationship("RecipeTag", back_populates="recipe", cascade="all, delete-orphan")
 
 class RecipeIngredient(db.Model):
     __tablename__ = 'Recipe_Ingredients'
@@ -217,7 +217,7 @@ def recipes_list():
             print(f"Error creating recipe: {e}")
             return jsonify({"error": "Failed to create recipe"}), 500
 
-@app.route('/api/recipes/<int:recipe_id>', methods=['GET', 'PUT'])
+@app.route('/api/recipes/<int:recipe_id>', methods=['GET', 'PUT', 'DELETE'])
 def recipe(recipe_id):
     try:
         recipe = db.session.execute(db.select(Recipe).filter_by(recipe_id=recipe_id)).scalar_one_or_none()
@@ -298,6 +298,16 @@ def recipe(recipe_id):
             db.session.rollback()
             print(f"Database commit error: {e}")  # Log for debugging
             return jsonify({"error": "Database commit failure"}), 500
+    elif request.method == 'DELETE':
+        # Delete recipe
+        try:
+            db.session.delete(recipe)
+            db.session.commit()
+            return jsonify({"message": "Recipe deleted successfully"}), 200
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error deleting recipe: {e}")
+            return jsonify({"error": "Failed to delete recipe"}), 500
     else:
         return jsonify({"error": "Method not allowed."}), 405
 
@@ -374,6 +384,15 @@ def ingredient(ingredient_id):
             return jsonify({"error": "Failed to update ingredient"}), 500
     elif request.method == 'DELETE':
         # Delete ingredient
+        # First check if ingredient is used in any recipes
+        if ingredient.recipe_items:
+            # Get the list of recipes that use this ingredient
+            recipe_names = [ri.recipe.name for ri in ingredient.recipe_items]
+            recipes_str = ", ".join(recipe_names)
+            return jsonify({
+                "error": f"Cannot delete ingredient '{ingredient.name}' because it is used in the following recipe(s): {recipes_str}. Please remove it from these recipes first."
+            }), 400
+        
         try:
             db.session.delete(ingredient)
             db.session.commit()
