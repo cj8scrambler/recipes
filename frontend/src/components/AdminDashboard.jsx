@@ -17,7 +17,7 @@ export default function AdminDashboard() {
 
   async function loadAll() {
     try {
-      const [rs, is] = await Promise.all([api.listRecipes(), api.listIngredients()])
+      const [rs, is] = await Promise.all([api.adminListRecipes(), api.adminListIngredients()])
       setRecipes(rs || [])
       setIngredients(is || [])
     } catch (err) {
@@ -28,9 +28,9 @@ export default function AdminDashboard() {
   async function saveRecipe(payload) {
     try {
       if (payload.recipe_id) {
-        await api.updateRecipe(payload.recipe_id, payload)
+        await api.adminUpdateRecipe(payload.recipe_id, payload)
       } else {
-        await api.createRecipe(payload)
+        await api.adminCreateRecipe(payload)
       }
       setEditingRecipe(null)
       await loadAll()
@@ -42,7 +42,7 @@ export default function AdminDashboard() {
   async function removeRecipe(id) {
     if (!confirm('Delete this recipe? This action cannot be undone.')) return
     try {
-      await api.deleteRecipe(id)
+      await api.adminDeleteRecipe(id)
       await loadAll()
     } catch (err) {
       setError(err.message)
@@ -52,9 +52,9 @@ export default function AdminDashboard() {
   async function saveIngredient(payload) {
     try {
       if (payload.ingredient_id) {
-        await api.updateIngredient(payload.ingredient_id, payload)
+        await api.adminUpdateIngredient(payload.ingredient_id, payload)
       } else {
-        await api.createIngredient(payload)
+        await api.adminCreateIngredient(payload)
       }
       setEditingIngredient(null)
       await loadAll()
@@ -66,7 +66,7 @@ export default function AdminDashboard() {
   async function removeIngredient(id) {
     if (!confirm('Delete this ingredient? This action cannot be undone.')) return
     try {
-      await api.deleteIngredient(id)
+      await api.adminDeleteIngredient(id)
       await loadAll()
     } catch (err) {
       setError(err.message)

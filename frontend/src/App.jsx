@@ -1,9 +1,59 @@
-import React from 'react'
-import { Routes, Route, NavLink } from 'react-router-dom'
+import React, { useState, useEffect } from 'react'
+import { Routes, Route, NavLink, Navigate } from 'react-router-dom'
+import { api } from './api'
+import Login from './components/Login'
 import AdminDashboard from './components/AdminDashboard'
 import UserView from './components/UserView'
+import Settings from './components/Settings'
 
 export default function App() {
+  const [user, setUser] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    checkAuth()
+  }, [])
+
+  async function checkAuth() {
+    try {
+      const userData = await api.getMe()
+      setUser(userData)
+    } catch (err) {
+      // Not logged in
+      setUser(null)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleLogin(userData) {
+    setUser(userData)
+  }
+
+  async function handleLogout() {
+    try {
+      await api.logout()
+      setUser(null)
+    } catch (err) {
+      console.error('Logout failed:', err)
+    }
+  }
+
+  // Show loading state while checking authentication
+  if (loading) {
+    return (
+      <div className="app loading">
+        <p>Loading...</p>
+      </div>
+    )
+  }
+
+  // Show login screen if not authenticated
+  if (!user) {
+    return <Login onLogin={handleLogin} />
+  }
+
+  // Authenticated - show main app
   return (
     <div className="app">
       <header>
@@ -11,14 +61,24 @@ export default function App() {
           <h1>Recipes</h1>
           <nav>
             <NavLink to="/" end>Browse Recipes</NavLink>
-            <NavLink to="/admin">Admin Dashboard</NavLink>
+            {user.role === 'admin' && (
+              <NavLink to="/admin">Admin Dashboard</NavLink>
+            )}
+            <NavLink to="/settings">Settings</NavLink>
+            <button onClick={handleLogout} className="logout-btn">Logout</button>
           </nav>
         </div>
       </header>
       <main>
         <Routes>
           <Route path="/" element={<UserView />} />
-          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/settings" element={<Settings user={user} />} />
+          {user.role === 'admin' ? (
+            <Route path="/admin" element={<AdminDashboard />} />
+          ) : (
+            <Route path="/admin" element={<Navigate to="/" replace />} />
+          )}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
     </div>
