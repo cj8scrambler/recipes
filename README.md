@@ -45,12 +45,17 @@ Open a local browser at: http://localhost:5173
 
 ## Production Deployment
 
-For production deployment to self-hosted Proxmox instances with database migration support, see the comprehensive [DEPLOYMENT.md](DEPLOYMENT.md) guide.
+For production deployment to self-hosted Proxmox instances with database migration support:
+
+- **Quick Start**: [DEPLOYMENT_QUICKSTART.md](DEPLOYMENT_QUICKSTART.md) - Get up and running in 20-30 minutes
+- **Complete Guide**: [DEPLOYMENT.md](DEPLOYMENT.md) - Comprehensive deployment documentation
 
 Key features:
 - Production-ready WSGI server (Gunicorn) configuration
 - Database versioning and migration system with rollback support
 - Systemd service files for automatic startup
 - Deployment automation scripts
+- CI/CD pipeline examples (GitHub Actions, GitLab CI)
+- Automated backup and maintenance tools
 - Separate production and development environment strategies
 - Nginx reverse proxy configuration examples
