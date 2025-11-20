@@ -51,6 +51,12 @@ export const api = {
   // Versions (if your backend exposes versions; adjust if different)
   listRecipeVersions: (id) => request(`/recipes/${id}/versions`),
 
+  // Admin - Ingredient Groups
+  adminListIngredientGroups: () => request('/admin/ingredient-groups'),
+  adminCreateIngredientGroup: (payload) => request('/admin/ingredient-groups', { method: 'POST', body: JSON.stringify(payload) }),
+  adminUpdateIngredientGroup: (id, payload) => request(`/admin/ingredient-groups/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  adminDeleteIngredientGroup: (id) => request(`/admin/ingredient-groups/${id}`, { method: 'DELETE' }),
+
   // Admin - Users
   adminListUsers: () => request('/admin/users'),
   adminCreateUser: (payload) => request('/admin/users', { method: 'POST', body: JSON.stringify(payload) }),
