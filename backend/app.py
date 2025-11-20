@@ -86,15 +86,6 @@ class Recipe(db.Model):
     ingredients = relationship("RecipeIngredient", back_populates="recipe", cascade="all, delete-orphan")
     tags = relationship("RecipeTag", back_populates="recipe", cascade="all, delete-orphan")
 
-class IngredientGroup(db.Model):
-    __tablename__ = 'Ingredient_Groups'
-    group_id = Column(Integer, primary_key=True)
-    name = Column(String(100), unique=True, nullable=False)
-    description = Column(db.Text)
-
-    # Relationships
-    recipe_ingredients = relationship("RecipeIngredient", back_populates="group")
-
 class RecipeIngredient(db.Model):
     __tablename__ = 'Recipe_Ingredients'
     # Composite primary key
@@ -104,13 +95,11 @@ class RecipeIngredient(db.Model):
     quantity = Column(Float(10, 2), nullable=False)
     unit_id = Column(Integer, ForeignKey('Units.unit_id'), nullable=False)
     notes = Column(String(255))
-    group_id = Column(Integer, ForeignKey('Ingredient_Groups.group_id', ondelete='SET NULL'))
 
     # Relationships
     recipe = relationship("Recipe", back_populates="ingredients")
     ingredient = relationship("Ingredient", back_populates="recipe_items")
     unit = relationship("Unit", back_populates="recipe_ingredients")
-    group = relationship("IngredientGroup", back_populates="recipe_ingredients")
 
 class Tag(db.Model):
     __tablename__ = 'Tags'
@@ -140,9 +129,7 @@ def serialize_recipe_ingredient(ri):
         'quantity': ri.quantity,
         'unit_id': ri.unit_id,
         'unit_abv': ri.unit.abbreviation if ri.unit is not None else None,
-        'notes': ri.notes,
-        'group_id': ri.group_id,
-        'group_name': ri.group.name if ri.group is not None else None
+        'notes': ri.notes
     }
 
 def serialize_recipe(recipe):
@@ -177,14 +164,6 @@ def serialize_unit(unit):
         'category': unit.category,
         'system': unit.system,
         'base_conversion_factor': unit.base_conversion_factor
-    }
-
-def serialize_ingredient_group(group):
-    """Converts an IngredientGroup ORM object to a dictionary."""
-    return {
-        'group_id': group.group_id,
-        'name': group.name,
-        'description': group.description
     }
 
 
@@ -237,8 +216,7 @@ def recipes_list():
                     ingredient_id=ingredient_id,
                     quantity=ing_data.get('quantity'),
                     unit_id=ing_data.get('unit_id'),
-                    notes=ing_data.get('notes'),
-                    group_id=ing_data.get('group_id')
+                    notes=ing_data.get('notes')
                 )
                 db.session.add(new_recipe_ingredient)
             
@@ -304,7 +282,6 @@ def recipe(recipe_id):
                         recipe_ingredient.quantity = ing_data.get('quantity', recipe_ingredient.quantity)
                         recipe_ingredient.unit_id = ing_data.get('unit_id', recipe_ingredient.unit_id)
                         recipe_ingredient.notes = ing_data.get('notes', recipe_ingredient.notes)
-                        recipe_ingredient.group_id = ing_data.get('group_id', recipe_ingredient.group_id)
                     else:
                         # Add new ingredient
                         new_recipe_ingredient = RecipeIngredient(
@@ -312,8 +289,7 @@ def recipe(recipe_id):
                             ingredient_id=ingredient_id,
                             quantity=ing_data.get('quantity'),
                             unit_id=ing_data.get('unit_id'),
-                            notes=ing_data.get('notes'),
-                            group_id=ing_data.get('group_id')
+                            notes=ing_data.get('notes')
                         )
                         db.session.add(new_recipe_ingredient)
                 
@@ -451,87 +427,6 @@ def get_units():
     except Exception as e:
         print(f"Database error in get_units: {e}")
         return jsonify({"error": "Failed to fetch units from database."}), 500
-
-@app.route("/api/ingredient-groups", methods=['GET', 'POST'])
-@login_required
-def ingredient_groups_list():
-    """Endpoint for listing ingredient groups (GET) or creating new groups (POST)."""
-    if request.method == 'GET':
-        try:
-            groups = db.session.execute(db.select(IngredientGroup)).scalars().all()
-            return jsonify([serialize_ingredient_group(g) for g in groups])
-        except Exception as e:
-            print(f"Database error in get_ingredient_groups: {e}")
-            return jsonify({"error": "Failed to fetch ingredient groups from database."}), 500
-    elif request.method == 'POST':
-        # Create new ingredient group
-        try:
-            data = request.get_json()
-            
-            # Create group with provided fields
-            new_group = IngredientGroup(
-                name=data.get('name'),
-                description=data.get('description')
-            )
-            
-            db.session.add(new_group)
-            db.session.commit()
-            return jsonify(serialize_ingredient_group(new_group)), 201
-        except Exception as e:
-            db.session.rollback()
-            print(f"Error creating ingredient group: {e}")
-            return jsonify({"error": "Failed to create ingredient group"}), 500
-
-@app.route('/api/ingredient-groups/<int:group_id>', methods=['GET', 'PUT', 'DELETE'])
-@login_required
-def ingredient_group(group_id):
-    """Endpoint for getting, updating, or deleting a specific ingredient group."""
-    try:
-        group = db.session.execute(db.select(IngredientGroup).filter_by(group_id=group_id)).scalar_one_or_none()
-        if group is None:
-            return jsonify({"error": "Ingredient group not found."}), 404
-    except Exception as e:
-        return jsonify({"error": "Failed to fetch ingredient group from database."}), 500
-    
-    if request.method == 'GET':
-        return jsonify(serialize_ingredient_group(group))
-    elif request.method == 'PUT':
-        # Update ingredient group
-        try:
-            data = request.get_json()
-            
-            # Update fields
-            if 'name' in data:
-                group.name = data['name']
-            if 'description' in data:
-                group.description = data['description']
-            
-            db.session.commit()
-            return jsonify(serialize_ingredient_group(group))
-        except Exception as e:
-            db.session.rollback()
-            print(f"Error updating ingredient group: {e}")
-            return jsonify({"error": "Failed to update ingredient group"}), 500
-    elif request.method == 'DELETE':
-        # Delete ingredient group
-        # Check if group is used in any recipes
-        if group.recipe_ingredients:
-            # Get count of recipes using this group
-            recipe_count = len(set(ri.recipe_id for ri in group.recipe_ingredients))
-            return jsonify({
-                "error": f"Cannot delete ingredient group '{group.name}' because it is used in {recipe_count} recipe(s). The group will be removed from those recipes if you delete it."
-            }), 400
-        
-        try:
-            db.session.delete(group)
-            db.session.commit()
-            return jsonify({"message": "Ingredient group deleted successfully"}), 200
-        except Exception as e:
-            db.session.rollback()
-            print(f"Error deleting ingredient group: {e}")
-            return jsonify({"error": "Failed to delete ingredient group"}), 500
-    else:
-        return jsonify({"error": "Method not allowed."}), 405
 
 
 # --- 5. Register Authentication Blueprint ---

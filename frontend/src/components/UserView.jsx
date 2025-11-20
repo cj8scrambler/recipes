@@ -152,55 +152,18 @@ export default function UserView({ user }) {
 
             <section>
               <h3>Ingredients</h3>
-              {(() => {
-                // Group ingredients by group_id
-                const grouped = scaledIngredients().reduce((acc, ing) => {
-                  const groupKey = ing.group_id || 'ungrouped'
-                  if (!acc[groupKey]) {
-                    acc[groupKey] = {
-                      name: ing.group_name,
-                      ingredients: []
-                    }
-                  }
-                  acc[groupKey].ingredients.push(ing)
-                  return acc
-                }, {})
-                
-                // Sort groups: ungrouped first, then by group name
-                const sortedGroups = Object.entries(grouped).sort(([keyA], [keyB]) => {
-                  if (keyA === 'ungrouped') return -1
-                  if (keyB === 'ungrouped') return 1
-                  return 0
-                })
-                
-                return sortedGroups.map(([groupKey, group]) => (
-                  <div key={groupKey} style={{ marginBottom: '1em' }}>
-                    {groupKey !== 'ungrouped' && group.name && (
-                      <h4 style={{ 
-                        fontSize: '1em', 
-                        fontWeight: 'bold', 
-                        marginTop: '1em', 
-                        marginBottom: '0.5em',
-                        color: '#555'
-                      }}>
-                        {group.name}
-                      </h4>
-                    )}
-                    <ul>
-                      {group.ingredients.map((ing, idx) => (
-                        <li key={idx}>
-                          <span>
-                            {ing.quantity && ing.displayUnit ? (
-                              <strong>{formatRecipeUnits(ing.quantity, 2)} {ing.displayUnit.abbreviation}</strong>
-                            ) : ''} {ing.name}
-                            {ing.notes ? <span className="text-muted"> — {ing.notes}</span> : ''}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))
-              })()}
+              <ul>
+                {scaledIngredients().map((ing, idx) => (
+                  <li key={idx}>
+                    <span>
+                      {ing.quantity && ing.displayUnit ? (
+                        <strong>{formatRecipeUnits(ing.quantity, 2)} {ing.displayUnit.abbreviation}</strong>
+                      ) : ''} {ing.name}
+                      {ing.notes ? <span className="text-muted"> — {ing.notes}</span> : ''}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </section>
 
             <section>

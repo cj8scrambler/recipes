@@ -34,37 +34,27 @@ CREATE TABLE Recipes (
     FOREIGN KEY (parent_recipe_id) REFERENCES Recipes(recipe_id) ON DELETE SET NULL
 );
 
--- 4. Ingredient_Groups Table
--- Stores reusable group names for organizing ingredients within recipes
-CREATE TABLE Ingredient_Groups (
-    group_id INT PRIMARY KEY AUTO_INCREMENT,
-    name VARCHAR(100) NOT NULL UNIQUE,
-    description TEXT
-);
-
--- 5. Recipe_Ingredients (Junction Table)
+-- 4. Recipe_Ingredients (Junction Table)
 CREATE TABLE Recipe_Ingredients (
     recipe_id INT NOT NULL,
     ingredient_id INT NOT NULL,
     quantity DECIMAL(10, 2) NOT NULL,
     unit_id INT NOT NULL,
     notes VARCHAR(255),
-    group_id INT,
     PRIMARY KEY (recipe_id, ingredient_id),
     FOREIGN KEY (recipe_id) REFERENCES Recipes(recipe_id) ON DELETE CASCADE,
     FOREIGN KEY (ingredient_id) REFERENCES Ingredients(ingredient_id),
-    FOREIGN KEY (unit_id) REFERENCES Units(unit_id),
-    FOREIGN KEY (group_id) REFERENCES Ingredient_Groups(group_id) ON DELETE SET NULL
+    FOREIGN KEY (unit_id) REFERENCES Units(unit_id)
 );
 
--- 6. Tags Table
+-- 5. Tags Table
 CREATE TABLE Tags (
     tag_id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(100) NOT NULL UNIQUE,
     description TEXT
 );
 
--- 7. Recipe_Tags (Junction Table)
+-- 6. Recipe_Tags (Junction Table)
 CREATE TABLE Recipe_Tags (
     recipe_id INT NOT NULL,
     tag_id INT NOT NULL,
@@ -73,7 +63,7 @@ CREATE TABLE Recipe_Tags (
     FOREIGN KEY (tag_id) REFERENCES Tags(tag_id) ON DELETE CASCADE
 );
 
--- 8. Users Table
+-- 7. Users Table
 -- Stores user accounts with authentication and role information
 CREATE TABLE users (
     id CHAR(36) PRIMARY KEY,  -- UUID stored as string
@@ -86,7 +76,7 @@ CREATE TABLE users (
     INDEX idx_email (email)
 );
 
--- 9. Sessions Table
+-- 8. Sessions Table
 -- Stores active user sessions for session-based authentication
 CREATE TABLE sessions (
     session_id CHAR(36) PRIMARY KEY,  -- UUID stored as string
