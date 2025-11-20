@@ -49,5 +49,11 @@ export const api = {
   listUnits: () => request('/units'),
 
   // Versions (if your backend exposes versions; adjust if different)
-  listRecipeVersions: (id) => request(`/recipes/${id}/versions`)
+  listRecipeVersions: (id) => request(`/recipes/${id}/versions`),
+
+  // Admin - Users
+  adminListUsers: () => request('/admin/users'),
+  adminCreateUser: (payload) => request('/admin/users', { method: 'POST', body: JSON.stringify(payload) }),
+  adminUpdateUser: (id, payload) => request(`/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  adminDeleteUser: (id) => request(`/admin/users/${id}`, { method: 'DELETE' })
 }

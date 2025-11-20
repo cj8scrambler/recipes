@@ -580,3 +580,145 @@ def admin_delete_ingredient(ingredient_id):
         db.session.rollback()
         print(f"Error deleting ingredient: {e}")
         return jsonify({"error": "Failed to delete ingredient"}), 500
+
+
+# --- User Management Endpoints (Admin Only) ---
+
+def serialize_user(user):
+    """Convert a User ORM object to a dictionary"""
+    import json
+    settings = {}
+    if user.settings:
+        try:
+            settings = json.loads(user.settings)
+        except:
+            settings = {}
+    
+    return {
+        'id': user.id,
+        'email': user.email,
+        'role': user.role,
+        'settings': settings,
+        'created_at': user.created_at.isoformat() if user.created_at else None,
+        'updated_at': user.updated_at.isoformat() if user.updated_at else None
+    }
+
+
+@auth_bp.route('/admin/users', methods=['GET'])
+@admin_required
+def admin_list_users():
+    """Admin endpoint to list all users"""
+    try:
+        users = db.session.execute(db.select(User)).scalars().all()
+        return jsonify([serialize_user(u) for u in users])
+    except Exception as e:
+        print(f"Database error in admin_list_users: {e}")
+        return jsonify({"error": "Failed to fetch users from database."}), 500
+
+
+@auth_bp.route('/admin/users', methods=['POST'])
+@admin_required
+def admin_create_user():
+    """Admin endpoint to create a new user"""
+    try:
+        data = request.get_json()
+        
+        email = data.get('email')
+        password = data.get('password')
+        role = data.get('role', 'user')
+        
+        # Validate required fields
+        if not email:
+            return jsonify({"error": "Email is required"}), 400
+        if not password:
+            return jsonify({"error": "Password is required"}), 400
+        
+        # Validate role
+        if role not in ['user', 'admin']:
+            return jsonify({"error": "Role must be 'user' or 'admin'"}), 400
+        
+        # Validate password length
+        if len(password) < 6:
+            return jsonify({"error": "Password must be at least 6 characters"}), 400
+        
+        # Check if user already exists
+        existing_user = db.session.execute(
+            db.select(User).filter_by(email=email)
+        ).scalar_one_or_none()
+        
+        if existing_user:
+            return jsonify({"error": "User with this email already exists"}), 400
+        
+        # Create new user
+        import json
+        new_user = User(
+            id=str(uuid.uuid4()),
+            email=email,
+            password_hash=hash_password(password),
+            role=role,
+            settings=json.dumps({"unit": "us"})  # Default settings
+        )
+        
+        db.session.add(new_user)
+        db.session.commit()
+        
+        return jsonify(serialize_user(new_user)), 201
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error creating user: {e}")
+        return jsonify({"error": "Failed to create user"}), 500
+
+
+@auth_bp.route('/admin/users/<user_id>', methods=['PUT'])
+@admin_required
+def admin_update_user(user_id):
+    """Admin endpoint to update a user's role"""
+    try:
+        user = db.session.execute(
+            db.select(User).filter_by(id=user_id)
+        ).scalar_one_or_none()
+        
+        if user is None:
+            return jsonify({"error": "User not found."}), 404
+        
+        data = request.get_json()
+        
+        # Update role if provided
+        if 'role' in data:
+            role = data['role']
+            if role not in ['user', 'admin']:
+                return jsonify({"error": "Role must be 'user' or 'admin'"}), 400
+            user.role = role
+        
+        db.session.commit()
+        return jsonify(serialize_user(user))
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error updating user: {e}")
+        return jsonify({"error": "Failed to update user"}), 500
+
+
+@auth_bp.route('/admin/users/<user_id>', methods=['DELETE'])
+@admin_required
+def admin_delete_user(user_id):
+    """Admin endpoint to delete a user"""
+    try:
+        # Get current user to prevent self-deletion
+        current_user = get_current_user()
+        if current_user and current_user.id == user_id:
+            return jsonify({"error": "Cannot delete your own account"}), 400
+        
+        user = db.session.execute(
+            db.select(User).filter_by(id=user_id)
+        ).scalar_one_or_none()
+        
+        if user is None:
+            return jsonify({"error": "User not found."}), 404
+        
+        db.session.delete(user)
+        db.session.commit()
+        return jsonify({"message": "User deleted successfully"}), 200
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error deleting user: {e}")
+        return jsonify({"error": "Failed to delete user"}), 500

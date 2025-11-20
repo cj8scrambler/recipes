@@ -2,11 +2,13 @@ import React, { useEffect, useState } from 'react'
 import { api } from '../api'
 import RecipeEditor from './RecipeEditor'
 import IngredientEditor from './IngredientEditor'
+import UserManagement from './UserManagement'
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('recipes')
   const [recipes, setRecipes] = useState([])
   const [ingredients, setIngredients] = useState([])
+  const [users, setUsers] = useState([])
   const [editingRecipe, setEditingRecipe] = useState(null)
   const [editingIngredient, setEditingIngredient] = useState(null)
   const [error, setError] = useState(null)
@@ -17,9 +19,14 @@ export default function AdminDashboard() {
 
   async function loadAll() {
     try {
-      const [rs, is] = await Promise.all([api.adminListRecipes(), api.adminListIngredients()])
+      const [rs, is, us] = await Promise.all([
+        api.adminListRecipes(),
+        api.adminListIngredients(),
+        api.adminListUsers()
+      ])
       setRecipes(rs || [])
       setIngredients(is || [])
+      setUsers(us || [])
     } catch (err) {
       setError(err.message)
     }
@@ -90,6 +97,12 @@ export default function AdminDashboard() {
           onClick={() => setActiveTab('ingredients')}
         >
           Ingredients
+        </button>
+        <button 
+          className={`tab ${activeTab === 'users' ? 'active' : ''}`}
+          onClick={() => setActiveTab('users')}
+        >
+          Users
         </button>
       </div>
 
@@ -166,6 +179,10 @@ export default function AdminDashboard() {
           onCancel={() => setEditingIngredient(null)}
           onSave={saveIngredient}
         />
+      )}
+
+      {activeTab === 'users' && (
+        <UserManagement users={users} onRefresh={loadAll} />
       )}
     </div>
   )
