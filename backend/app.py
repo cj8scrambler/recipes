@@ -22,10 +22,13 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False # Recommended setting for m
 
 db = SQLAlchemy(app)
 
-# Configure CORS to allow the React frontend to connect
-CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"]}})
-# allow everything for now
-#CORS(app)
+# Configure CORS to allow the React frontend to connect with credentials for session cookies
+CORS(app, resources={
+    r"/api/*": {
+        "origins": ["http://localhost:5173", "http://127.0.0.1:5173"],
+        "supports_credentials": True  # Allow cookies to be sent
+    }
+})
 
 
 # --- 2. Database Models (SQLAlchemy ORM) ---
@@ -415,7 +418,18 @@ def get_units():
         return jsonify({"error": "Failed to fetch units from database."}), 500
 
 
-# --- 5. Running the Application ---
+# --- 5. Authentication Module ---
+# Import and register the auth blueprint for session-based authentication
+from auth import auth_bp, init_auth
+
+# Initialize auth module with the database instance
+init_auth(db)
+
+# Register the auth blueprint
+app.register_blueprint(auth_bp)
+
+
+# --- 6. Running the Application ---
 if __name__ == '__main__':
     # Flask runs on port 8000 to match the previous React frontend configuration
     # To run this file, save it as backend_app.py and run it directly:
