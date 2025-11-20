@@ -9,6 +9,10 @@ This feature adds support for tracking ingredient prices and calculating recipe 
 
 ## Database Changes
 
+### ⚠️ IMPORTANT: Migration Required
+
+**The cost tracking feature requires a database migration.** The application will continue to work without the migration (existing features are unaffected), but cost tracking functionality will not be available.
+
 ### New Table: Ingredient_Prices
 ```sql
 CREATE TABLE Ingredient_Prices (
@@ -25,10 +29,29 @@ CREATE TABLE Ingredient_Prices (
 );
 ```
 
-### Migration
-Run the migration script to add the new table:
+### How to Run the Migration
+
+**If you have an existing database:**
 ```bash
 mysql -u username -p database_name < db/migration_add_ingredient_prices.sql
+```
+
+**If you're creating a new database from scratch:**
+```bash
+# First create the base schema
+mysql -u username -p database_name < db/db.sql
+
+# Then run the migration
+mysql -u username -p database_name < db/migration_add_ingredient_prices.sql
+
+# Optionally load sample data
+mysql -u username -p database_name < db/data.sql
+```
+
+**Verification:**
+After running the migration, verify the table was created:
+```bash
+mysql -u username -p database_name -e "SHOW TABLES LIKE 'Ingredient_Prices';"
 ```
 
 ## Backend API Changes
