@@ -200,8 +200,9 @@ def serialize_ingredient(ingredient):
     try:
         if hasattr(ingredient, 'prices'):
             prices_list = [serialize_ingredient_price(p) for p in ingredient.prices]
-    except Exception:
-        # Table may not exist yet if migration hasn't been run
+    except Exception as e:
+        # Table may not exist yet or other database error
+        print(f"Warning: Could not load prices for ingredient {ingredient.ingredient_id}: {e}")
         pass
     
     return {
@@ -298,8 +299,9 @@ def calculate_ingredient_cost(recipe_ingredient, units_dict):
                 if price_unit and can_convert_units(recipe_unit, price_unit):
                     matching_price = price
                     break
-    except Exception:
-        # Table may not exist yet if migration hasn't been run
+    except Exception as e:
+        # Table may not exist yet or other database error
+        print(f"Warning: Could not access prices for ingredient {ingredient.ingredient_id}: {e}")
         pass
     
     if not matching_price:
