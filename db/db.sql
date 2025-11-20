@@ -62,3 +62,28 @@ CREATE TABLE Recipe_Tags (
     FOREIGN KEY (recipe_id) REFERENCES Recipes(recipe_id) ON DELETE CASCADE,
     FOREIGN KEY (tag_id) REFERENCES Tags(tag_id) ON DELETE CASCADE
 );
+
+-- 7. Users Table
+-- Stores user accounts with authentication and role information
+CREATE TABLE users (
+    id CHAR(36) PRIMARY KEY,  -- UUID stored as string
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    role ENUM('user', 'admin') NOT NULL DEFAULT 'user',
+    settings JSON,  -- User preferences stored as JSON (e.g., {"unit": "metric"})
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_email (email)
+);
+
+-- 8. Sessions Table
+-- Stores active user sessions for session-based authentication
+CREATE TABLE sessions (
+    session_id CHAR(36) PRIMARY KEY,  -- UUID stored as string
+    user_id CHAR(36) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_user_id (user_id),
+    INDEX idx_expires_at (expires_at)
+);

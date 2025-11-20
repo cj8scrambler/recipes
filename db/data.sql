@@ -95,3 +95,31 @@ INSERT INTO Recipe_Ingredients (recipe_id, ingredient_id, quantity, unit_id, not
 (4, 8, 15, 6, 'or milk'),           -- 15 mL Water
 (4, 5, 5, 6, 'for the pan'),         -- 5 mL Olive Oil
 (4, 7, 1, 1, 'to taste');            -- 1 g Table Salt
+
+-- 7. User Seed Data (OPTIONAL - for development/testing only)
+-- WARNING: Change these passwords in production!
+-- These are test accounts with bcrypt-hashed passwords for manual testing
+
+-- Admin user: admin@example.com / adminpass
+INSERT INTO users (id, email, password_hash, role, settings, created_at, updated_at) VALUES
+(
+    UUID(),
+    'admin@example.com',
+    '$2b$12$.TFhW2/APna.nKZrhMRZTuy18z6wqLwbAdafUMS7m8PjS3998zjbu',
+    'admin',
+    '{"unit": "us"}',
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP
+);
+
+-- Regular user: user@example.com / userpass
+INSERT INTO users (id, email, password_hash, role, settings, created_at, updated_at) VALUES
+(
+    UUID(),
+    'user@example.com',
+    '$2b$12$VYegn8nDk4zMk5nmcEZUk.v5ornpAxYzTQ8dRgRBwtaxR9jtmzPoK',
+    'user',
+    '{"unit": "metric"}',
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP
+);

@@ -71,7 +71,7 @@ export default function App() {
       </header>
       <main>
         <Routes>
-          <Route path="/" element={<UserView />} />
+          <Route path="/" element={<UserView user={user} />} />
           <Route path="/settings" element={<Settings user={user} />} />
           {user.role === 'admin' ? (
             <Route path="/admin" element={<AdminDashboard />} />
