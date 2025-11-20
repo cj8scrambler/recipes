@@ -2,11 +2,13 @@ import React, { useEffect, useState } from 'react'
 import { api } from '../api'
 import RecipeEditor from './RecipeEditor'
 import IngredientEditor from './IngredientEditor'
+import UserManagement from './UserManagement'
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('recipes')
   const [recipes, setRecipes] = useState([])
   const [ingredients, setIngredients] = useState([])
+  const [users, setUsers] = useState([])
   const [editingRecipe, setEditingRecipe] = useState(null)
   const [editingIngredient, setEditingIngredient] = useState(null)
   const [error, setError] = useState(null)
@@ -17,9 +19,14 @@ export default function AdminDashboard() {
 
   async function loadAll() {
     try {
-      const [rs, is] = await Promise.all([api.listRecipes(), api.listIngredients()])
+      const [rs, is, us] = await Promise.all([
+        api.adminListRecipes(),
+        api.adminListIngredients(),
+        api.adminListUsers()
+      ])
       setRecipes(rs || [])
       setIngredients(is || [])
+      setUsers(us || [])
     } catch (err) {
       setError(err.message)
     }
@@ -28,9 +35,9 @@ export default function AdminDashboard() {
   async function saveRecipe(payload) {
     try {
       if (payload.recipe_id) {
-        await api.updateRecipe(payload.recipe_id, payload)
+        await api.adminUpdateRecipe(payload.recipe_id, payload)
       } else {
-        await api.createRecipe(payload)
+        await api.adminCreateRecipe(payload)
       }
       setEditingRecipe(null)
       await loadAll()
@@ -42,7 +49,7 @@ export default function AdminDashboard() {
   async function removeRecipe(id) {
     if (!confirm('Delete this recipe? This action cannot be undone.')) return
     try {
-      await api.deleteRecipe(id)
+      await api.adminDeleteRecipe(id)
       await loadAll()
     } catch (err) {
       setError(err.message)
@@ -52,9 +59,9 @@ export default function AdminDashboard() {
   async function saveIngredient(payload) {
     try {
       if (payload.ingredient_id) {
-        await api.updateIngredient(payload.ingredient_id, payload)
+        await api.adminUpdateIngredient(payload.ingredient_id, payload)
       } else {
-        await api.createIngredient(payload)
+        await api.adminCreateIngredient(payload)
       }
       setEditingIngredient(null)
       await loadAll()
@@ -66,7 +73,7 @@ export default function AdminDashboard() {
   async function removeIngredient(id) {
     if (!confirm('Delete this ingredient? This action cannot be undone.')) return
     try {
-      await api.deleteIngredient(id)
+      await api.adminDeleteIngredient(id)
       await loadAll()
     } catch (err) {
       setError(err.message)
@@ -90,6 +97,12 @@ export default function AdminDashboard() {
           onClick={() => setActiveTab('ingredients')}
         >
           Ingredients
+        </button>
+        <button 
+          className={`tab ${activeTab === 'users' ? 'active' : ''}`}
+          onClick={() => setActiveTab('users')}
+        >
+          Users
         </button>
       </div>
 
@@ -166,6 +179,10 @@ export default function AdminDashboard() {
           onCancel={() => setEditingIngredient(null)}
           onSave={saveIngredient}
         />
+      )}
+
+      {activeTab === 'users' && (
+        <UserManagement users={users} onRefresh={loadAll} />
       )}
     </div>
   )
