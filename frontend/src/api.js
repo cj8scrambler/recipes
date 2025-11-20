@@ -48,6 +48,15 @@ export const api = {
   // Units
   listUnits: () => request('/units'),
 
+  // Recipe Costs
+  getRecipeCost: (id, scale = 1.0) => request(`/recipes/${id}/cost?scale=${scale}`),
+
+  // Admin - Ingredient Prices
+  listIngredientPrices: (ingredientId) => request(`/ingredients/${ingredientId}/prices`),
+  createIngredientPrice: (ingredientId, payload) => request(`/ingredients/${ingredientId}/prices`, { method: 'POST', body: JSON.stringify(payload) }),
+  updateIngredientPrice: (ingredientId, priceId, payload) => request(`/ingredients/${ingredientId}/prices/${priceId}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  deleteIngredientPrice: (ingredientId, priceId) => request(`/ingredients/${ingredientId}/prices/${priceId}`, { method: 'DELETE' }),
+
   // Versions (if your backend exposes versions; adjust if different)
   listRecipeVersions: (id) => request(`/recipes/${id}/versions`),
 

@@ -22,6 +22,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
   const [units, setUnits] = useState([])
   const [allIngredients, setAllIngredients] = useState([])
   const [ingredientGroups, setIngredientGroups] = useState([])
+  const [recipeCost, setRecipeCost] = useState(null)
 
   useEffect(() => {
     loadUnits()
@@ -42,13 +43,28 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
         notes: ing.notes || '',
         group_id: ing.group_id || ''
       })))
+      // Load cost if editing existing recipe
+      if (recipe.recipe_id) {
+        loadRecipeCost(recipe.recipe_id)
+      }
     } else {
       setName('')
       setInstructions('')
       setServings(1)
       setIngredients([])
+      setRecipeCost(null)
     }
   }, [recipe])
+
+  async function loadRecipeCost(recipeId) {
+    try {
+      const cost = await api.getRecipeCost(recipeId, 1.0)
+      setRecipeCost(cost)
+    } catch (err) {
+      console.error('Failed to load recipe cost:', err)
+      setRecipeCost(null)
+    }
+  }
 
   async function loadUnits() {
     try {
@@ -255,6 +271,55 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
         <button type="button" className="small secondary" onClick={addIngredient}>
           + Add Ingredient
         </button>
+        
+        {recipeCost && recipe?.recipe_id && (
+          <div style={{ 
+            marginTop: '1em', 
+            padding: '0.75em', 
+            backgroundColor: '#f5f5f5', 
+            borderRadius: '4px' 
+          }}>
+            <h4 style={{ margin: '0 0 0.5em 0' }}>Cost Information</h4>
+            {recipeCost.ingredients_cost && recipeCost.ingredients_cost.length > 0 && (
+              <div style={{ marginBottom: '0.5em' }}>
+                {recipeCost.ingredients_cost.map((ingCost, idx) => (
+                  <div key={idx} style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between',
+                    fontSize: '0.9em',
+                    marginBottom: '0.25em'
+                  }}>
+                    <span>{ingCost.name}:</span>
+                    <span>
+                      {ingCost.has_price_data ? (
+                        `$${ingCost.cost?.toFixed(2) || '0.00'}`
+                      ) : (
+                        <span style={{ color: '#d9534f' }}>Price not available</span>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {recipeCost.total_cost !== null ? (
+              <div style={{ 
+                borderTop: '1px solid #ddd', 
+                paddingTop: '0.5em',
+                fontWeight: 'bold'
+              }}>
+                Total: ${recipeCost.total_cost.toFixed(2)}
+              </div>
+            ) : (
+              <div style={{ 
+                borderTop: '1px solid #ddd', 
+                paddingTop: '0.5em',
+                color: '#d9534f'
+              }}>
+                Total cost cannot be calculated - some prices missing
+              </div>
+            )}
+          </div>
+        )}
       </div>
       <div className="form-group">
         <label>
