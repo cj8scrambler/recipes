@@ -44,11 +44,24 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
   async function loadPrices(ingredientId) {
     try {
       const ps = await api.listIngredientPrices(ingredientId)
-      setPrices(ps || [])
+      // Format price values for display (remove trailing zeros)
+      const formattedPrices = (ps || []).map(p => ({
+        ...p,
+        price: formatPriceForInput(p.price)
+      }))
+      setPrices(formattedPrices)
     } catch (err) {
       console.error('Failed to load prices:', err)
       setPrices([])
     }
+  }
+
+  function formatPriceForInput(price) {
+    if (price === '' || price == null) return '';
+    const num = parseFloat(price);
+    if (isNaN(num)) return '';
+    // Format to max 2 decimal places and remove trailing zeros
+    return parseFloat(num.toFixed(2)).toString();
   }
 
   function addPrice() {

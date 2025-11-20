@@ -76,7 +76,7 @@ class IngredientPrice(db.Model):
     __tablename__ = 'Ingredient_Prices'
     price_id = Column(Integer, primary_key=True)
     ingredient_id = Column(Integer, ForeignKey('Ingredients.ingredient_id', ondelete='CASCADE'), nullable=False)
-    price = Column(Float(10, 2), nullable=False)
+    price = Column(db.Numeric(10, 2), nullable=False)
     unit_id = Column(Integer, ForeignKey('Units.unit_id'), nullable=False)
     price_note = Column(String(255))
     created_at = Column(db.DateTime, server_default=db.func.current_timestamp())
@@ -239,7 +239,7 @@ def serialize_ingredient_price(price):
     return {
         'price_id': price.price_id,
         'ingredient_id': price.ingredient_id,
-        'price': price.price,
+        'price': float(price.price) if price.price is not None else None,
         'unit_id': price.unit_id,
         'unit_abv': price.unit.abbreviation if price.unit else None,
         'unit_name': price.unit.name if price.unit else None,
@@ -314,8 +314,8 @@ def calculate_ingredient_cost(recipe_ingredient, units_dict):
     if converted_quantity is None:
         return None, False
     
-    # Calculate cost
-    cost = converted_quantity * matching_price.price
+    # Calculate cost (convert Decimal to float for calculation)
+    cost = float(converted_quantity) * float(matching_price.price)
     return cost, True
 
 def calculate_recipe_cost(recipe, units_list, scale_factor=1.0):
