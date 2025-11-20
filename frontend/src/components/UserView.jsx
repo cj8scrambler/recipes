@@ -2,10 +2,9 @@ import React, { useEffect, useState } from 'react'
 import { api } from '../api'
 import { formatRecipeUnits } from '../utils'
 import { getDisplayUnit, toBaseUnit } from '../unitConversions'
-import { getPreferredUnitSystem, setPreferredUnitSystem } from '../userPreferences'
 import RecipeList from './RecipeList'
 
-export default function UserView() {
+export default function UserView({ user }) {
   const [recipes, setRecipes] = useState([])
   const [selected, setSelected] = useState(null)
   const [scale, setScale] = useState(1)
@@ -13,7 +12,9 @@ export default function UserView() {
   const [selectedVersion, setSelectedVersion] = useState(null)
   const [error, setError] = useState(null)
   const [units, setUnits] = useState([])
-  const [preferredSystem, setPreferredSystem] = useState(getPreferredUnitSystem())
+  
+  // Use user's setting for preferred unit system, fallback to 'US Customary'
+  const preferredSystem = user?.settings?.unit === 'metric' ? 'Metric' : 'US Customary'
 
   useEffect(() => {
     loadRecipes()
@@ -36,11 +37,6 @@ export default function UserView() {
     } catch (err) {
       console.error('Failed to load units:', err)
     }
-  }
-
-  function handleSystemChange(system) {
-    setPreferredSystem(system)
-    setPreferredUnitSystem(system)
   }
 
   async function selectRecipe(recipe) {
@@ -135,15 +131,6 @@ export default function UserView() {
                 <label>
                   Servings
                   <input type="number" value={scale} min="0.25" step="0.25" onChange={(e) => setScale(Number(e.target.value))} />
-                </label>
-              </div>
-              <div className="form-group">
-                <label>
-                  Unit System
-                  <select value={preferredSystem} onChange={(e) => handleSystemChange(e.target.value)}>
-                    <option value="US Customary">US Customary</option>
-                    <option value="Metric">Metric</option>
-                  </select>
                 </label>
               </div>
               {(versions.length > 0) && (

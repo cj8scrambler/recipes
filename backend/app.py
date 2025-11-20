@@ -22,10 +22,19 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False # Recommended setting for m
 
 db = SQLAlchemy(app)
 
-# Configure CORS to allow the React frontend to connect
-CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173"]}})
-# allow everything for now
-#CORS(app)
+# Configure CORS to allow the React frontend to connect with credentials for session cookies
+CORS(app, resources={
+    r"/api/*": {
+        "origins": ["http://localhost:5173", "http://127.0.0.1:5173"],
+        "supports_credentials": True  # Allow cookies to be sent
+    }
+})
+
+# --- Import Authentication Module ---
+# Import the auth module and initialize it with the database
+# This must be done after db is created but before routes are defined
+from auth import auth_bp, init_auth, login_required
+init_auth(db)
 
 
 # --- 2. Database Models (SQLAlchemy ORM) ---
@@ -166,6 +175,7 @@ def read_root():
     return jsonify({"message": "Recipe API is running (Flask/SQLAlchemy). Connects to MySQL."})
 
 @app.route("/api/recipes", methods=['GET', 'POST'])
+@login_required
 def recipes_list():
     """Endpoint for listing recipes (GET) or creating new recipes (POST)."""
     if request.method == 'GET':
@@ -218,6 +228,7 @@ def recipes_list():
             return jsonify({"error": "Failed to create recipe"}), 500
 
 @app.route('/api/recipes/<int:recipe_id>', methods=['GET', 'PUT', 'DELETE'])
+@login_required
 def recipe(recipe_id):
     try:
         recipe = db.session.execute(db.select(Recipe).filter_by(recipe_id=recipe_id)).scalar_one_or_none()
@@ -312,6 +323,7 @@ def recipe(recipe_id):
         return jsonify({"error": "Method not allowed."}), 405
 
 @app.route("/api/ingredients", methods=['GET', 'POST'])
+@login_required
 def ingredients_list():
     """Endpoint for listing ingredients (GET) or creating new ingredients (POST)."""
     if request.method == 'GET':
@@ -346,6 +358,7 @@ def ingredients_list():
             return jsonify({"error": "Failed to create ingredient"}), 500
 
 @app.route('/api/ingredients/<int:ingredient_id>', methods=['GET', 'PUT', 'DELETE'])
+@login_required
 def ingredient(ingredient_id):
     """Endpoint for getting, updating, or deleting a specific ingredient."""
     try:
@@ -405,6 +418,7 @@ def ingredient(ingredient_id):
         return jsonify({"error": "Method not allowed."}), 405
 
 @app.route("/api/units", methods=['GET'])
+@login_required
 def get_units():
     """Endpoint to get all units."""
     try:
@@ -415,7 +429,12 @@ def get_units():
         return jsonify({"error": "Failed to fetch units from database."}), 500
 
 
-# --- 5. Running the Application ---
+# --- 5. Register Authentication Blueprint ---
+# The auth module was imported and initialized earlier
+app.register_blueprint(auth_bp)
+
+
+# --- 6. Running the Application ---
 if __name__ == '__main__':
     # Flask runs on port 8000 to match the previous React frontend configuration
     # To run this file, save it as backend_app.py and run it directly:
