@@ -13,8 +13,8 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-recipes_password}
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./db/db.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ./db/data.sql:/docker-entrypoint-initdb.d/02-data.sql:ro
+      - ../db/db.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ../db/data.sql:/docker-entrypoint-initdb.d/02-data.sql:ro
     ports:
       - "${MYSQL_PORT:-3306}:3306"
     networks:
@@ -30,8 +30,8 @@ services:
   # Backend (Flask/Gunicorn)
   backend:
     build:
-      context: .
-      dockerfile: Dockerfile.backend
+      context: ..
+      dockerfile: docker/Dockerfile.backend
     container_name: recipes-backend
     restart: unless-stopped
     environment:
@@ -56,8 +56,8 @@ services:
   # Frontend (Node/Vite)
   frontend:
     build:
-      context: .
-      dockerfile: Dockerfile.frontend
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
       args:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
     container_name: recipes-frontend

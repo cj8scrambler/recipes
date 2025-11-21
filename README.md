@@ -51,11 +51,12 @@ Multiple deployment options available:
 
 For containerized deployment with Docker Compose:
 
-- **Docker Guide**: [DOCKER_DEPLOYMENT.md](DOCKER_DEPLOYMENT.md) - Complete Docker deployment guide
+- **Docker Guide**: [docker/DOCKER_DEPLOYMENT.md](docker/DOCKER_DEPLOYMENT.md) - Complete Docker deployment guide
 
 Quick start:
 ```bash
 git checkout v1.0.0
+cd docker
 cp .env.example .env
 # Edit .env with your settings
 docker-compose --profile internal-db up -d

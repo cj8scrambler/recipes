@@ -23,23 +23,28 @@ This guide covers deploying the Recipes application using Docker and Docker Comp
    git checkout v1.0.0
    ```
 
-3. **Create environment file**:
+3. **Navigate to docker directory**:
+   ```bash
+   cd docker
+   ```
+
+4. **Create environment file**:
    ```bash
    cp .env.example .env
    # Edit .env with your settings
    nano .env
    ```
 
-4. **Start the application**:
+5. **Start the application**:
    ```bash
    docker-compose --profile internal-db up -d
    ```
 
-5. **Access the application**:
+6. **Access the application**:
    - Frontend: http://localhost:5173
    - Backend API: http://localhost:8000
 
-6. **Create admin user**:
+7. **Create admin user**:
    ```bash
    docker-compose exec backend python -c "
    from app import app, db
@@ -110,8 +115,8 @@ docker-compose -f docker-compose.yml -f docker-compose.external-db.yml up -d
 **Initialize external database**:
 ```bash
 # On your database server
-mysql -u user -p recipes < db/db.sql
-mysql -u user -p recipes < db/data.sql
+mysql -u user -p recipes < ../db/db.sql
+mysql -u user -p recipes < ../db/data.sql
 ```
 
 ### Scenario 3: Production with Reverse Proxy
@@ -216,7 +221,7 @@ When upgrading between versions:
 
 2. **Apply migration**:
    ```bash
-   docker-compose exec db mysql -u recipes_user -precipes_password recipes < db/migrations/migrate_1_0_0_to_1_1_0.sql
+   docker-compose exec db mysql -u recipes_user -precipes_password recipes < ../db/migrations/migrate_1_0_0_to_1_1_0.sql
    ```
 
 3. **Restart backend**:
@@ -249,10 +254,10 @@ docker-compose exec backend python manage_migrations.py apply migrate_1_0_0_to_1
 3. **Apply migrations** (if any):
    ```bash
    # Check for migration files
-   ls db/migrations/
+   ls ../db/migrations/
    
    # Apply if needed
-   docker-compose exec db mysql -u recipes_user -precipes_password recipes < db/migrations/migrate_1_0_0_to_1_1_0.sql
+   docker-compose exec db mysql -u recipes_user -precipes_password recipes < ../db/migrations/migrate_1_0_0_to_1_1_0.sql
    ```
 
 4. **Rebuild and restart**:
@@ -353,7 +358,7 @@ docker-compose up -d --build frontend
 
 **Check if db.sql is valid**:
 ```bash
-mysql -u root -p < db/db.sql
+mysql -u root -p < ../db/db.sql
 ```
 
 **Manually initialize**:
@@ -443,6 +448,6 @@ See `docker-compose.scale.yml` for an example of running multiple backend instan
 
 ## See Also
 
-- [DEPLOYMENT.md](DEPLOYMENT.md) - Traditional deployment guide
-- [DEPLOYMENT_QUICKSTART.md](DEPLOYMENT_QUICKSTART.md) - Quick start guide
-- [db/migrations/README.md](db/migrations/README.md) - Database migration guide
+- [DEPLOYMENT.md](../DEPLOYMENT.md) - Traditional deployment guide
+- [DEPLOYMENT_QUICKSTART.md](../DEPLOYMENT_QUICKSTART.md) - Quick start guide
+- [../db/migrations/README.md](../db/migrations/README.md) - Database migration guide
