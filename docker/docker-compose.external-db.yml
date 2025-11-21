@@ -1,0 +1,14 @@
+# Docker Compose override for external database
+# Use this when you have an existing database
+#
+# Usage:
+#   docker-compose -f docker-compose.yml -f docker-compose.external-db.yml up
+
+version: '3.8'
+
+services:
+  # Remove db service dependency and use external database
+  backend:
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+    depends_on: []
