@@ -4,7 +4,7 @@ import os # Import the os module to read environment variables
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Enum, ForeignKey, Column, Integer, String, Float, Boolean
+from sqlalchemy import Enum, ForeignKey, Column, Integer, String, Float, Boolean, DateTime
 from sqlalchemy.orm import relationship
 from dotenv import load_dotenv
 
@@ -51,9 +51,10 @@ class Unit(db.Model):
     base_conversion_factor = Column(Float(10, 5))
 
     # Relationships
-    ingredient_prices = relationship("Ingredient", foreign_keys="Ingredient.price_unit_id", back_populates="price_unit")
+    ingredient_prices_old = relationship("Ingredient", foreign_keys="Ingredient.price_unit_id", back_populates="price_unit")
     ingredient_defaults = relationship("Ingredient", foreign_keys="Ingredient.default_unit_id")
     recipe_ingredients = relationship("RecipeIngredient", back_populates="unit")
+    ingredient_prices = relationship("IngredientPrice", back_populates="unit")
 
 class Ingredient(db.Model):
     __tablename__ = 'Ingredients'
@@ -66,9 +67,24 @@ class Ingredient(db.Model):
     gluten_status = Column(Enum('Contains', 'Gluten-Free', 'GF_Available'), default='Gluten-Free', nullable=False)
 
     # Relationships
-    price_unit = relationship("Unit", foreign_keys=[price_unit_id], back_populates="ingredient_prices")
+    price_unit = relationship("Unit", foreign_keys=[price_unit_id], back_populates="ingredient_prices_old")
     default_unit = relationship("Unit", foreign_keys=[default_unit_id])
     recipe_items = relationship("RecipeIngredient", back_populates="ingredient")
+    prices = relationship("IngredientPrice", back_populates="ingredient", cascade="all, delete-orphan")
+
+class IngredientPrice(db.Model):
+    __tablename__ = 'Ingredient_Prices'
+    price_id = Column(Integer, primary_key=True)
+    ingredient_id = Column(Integer, ForeignKey('Ingredients.ingredient_id', ondelete='CASCADE'), nullable=False)
+    price = Column(db.Numeric(10, 2), nullable=False)
+    unit_id = Column(Integer, ForeignKey('Units.unit_id'), nullable=False)
+    price_note = Column(String(255))
+    created_at = Column(db.DateTime, server_default=db.func.current_timestamp())
+    updated_at = Column(db.DateTime, server_default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+
+    # Relationships
+    ingredient = relationship("Ingredient", back_populates="prices")
+    unit = relationship("Unit", back_populates="ingredient_prices")
 
 class Recipe(db.Model):
     __tablename__ = 'Recipes'
@@ -132,9 +148,9 @@ class RecipeTag(db.Model):
 
 # --- 3. Serialization Helpers (Converting SQLAlchemy objects to JSON) ---
 
-def serialize_recipe_ingredient(ri):
+def serialize_recipe_ingredient(ri, include_cost=False, units_dict=None):
     """Converts a RecipeIngredient ORM object to a dictionary for JSON response."""
-    return {
+    result = {
         'ingredient_id': ri.ingredient_id,
         'name': ri.ingredient.name if ri.ingredient is not None else None,
         'quantity': ri.quantity,
@@ -144,28 +160,59 @@ def serialize_recipe_ingredient(ri):
         'group_id': ri.group_id,
         'group_name': ri.group.name if ri.group is not None else None
     }
+    
+    # Optionally include cost information (for admin views)
+    if include_cost and units_dict:
+        cost, has_price = calculate_ingredient_cost(ri, units_dict)
+        result['cost'] = round(cost, 2) if cost is not None else None
+        result['has_price_data'] = has_price
+    
+    return result
 
-def serialize_recipe(recipe):
+def serialize_recipe(recipe, include_cost=False, units_list=None):
     """Converts a Recipe ORM object to a dictionary, including nested ingredients."""
-    return {
+    units_dict = None
+    if include_cost and units_list:
+        units_dict = {u.unit_id: u for u in units_list}
+    
+    result = {
         'recipe_id': recipe.recipe_id,
         'name': recipe.name,
         'base_servings': recipe.base_servings,
         'description': recipe.description,
         # Recursively serialize the list of RecipeIngredient objects
-        'ingredients': [serialize_recipe_ingredient(ri) for ri in recipe.ingredients],
+        'ingredients': [serialize_recipe_ingredient(ri, include_cost, units_dict) for ri in recipe.ingredients],
         'instructions': recipe.instructions
     }
+    
+    # Optionally include total cost
+    if include_cost and units_list:
+        cost_info = calculate_recipe_cost(recipe, units_list)
+        result['total_cost'] = cost_info['total_cost']
+        result['has_missing_prices'] = cost_info['has_missing_prices']
+    
+    return result
 
 def serialize_ingredient(ingredient):
     """Converts an Ingredient ORM object to a dictionary."""
+    # Try to get prices, but handle case where Ingredient_Prices table doesn't exist yet
+    prices_list = []
+    try:
+        if hasattr(ingredient, 'prices'):
+            prices_list = [serialize_ingredient_price(p) for p in ingredient.prices]
+    except Exception as e:
+        # Table may not exist yet or other database error
+        print(f"Warning: Could not load prices for ingredient {ingredient.ingredient_id}: {e}")
+        pass
+    
     return {
         'ingredient_id': ingredient.ingredient_id,
         'name': ingredient.name,
         'price': ingredient.price,
         'price_unit_id': ingredient.price_unit_id,
         'default_unit_id': ingredient.default_unit_id,
-        'gluten_status': ingredient.gluten_status
+        'gluten_status': ingredient.gluten_status,
+        'prices': prices_list
     }
 
 def serialize_unit(unit):
@@ -185,6 +232,162 @@ def serialize_ingredient_group(group):
         'group_id': group.group_id,
         'name': group.name,
         'description': group.description
+    }
+
+def serialize_ingredient_price(price):
+    """Converts an IngredientPrice ORM object to a dictionary."""
+    return {
+        'price_id': price.price_id,
+        'ingredient_id': price.ingredient_id,
+        'price': float(price.price) if price.price is not None else None,
+        'unit_id': price.unit_id,
+        'unit_abv': price.unit.abbreviation if price.unit else None,
+        'unit_name': price.unit.name if price.unit else None,
+        'unit_category': price.unit.category if price.unit else None,
+        'price_note': price.price_note
+    }
+
+# --- Cost Calculation Helpers ---
+
+def can_convert_units(from_unit, to_unit):
+    """Check if two units can be converted between each other."""
+    if not from_unit or not to_unit:
+        return False
+    
+    # Volume categories can convert between each other
+    volume_categories = ['Volume', 'Dry Volume', 'Liquid Volume']
+    from_is_volume = from_unit.category in volume_categories
+    to_is_volume = to_unit.category in volume_categories
+    
+    if from_is_volume and to_is_volume:
+        return True
+    
+    # Other categories must match exactly
+    return from_unit.category == to_unit.category
+
+def convert_unit_quantity(quantity, from_unit, to_unit):
+    """Convert quantity from one unit to another."""
+    if not from_unit or not to_unit or not can_convert_units(from_unit, to_unit):
+        return None
+    
+    # Convert to base unit, then to target unit
+    base_quantity = quantity * from_unit.base_conversion_factor
+    converted_quantity = base_quantity / to_unit.base_conversion_factor
+    return converted_quantity
+
+def calculate_ingredient_cost(recipe_ingredient, units_dict):
+    """
+    Calculate cost for a single recipe ingredient.
+    Returns tuple: (cost, has_price_data, details)
+    - cost: float or None if price data unavailable
+    - has_price_data: bool indicating if price data was available
+    - details: dict with breakdown information (original_price, price_unit, converted_price, recipe_quantity, recipe_unit)
+    """
+    ingredient = recipe_ingredient.ingredient
+    recipe_unit = recipe_ingredient.unit
+    recipe_quantity = recipe_ingredient.quantity
+    
+    if not ingredient or not recipe_unit or not recipe_quantity:
+        return None, False, None
+    
+    # Find a price for this ingredient that matches a compatible unit
+    matching_price = None
+    try:
+        # Access prices relationship safely in case table doesn't exist
+        if hasattr(ingredient, 'prices'):
+            for price in ingredient.prices:
+                price_unit = units_dict.get(price.unit_id)
+                if price_unit and can_convert_units(recipe_unit, price_unit):
+                    matching_price = price
+                    break
+    except Exception as e:
+        # Table may not exist yet or other database error
+        print(f"Warning: Could not access prices for ingredient {ingredient.ingredient_id}: {e}")
+        pass
+    
+    if not matching_price:
+        return None, False, None
+    
+    # Convert recipe quantity to price unit
+    price_unit = units_dict.get(matching_price.unit_id)
+    converted_quantity = convert_unit_quantity(recipe_quantity, recipe_unit, price_unit)
+    
+    if converted_quantity is None:
+        return None, False, None
+    
+    # Calculate cost (convert Decimal to float for calculation)
+    original_price = float(matching_price.price)
+    converted_qty = float(converted_quantity)
+    cost = converted_qty * original_price
+    
+    # Calculate the price per recipe unit
+    # This is the price after unit conversion
+    price_per_recipe_unit = cost / float(recipe_quantity)
+    
+    # Build details dict
+    details = {
+        'original_price': original_price,
+        'original_unit': price_unit.abbreviation if price_unit else None,
+        'original_unit_name': price_unit.name if price_unit else None,
+        'price_per_recipe_unit': price_per_recipe_unit,
+        'recipe_unit': recipe_unit.abbreviation if recipe_unit else None,
+        'recipe_unit_name': recipe_unit.name if recipe_unit else None,
+        'recipe_quantity': float(recipe_quantity),
+    }
+    
+    return cost, True, details
+
+def calculate_recipe_cost(recipe, units_list, scale_factor=1.0):
+    """
+    Calculate total cost for a recipe and per-ingredient costs.
+    Returns dict with total_cost, ingredients_cost, and missing_prices flag.
+    """
+    units_dict = {u.unit_id: u for u in units_list}
+    total_cost = 0.0
+    has_missing_prices = False
+    ingredients_cost = []
+    
+    for ri in recipe.ingredients:
+        cost, has_price, details = calculate_ingredient_cost(ri, units_dict)
+        
+        if has_price and cost is not None:
+            scaled_cost = cost * scale_factor
+            scaled_quantity = float(ri.quantity) * scale_factor
+            total_cost += scaled_cost
+            
+            ingredient_info = {
+                'ingredient_id': ri.ingredient_id,
+                'name': ri.ingredient.name if ri.ingredient else None,
+                'cost': round(scaled_cost, 2),
+                'has_price_data': True
+            }
+            
+            # Add detailed breakdown if available
+            if details:
+                ingredient_info['details'] = {
+                    'original_price': details['original_price'],
+                    'original_unit': details['original_unit'],
+                    'original_unit_name': details['original_unit_name'],
+                    'price_per_recipe_unit': details['price_per_recipe_unit'],
+                    'recipe_unit': details['recipe_unit'],
+                    'recipe_unit_name': details['recipe_unit_name'],
+                    'recipe_quantity': scaled_quantity,
+                }
+            
+            ingredients_cost.append(ingredient_info)
+        else:
+            has_missing_prices = True
+            ingredients_cost.append({
+                'ingredient_id': ri.ingredient_id,
+                'name': ri.ingredient.name if ri.ingredient else None,
+                'cost': None,
+                'has_price_data': False
+            })
+    
+    return {
+        'total_cost': round(total_cost, 2) if not has_missing_prices else None,
+        'ingredients_cost': ingredients_cost,
+        'has_missing_prices': has_missing_prices
     }
 
 
@@ -346,6 +549,29 @@ def recipe(recipe_id):
     else:
         return jsonify({"error": "Method not allowed."}), 405
 
+@app.route('/api/recipes/<int:recipe_id>/cost', methods=['GET'])
+@login_required
+def recipe_cost(recipe_id):
+    """Endpoint to get recipe cost information."""
+    try:
+        recipe = db.session.execute(db.select(Recipe).filter_by(recipe_id=recipe_id)).scalar_one_or_none()
+        if recipe is None:
+            return jsonify({"error": "Recipe not found."}), 404
+        
+        # Get scale factor from query params (default to 1.0)
+        scale_factor = float(request.args.get('scale', 1.0))
+        
+        # Get all units for conversion
+        units = db.session.execute(db.select(Unit)).scalars().all()
+        
+        # Calculate cost
+        cost_info = calculate_recipe_cost(recipe, units, scale_factor)
+        
+        return jsonify(cost_info)
+    except Exception as e:
+        print(f"Error calculating recipe cost: {e}")
+        return jsonify({"error": "Failed to calculate recipe cost"}), 500
+
 @app.route("/api/ingredients", methods=['GET', 'POST'])
 @login_required
 def ingredients_list():
@@ -438,6 +664,119 @@ def ingredient(ingredient_id):
             db.session.rollback()
             print(f"Error deleting ingredient: {e}")
             return jsonify({"error": "Failed to delete ingredient"}), 500
+    else:
+        return jsonify({"error": "Method not allowed."}), 405
+
+@app.route('/api/ingredients/<int:ingredient_id>/prices', methods=['GET', 'POST'])
+@login_required
+def ingredient_prices(ingredient_id):
+    """Endpoint for managing ingredient prices."""
+    # Verify ingredient exists
+    try:
+        ingredient = db.session.execute(db.select(Ingredient).filter_by(ingredient_id=ingredient_id)).scalar_one_or_none()
+        if ingredient is None:
+            return jsonify({"error": "Ingredient not found."}), 404
+    except Exception as e:
+        return jsonify({"error": "Failed to fetch ingredient from database."}), 500
+    
+    if request.method == 'GET':
+        # Return all prices for this ingredient
+        try:
+            if hasattr(ingredient, 'prices'):
+                return jsonify([serialize_ingredient_price(p) for p in ingredient.prices])
+            else:
+                return jsonify([])
+        except Exception as e:
+            # Table may not exist yet if migration hasn't been run
+            print(f"Error accessing ingredient prices: {e}")
+            return jsonify([])
+    elif request.method == 'POST':
+        # Create new price for this ingredient
+        try:
+            data = request.get_json()
+            
+            # Check if a price already exists for this unit
+            existing_price = db.session.execute(
+                db.select(IngredientPrice).filter_by(
+                    ingredient_id=ingredient_id,
+                    unit_id=data.get('unit_id')
+                )
+            ).scalar_one_or_none()
+            
+            if existing_price:
+                return jsonify({"error": "A price already exists for this unit. Please update it instead."}), 400
+            
+            new_price = IngredientPrice(
+                ingredient_id=ingredient_id,
+                price=data.get('price'),
+                unit_id=data.get('unit_id'),
+                price_note=data.get('price_note')
+            )
+            
+            db.session.add(new_price)
+            db.session.commit()
+            return jsonify(serialize_ingredient_price(new_price)), 201
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error creating ingredient price: {e}")
+            return jsonify({"error": "Failed to create ingredient price"}), 500
+
+@app.route('/api/ingredients/<int:ingredient_id>/prices/<int:price_id>', methods=['GET', 'PUT', 'DELETE'])
+@login_required
+def ingredient_price(ingredient_id, price_id):
+    """Endpoint for managing a specific ingredient price."""
+    try:
+        price = db.session.execute(
+            db.select(IngredientPrice).filter_by(
+                price_id=price_id,
+                ingredient_id=ingredient_id
+            )
+        ).scalar_one_or_none()
+        if price is None:
+            return jsonify({"error": "Price not found."}), 404
+    except Exception as e:
+        return jsonify({"error": "Failed to fetch price from database."}), 500
+    
+    if request.method == 'GET':
+        return jsonify(serialize_ingredient_price(price))
+    elif request.method == 'PUT':
+        # Update price
+        try:
+            data = request.get_json()
+            
+            if 'price' in data:
+                price.price = data['price']
+            if 'unit_id' in data:
+                # Check if changing to a unit that already has a price
+                if data['unit_id'] != price.unit_id:
+                    existing = db.session.execute(
+                        db.select(IngredientPrice).filter_by(
+                            ingredient_id=ingredient_id,
+                            unit_id=data['unit_id']
+                        )
+                    ).scalar_one_or_none()
+                    if existing:
+                        return jsonify({"error": "A price already exists for this unit."}), 400
+                price.unit_id = data['unit_id']
+            if 'price_note' in data:
+                price.price_note = data['price_note']
+            
+            db.session.commit()
+            return jsonify(serialize_ingredient_price(price))
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error updating ingredient price: {e}")
+            return jsonify({"error": "Failed to update ingredient price"}), 500
+    elif request.method == 'DELETE':
+        # Delete price
+        try:
+            db.session.delete(price)
+            db.session.commit()
+            return jsonify({"message": "Price deleted successfully"}), 200
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error deleting ingredient price: {e}")
+            return jsonify({"error": "Failed to delete ingredient price"}), 500
     else:
         return jsonify({"error": "Method not allowed."}), 405
 
