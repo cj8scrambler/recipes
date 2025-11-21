@@ -189,7 +189,12 @@ Start with: `docker-compose up -d`
 BACKEND_PORT=8000
 FLASK_ENV=production
 SECRET_KEY=your-random-secret-key-here
+CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 ```
+
+**Note about CORS_ORIGINS**: This controls which frontend URLs can access the API. 
+- For local Docker: `http://localhost:5173,http://127.0.0.1:5173`
+- For production: Add your domain, e.g., `https://recipes.example.com,http://localhost:5173`
 
 #### Frontend
 ```bash
@@ -357,6 +362,33 @@ docker-compose logs db
 **Verify connection string**:
 ```bash
 docker-compose exec backend env | grep DATABASE_URL
+```
+
+### Login Returns 405 Error (Method Not Allowed)
+
+This is usually a CORS configuration issue. The backend needs to know which frontend URLs are allowed.
+
+**Solution**: Add your frontend URL to `CORS_ORIGINS` in `.env`:
+
+```bash
+# If accessing frontend at http://localhost:5173
+CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+
+# If accessing from a different host (e.g., 192.168.1.100:5173)
+CORS_ORIGINS=http://localhost:5173,http://192.168.1.100:5173
+
+# For production with domain
+CORS_ORIGINS=https://recipes.example.com,http://localhost:5173
+```
+
+After updating, restart the backend:
+```bash
+docker-compose restart backend
+```
+
+**Check current CORS configuration**:
+```bash
+docker-compose exec backend env | grep CORS_ORIGINS
 ```
 
 ### Frontend Shows API Errors

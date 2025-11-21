@@ -23,9 +23,14 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False # Recommended setting for m
 db = SQLAlchemy(app)
 
 # Configure CORS to allow the React frontend to connect with credentials for session cookies
+# Allow CORS_ORIGINS to be configured via environment variable for Docker deployments
+# Default to localhost for development
+cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173')
+allowed_origins = [origin.strip() for origin in cors_origins.split(',')]
+
 CORS(app, resources={
     r"/api/*": {
-        "origins": ["http://localhost:5173", "http://127.0.0.1:5173"],
+        "origins": allowed_origins,
         "supports_credentials": True  # Allow cookies to be sent
     }
 })

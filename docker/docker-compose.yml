@@ -39,6 +39,7 @@ services:
       DATABASE_URL: ${DATABASE_URL:-mysql+pymysql://${MYSQL_USER:-recipes_user}:${MYSQL_PASSWORD:-recipes_password}@${DB_HOST:-db}:${DB_PORT:-3306}/${MYSQL_DATABASE:-recipes}}
       FLASK_ENV: ${FLASK_ENV:-production}
       SECRET_KEY: ${SECRET_KEY:-change-this-in-production}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     networks:
