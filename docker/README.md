@@ -13,20 +13,36 @@ This directory contains all Docker-related files for deploying the Recipes appli
 
 ## Quick Start
 
+### Option 1: With Internal MySQL Container
+
 1. **Copy and configure environment file**:
    ```bash
    cp .env.example .env
    nano .env
    ```
 
-2. **Start with internal database**:
+2. **Keep MYSQL_* variables uncommented, leave DATABASE_URL commented**
+
+3. **Start all services**:
    ```bash
    docker-compose --profile internal-db up -d
    ```
 
-3. **Or with external database**:
+### Option 2: With External Database
+
+1. **Copy and configure environment file**:
    ```bash
-   export DATABASE_URL="mysql+pymysql://user:pass@host:3306/db"
+   cp .env.example .env
+   nano .env
+   ```
+
+2. **Set DATABASE_URL, comment out MYSQL_* variables**:
+   ```bash
+   DATABASE_URL=mysql+pymysql://user:pass@host:3306/db
+   ```
+
+3. **Start services** (no internal-db profile needed):
+   ```bash
    docker-compose up -d
    ```
 

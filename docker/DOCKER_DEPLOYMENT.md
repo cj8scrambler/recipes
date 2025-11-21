@@ -150,10 +150,18 @@ docker-compose --profile internal-db up -d
 
 ### Environment Variables
 
-All configuration is done through environment variables in `.env` file:
+All configuration is done through environment variables in `.env` file.
 
-#### Database (when using internal DB)
+### Choosing Database Setup
+
+You must choose **one** of these two options:
+
+#### Option 1: Internal MySQL Container (Development/Testing)
+
+Use the built-in MySQL container. Configure these variables in `.env`:
+
 ```bash
+# Leave DATABASE_URL commented out or unset
 MYSQL_ROOT_PASSWORD=rootpassword
 MYSQL_DATABASE=recipes
 MYSQL_USER=recipes_user
@@ -161,10 +169,20 @@ MYSQL_PASSWORD=recipes_password
 MYSQL_PORT=3306
 ```
 
-#### Database (when using external DB)
+Start with: `docker-compose --profile internal-db up -d`
+
+#### Option 2: External Database (Production)
+
+Use an existing MySQL database. Configure this variable in `.env`:
+
 ```bash
+# Set DATABASE_URL (comment out MYSQL_* variables)
 DATABASE_URL=mysql+pymysql://user:password@host:port/database
 ```
+
+Start with: `docker-compose up -d`
+
+**Important**: When `DATABASE_URL` is set, the `MYSQL_*` variables are ignored.
 
 #### Backend
 ```bash
