@@ -73,7 +73,23 @@ CREATE TABLE Recipe_Tags (
     FOREIGN KEY (tag_id) REFERENCES Tags(tag_id) ON DELETE CASCADE
 );
 
--- 8. Users Table
+-- 8. Ingredient_Prices Table
+-- Stores multiple price entries per ingredient for different unit types
+CREATE TABLE Ingredient_Prices (
+    price_id INT PRIMARY KEY AUTO_INCREMENT,
+    ingredient_id INT NOT NULL,
+    price DECIMAL(10, 2) NOT NULL,
+    unit_id INT NOT NULL,
+    price_note VARCHAR(255),  -- Free-form text for time/location/notes about the price
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (ingredient_id) REFERENCES Ingredients(ingredient_id) ON DELETE CASCADE,
+    FOREIGN KEY (unit_id) REFERENCES Units(unit_id),
+    UNIQUE KEY unique_ingredient_unit_price (ingredient_id, unit_id),
+    INDEX idx_ingredient_prices_ingredient (ingredient_id)
+);
+
+-- 9. Users Table
 -- Stores user accounts with authentication and role information
 CREATE TABLE users (
     id CHAR(36) PRIMARY KEY,  -- UUID stored as string
@@ -86,7 +102,7 @@ CREATE TABLE users (
     INDEX idx_email (email)
 );
 
--- 9. Sessions Table
+-- 10. Sessions Table
 -- Stores active user sessions for session-based authentication
 CREATE TABLE sessions (
     session_id CHAR(36) PRIMARY KEY,  -- UUID stored as string

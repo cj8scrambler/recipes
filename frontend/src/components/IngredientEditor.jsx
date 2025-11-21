@@ -6,6 +6,8 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
   const [defaultUnitId, setDefaultUnitId] = useState('')
   const [notes, setNotes] = useState('')
   const [units, setUnits] = useState([])
+  const [prices, setPrices] = useState([])
+  const [error, setError] = useState(null)
 
   useEffect(() => {
     loadUnits()
@@ -16,10 +18,17 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
       setName(ingredient.name || '')
       setDefaultUnitId(ingredient.default_unit_id || '')
       setNotes(ingredient.notes || '')
+      // Load prices if editing existing ingredient
+      if (ingredient.ingredient_id) {
+        loadPrices(ingredient.ingredient_id)
+      } else {
+        setPrices([])
+      }
     } else {
       setName('')
       setDefaultUnitId('')
       setNotes('')
+      setPrices([])
     }
   }, [ingredient])
 
@@ -32,14 +41,113 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
     }
   }
 
-  function submit(e) {
+  async function loadPrices(ingredientId) {
+    try {
+      const ps = await api.listIngredientPrices(ingredientId)
+      // Format price values for display (remove trailing zeros)
+      const formattedPrices = (ps || []).map(p => ({
+        ...p,
+        price: formatPriceForInput(p.price)
+      }))
+      setPrices(formattedPrices)
+    } catch (err) {
+      console.error('Failed to load prices:', err)
+      setPrices([])
+    }
+  }
+
+  function formatPriceForInput(price) {
+    if (price === '' || price == null) return '';
+    const num = parseFloat(price);
+    if (isNaN(num)) return '';
+    // Format to max 2 decimal places and remove trailing zeros
+    return parseFloat(num.toFixed(2)).toString();
+  }
+
+  function addPrice() {
+    setPrices([...prices, { unit_id: '', price: '', price_note: '', isNew: true }])
+  }
+
+  function removePrice(index) {
+    setPrices(prices.filter((_, i) => i !== index))
+  }
+
+  function updatePrice(index, field, value) {
+    const updated = [...prices]
+    updated[index] = { ...updated[index], [field]: value }
+    setPrices(updated)
+  }
+
+  async function savePrice(price, ingredientId) {
+    try {
+      if (price.price_id) {
+        // Update existing price
+        await api.updateIngredientPrice(ingredientId, price.price_id, {
+          price: parseFloat(price.price),
+          unit_id: parseInt(price.unit_id),
+          price_note: price.price_note || null
+        })
+      } else {
+        // Create new price
+        await api.createIngredientPrice(ingredientId, {
+          price: parseFloat(price.price),
+          unit_id: parseInt(price.unit_id),
+          price_note: price.price_note || null
+        })
+      }
+    } catch (err) {
+      throw new Error(`Failed to save price: ${err.message}`)
+    }
+  }
+
+  async function deletePrice(price, ingredientId) {
+    if (price.price_id) {
+      try {
+        await api.deleteIngredientPrice(ingredientId, price.price_id)
+      } catch (err) {
+        throw new Error(`Failed to delete price: ${err.message}`)
+      }
+    }
+  }
+
+  async function submit(e) {
     e.preventDefault()
-    onSave({
-      ...ingredient,
-      name,
-      default_unit_id: defaultUnitId ? parseInt(defaultUnitId) : null,
-      notes
-    })
+    setError(null)
+    
+    try {
+      // First save the ingredient
+      const savedIngredient = await onSave({
+        ...ingredient,
+        name,
+        default_unit_id: defaultUnitId ? parseInt(defaultUnitId) : null,
+        notes
+      })
+      
+      // If we have an ingredient ID (either from existing or newly created), save prices
+      const ingredientId = savedIngredient?.ingredient_id || ingredient?.ingredient_id
+      if (ingredientId) {
+        // Get original prices to detect deletions
+        const originalPrices = ingredient?.prices || []
+        const currentPriceIds = prices.filter(p => p.price_id).map(p => p.price_id)
+        
+        // Delete removed prices
+        for (const origPrice of originalPrices) {
+          if (!currentPriceIds.includes(origPrice.price_id)) {
+            await deletePrice(origPrice, ingredientId)
+          }
+        }
+        
+        // Save new and updated prices
+        for (const price of prices) {
+          if (price.unit_id && price.price) {
+            await savePrice(price, ingredientId)
+          }
+        }
+      }
+    } catch (err) {
+      setError(err.message)
+      console.error('Error saving ingredient:', err)
+    }
   }
 
   // Group units by category for organized display
@@ -54,6 +162,8 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
   return (
     <form className="editor" onSubmit={submit}>
       <h3>{ingredient?.ingredient_id ? 'Edit Ingredient' : 'New Ingredient'}</h3>
+      {error && <div className="error">{error}</div>}
+      
       <div className="form-group">
         <label>
           Ingredient Name
@@ -83,6 +193,68 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
           <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any additional information" />
         </label>
       </div>
+      
+      <div className="form-group">
+        <label>Prices per Unit</label>
+        <p style={{ fontSize: '0.9em', color: '#666', marginBottom: '0.5em' }}>
+          Add prices for different units (e.g., price per cup, price per pound). 
+          This allows recipe costs to be calculated regardless of which unit is used in the recipe.
+        </p>
+        {prices.map((price, idx) => {
+          const selectedUnit = units.find(u => u.unit_id === parseInt(price.unit_id))
+          return (
+            <div key={idx} style={{ 
+              display: 'grid', 
+              gridTemplateColumns: '2fr 1.5fr 2fr auto', 
+              gap: '0.5em', 
+              marginBottom: '0.5em',
+              alignItems: 'start'
+            }}>
+              <select 
+                value={price.unit_id || ''} 
+                onChange={(e) => updatePrice(idx, 'unit_id', e.target.value)}
+                required
+              >
+                <option value="">Select unit</option>
+                {Object.keys(groupedUnits).map(category => (
+                  <optgroup key={category} label={category}>
+                    {groupedUnits[category].map(u => (
+                      <option key={u.unit_id} value={u.unit_id}>
+                        {u.name} ({u.abbreviation})
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+              <input 
+                type="number" 
+                step="0.01"
+                value={price.price || ''} 
+                onChange={(e) => updatePrice(idx, 'price', e.target.value)}
+                placeholder="Price"
+                required
+              />
+              <input 
+                type="text"
+                value={price.price_note || ''} 
+                onChange={(e) => updatePrice(idx, 'price_note', e.target.value)}
+                placeholder="Note (e.g., Store/Date)"
+              />
+              <button 
+                type="button" 
+                className="small danger" 
+                onClick={() => removePrice(idx)}
+              >
+                Remove
+              </button>
+            </div>
+          )
+        })}
+        <button type="button" className="small secondary" onClick={addPrice}>
+          + Add Price
+        </button>
+      </div>
+      
       <div className="editor-actions">
         <button type="submit">Save Ingredient</button>
         <button type="button" className="secondary" onClick={onCancel}>Cancel</button>

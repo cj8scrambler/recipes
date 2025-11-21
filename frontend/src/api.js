@@ -31,31 +31,40 @@ export const api = {
   getRecipe: (id) => request(`/recipes/${id}`),
 
   // Admin - Recipes
-  adminListRecipes: () => request('/admin/recipes'),
-  adminCreateRecipe: (payload) => request('/admin/recipes', { method: 'POST', body: JSON.stringify(payload) }),
-  adminUpdateRecipe: (id, payload) => request(`/admin/recipes/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
-  adminDeleteRecipe: (id) => request(`/admin/recipes/${id}`, { method: 'DELETE' }),
+  adminListRecipes: () => request('/recipes'),
+  adminCreateRecipe: (payload) => request('/recipes', { method: 'POST', body: JSON.stringify(payload) }),
+  adminUpdateRecipe: (id, payload) => request(`/recipes/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  adminDeleteRecipe: (id) => request(`/recipes/${id}`, { method: 'DELETE' }),
 
   // Ingredients (public list)
   listIngredients: () => request('/ingredients'),
 
   // Admin - Ingredients
-  adminListIngredients: () => request('/admin/ingredients'),
-  adminCreateIngredient: (payload) => request('/admin/ingredients', { method: 'POST', body: JSON.stringify(payload) }),
-  adminUpdateIngredient: (id, payload) => request(`/admin/ingredients/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
-  adminDeleteIngredient: (id) => request(`/admin/ingredients/${id}`, { method: 'DELETE' }),
+  adminListIngredients: () => request('/ingredients'),
+  adminCreateIngredient: (payload) => request('/ingredients', { method: 'POST', body: JSON.stringify(payload) }),
+  adminUpdateIngredient: (id, payload) => request(`/ingredients/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  adminDeleteIngredient: (id) => request(`/ingredients/${id}`, { method: 'DELETE' }),
 
   // Units
   listUnits: () => request('/units'),
+
+  // Recipe Costs
+  getRecipeCost: (id, scale = 1.0) => request(`/recipes/${id}/cost?scale=${scale}`),
+
+  // Admin - Ingredient Prices
+  listIngredientPrices: (ingredientId) => request(`/ingredients/${ingredientId}/prices`),
+  createIngredientPrice: (ingredientId, payload) => request(`/ingredients/${ingredientId}/prices`, { method: 'POST', body: JSON.stringify(payload) }),
+  updateIngredientPrice: (ingredientId, priceId, payload) => request(`/ingredients/${ingredientId}/prices/${priceId}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  deleteIngredientPrice: (ingredientId, priceId) => request(`/ingredients/${ingredientId}/prices/${priceId}`, { method: 'DELETE' }),
 
   // Versions (if your backend exposes versions; adjust if different)
   listRecipeVersions: (id) => request(`/recipes/${id}/versions`),
 
   // Admin - Ingredient Groups
-  adminListIngredientGroups: () => request('/admin/ingredient-groups'),
-  adminCreateIngredientGroup: (payload) => request('/admin/ingredient-groups', { method: 'POST', body: JSON.stringify(payload) }),
-  adminUpdateIngredientGroup: (id, payload) => request(`/admin/ingredient-groups/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
-  adminDeleteIngredientGroup: (id) => request(`/admin/ingredient-groups/${id}`, { method: 'DELETE' }),
+  adminListIngredientGroups: () => request('/ingredient-groups'),
+  adminCreateIngredientGroup: (payload) => request('/ingredient-groups', { method: 'POST', body: JSON.stringify(payload) }),
+  adminUpdateIngredientGroup: (id, payload) => request(`/ingredient-groups/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  adminDeleteIngredientGroup: (id) => request(`/ingredient-groups/${id}`, { method: 'DELETE' }),
 
   // Admin - Users
   adminListUsers: () => request('/admin/users'),

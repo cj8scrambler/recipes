@@ -63,15 +63,18 @@ export default function AdminDashboard() {
 
   async function saveIngredient(payload) {
     try {
+      let savedIngredient
       if (payload.ingredient_id) {
-        await api.adminUpdateIngredient(payload.ingredient_id, payload)
+        savedIngredient = await api.adminUpdateIngredient(payload.ingredient_id, payload)
       } else {
-        await api.adminCreateIngredient(payload)
+        savedIngredient = await api.adminCreateIngredient(payload)
       }
       setEditingIngredient(null)
       await loadAll()
+      return savedIngredient
     } catch (err) {
       setError(err.message)
+      throw err
     }
   }
 
