@@ -52,7 +52,7 @@ For production deployment to self-hosted Proxmox instances with database migrati
 
 Key features:
 - Production-ready WSGI server (Gunicorn) configuration
-- Database versioning and migration system with rollback support
+- Tag-based database migration system with automated generation
 - Systemd service files for automatic startup
 - Deployment automation scripts
 - CI/CD pipeline examples (GitHub Actions, GitLab CI)

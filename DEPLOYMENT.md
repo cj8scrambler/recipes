@@ -38,57 +38,88 @@ The application uses a database versioning system to manage schema changes:
 
 ## Database Migration System
 
-### Schema Version Table
+This project uses a **tag-based migration approach** where migrations are automatically generated between releases.
 
-The `schema_version` table tracks the current database version:
+### Key Principles
 
-```sql
-CREATE TABLE IF NOT EXISTS schema_version (
-    version INT PRIMARY KEY,
-    description VARCHAR(255) NOT NULL,
-    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
+1. **`db/db.sql` is the source of truth** - All schema changes are made directly to this file
+2. **During development** - Drop and recreate the database from `db.sql` and `data.sql`
+3. **At release time** - Generate a single migration file that captures all changes since the previous release
+4. **One migration per release** - Each migration upgrades from one tagged version to another
+
+### Migration Workflow
+
+#### Development (Between Releases)
+
+When making schema changes during development:
+
+1. Edit `db/db.sql` directly
+2. Drop and recreate your development database:
+   ```bash
+   mysql -u user -p -h dbhost recipes_dev -e "DROP DATABASE IF EXISTS recipes_dev; CREATE DATABASE recipes_dev;"
+   mysql -u user -p -h dbhost recipes_dev < db/db.sql
+   mysql -u user -p -h dbhost recipes_dev < db/data.sql
+   ```
+
+**No migration files are created during development.**
+
+#### Creating a Release
+
+When preparing a new release (e.g., v1.1.0 from v1.0.0):
+
+1. Ensure all schema changes are committed to `db/db.sql`
+2. Generate migration file:
+   ```bash
+   cd backend
+   python generate_migration.py --from-tag v1.0.0 --to-tag HEAD
+   ```
+3. Review `db/migrations/migrate_1_0_0_to_1_1_0.sql`
+4. Edit to add any manual ALTER TABLE statements needed
+5. Test the migration on a staging database
+6. Commit the migration file
+7. Tag the release: `git tag -a v1.1.0 -m "Release 1.1.0"`
+8. Push: `git push --follow-tags`
 
 ### Migration File Structure
 
-Migration files follow the naming convention: `V{version}_{description}.sql`
+Migration files follow the naming convention: `migrate_{from_version}_to_{to_version}.sql`
 
-Example: `V002_add_user_preferences.sql`
-
-Each migration file contains both upgrade and downgrade SQL:
+Example: `migrate_1_0_0_to_1_1_0.sql`
 
 ```sql
--- Migration V002: Add user preferences table
--- Description: Adds a new table for storing user preferences
+-- Migration from v1.0.0 to v1.1.0
+-- Generated: 2024-01-15 10:30:00
 
 -- ==== UPGRADE ====
-CREATE TABLE user_preferences (
-    user_id INT PRIMARY KEY,
-    theme VARCHAR(20) DEFAULT 'light',
-    FOREIGN KEY (user_id) REFERENCES users(user_id)
+CREATE TABLE new_feature (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(255) NOT NULL
 );
 
 -- ==== DOWNGRADE ====
-DROP TABLE IF EXISTS user_preferences;
+DROP TABLE IF EXISTS new_feature;
 ```
 
-### Creating New Migrations
+### Applying Migrations
 
-1. Create a new migration file in `db/migrations/`:
-   ```bash
-   touch db/migrations/V003_your_description.sql
-   ```
+To apply a migration in production:
 
-2. Add both upgrade and downgrade SQL separated by the markers:
-   - `-- ==== UPGRADE ====` (SQL to apply the change)
-   - `-- ==== DOWNGRADE ====` (SQL to revert the change)
+```bash
+# Using migration management script
+cd backend
+python manage_migrations.py apply migrate_1_0_0_to_1_1_0.sql
 
-3. Test the migration:
-   ```bash
-   cd backend
-   python manage_migrations.py check
-   ```
+# Or directly with MySQL
+mysql -u user -p -h dbhost recipes_prod < db/migrations/migrate_1_0_0_to_1_1_0.sql
+```
+
+To rollback:
+
+```bash
+python manage_migrations.py apply migrate_1_0_0_to_1_1_0.sql --downgrade
+```
+
+See [db/migrations/README.md](db/migrations/README.md) for complete migration documentation.
 
 ## Production Server Setup
 

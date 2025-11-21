@@ -129,7 +129,9 @@ git pull origin main
 
 cd backend
 source .venv/bin/activate
-python manage_migrations.py upgrade
+# Apply migration if one exists for this version
+python manage_migrations.py list
+# python manage_migrations.py apply migrate_X_X_X_to_Y_Y_Y.sql
 sudo systemctl restart recipes-backend
 
 cd ../frontend
@@ -153,10 +155,12 @@ cd /opt/recipes/backend
 source .venv/bin/activate
 
 python manage_migrations.py version     # Show current version
-python manage_migrations.py check       # Check for pending migrations
-python manage_migrations.py upgrade     # Apply all pending migrations
-python manage_migrations.py downgrade   # Rollback last migration
+python manage_migrations.py list        # List available migration files
+python manage_migrations.py apply migrate_1_0_0_to_1_1_0.sql  # Apply specific migration
+python manage_migrations.py apply migrate_1_0_0_to_1_1_0.sql --downgrade  # Rollback
 ```
+
+**Note**: Migrations are generated per release. During development, drop and recreate the database from `db.sql`.
 
 ### Service Management
 

@@ -2,13 +2,14 @@
 """
 Database migration management script for Recipes application.
 
-This script manages database schema versioning and migrations.
+This script manages database schema migrations using a tag-based approach.
+Migrations are generated between git releases and applied as a single file per release.
 """
 
 import os
 import sys
 import re
-from datetime import datetime
+import argparse
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 
@@ -55,12 +56,12 @@ def get_db_engine():
         sys.exit(1)
 
 
-def ensure_schema_version_table(engine):
-    """Create schema_version table if it doesn't exist."""
+def ensure_version_table(engine):
+    """Create migration_version table if it doesn't exist."""
     with engine.connect() as conn:
         conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS schema_version (
-                version INT PRIMARY KEY,
+            CREATE TABLE IF NOT EXISTS migration_version (
+                version VARCHAR(50) PRIMARY KEY,
                 description VARCHAR(255) NOT NULL,
                 applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -69,38 +70,39 @@ def ensure_schema_version_table(engine):
 
 
 def get_current_version(engine):
-    """Get current database schema version."""
-    ensure_schema_version_table(engine)
+    """Get current database version."""
+    ensure_version_table(engine)
     with engine.connect() as conn:
         result = conn.execute(text(
-            "SELECT version FROM schema_version ORDER BY version DESC LIMIT 1"
+            "SELECT version FROM migration_version ORDER BY applied_at DESC LIMIT 1"
         ))
         row = result.fetchone()
-        return row[0] if row else 0
+        return row[0] if row else None
 
 
 def get_migration_files():
-    """Get list of migration files sorted by version number."""
+    """Get list of migration files sorted by version."""
     if not os.path.exists(MIGRATIONS_DIR):
         os.makedirs(MIGRATIONS_DIR)
         return []
     
     migrations = []
-    pattern = re.compile(r'^V(\d+)_(.+)\.sql$')
+    # Pattern: migrate_1_0_0_to_1_1_0.sql
+    pattern = re.compile(r'^migrate_(.+)_to_(.+)\.sql$')
     
     for filename in os.listdir(MIGRATIONS_DIR):
         match = pattern.match(filename)
         if match:
-            version = int(match.group(1))
-            description = match.group(2).replace('_', ' ')
+            from_version = match.group(1).replace('_', '.')
+            to_version = match.group(2).replace('_', '.')
             migrations.append({
-                'version': version,
-                'description': description,
+                'from_version': from_version,
+                'to_version': to_version,
                 'filename': filename,
                 'path': os.path.join(MIGRATIONS_DIR, filename)
             })
     
-    return sorted(migrations, key=lambda x: x['version'])
+    return migrations
 
 
 def parse_migration_file(filepath):
@@ -112,8 +114,8 @@ def parse_migration_file(filepath):
     upgrade_marker = '-- ==== UPGRADE ===='
     downgrade_marker = '-- ==== DOWNGRADE ===='
     
-    if upgrade_marker not in content or downgrade_marker not in content:
-        print_error(f"Migration file must contain both upgrade and downgrade markers")
+    if upgrade_marker not in content:
+        print_error(f"Migration file must contain upgrade marker: {upgrade_marker}")
         return None, None
     
     parts = content.split(upgrade_marker)
@@ -121,11 +123,8 @@ def parse_migration_file(filepath):
         return None, None
     
     upgrade_and_rest = parts[1].split(downgrade_marker)
-    if len(upgrade_and_rest) < 2:
-        return None, None
-    
     upgrade_sql = upgrade_and_rest[0].strip()
-    downgrade_sql = upgrade_and_rest[1].strip()
+    downgrade_sql = upgrade_and_rest[1].strip() if len(upgrade_and_rest) > 1 else ""
     
     return upgrade_sql, downgrade_sql
 
@@ -134,29 +133,34 @@ def apply_migration(engine, migration, direction='upgrade'):
     """Apply a single migration."""
     upgrade_sql, downgrade_sql = parse_migration_file(migration['path'])
     
-    if not upgrade_sql or not downgrade_sql:
+    if not upgrade_sql:
         print_error(f"Invalid migration file: {migration['filename']}")
         return False
     
     sql_to_execute = upgrade_sql if direction == 'upgrade' else downgrade_sql
     
+    if not sql_to_execute:
+        print_error(f"No {direction} SQL found in migration file")
+        return False
+    
     try:
         with engine.connect() as conn:
             # Execute each statement separately
-            statements = [s.strip() for s in sql_to_execute.split(';') if s.strip()]
+            statements = [s.strip() for s in sql_to_execute.split(';') if s.strip() and not s.strip().startswith('--')]
             
             for statement in statements:
-                conn.execute(text(statement))
+                if statement:
+                    conn.execute(text(statement))
             
             # Update version tracking
             if direction == 'upgrade':
                 conn.execute(text(
-                    "INSERT INTO schema_version (version, description) VALUES (:version, :description)"
-                ), {'version': migration['version'], 'description': migration['description']})
+                    "INSERT INTO migration_version (version, description) VALUES (:version, :description)"
+                ), {'version': migration['to_version'], 'description': f"Migration to {migration['to_version']}"})
             else:
                 conn.execute(text(
-                    "DELETE FROM schema_version WHERE version = :version"
-                ), {'version': migration['version']})
+                    "DELETE FROM migration_version WHERE version = :version"
+                ), {'version': migration['to_version']})
             
             conn.commit()
         return True
@@ -166,23 +170,23 @@ def apply_migration(engine, migration, direction='upgrade'):
 
 
 def cmd_init(args):
-    """Initialize the migration system with current database state as V001."""
+    """Initialize the migration system with current database state."""
     engine = get_db_engine()
-    ensure_schema_version_table(engine)
+    ensure_version_table(engine)
     
     current = get_current_version(engine)
-    if current > 0:
+    if current:
         print_warning(f"Database already initialized at version {current}")
         return
     
-    # Mark current state as V001 (base schema from db.sql)
+    # Mark current state as version 1.0.0 (base schema)
     with engine.connect() as conn:
         conn.execute(text(
-            "INSERT INTO schema_version (version, description) VALUES (1, 'Initial schema')"
+            "INSERT INTO migration_version (version, description) VALUES ('1.0.0', 'Initial schema')"
         ))
         conn.commit()
     
-    print_success("Migration system initialized. Current database marked as V001 (Initial schema)")
+    print_success("Migration system initialized. Current database marked as v1.0.0 (Initial schema)")
 
 
 def cmd_version(args):
@@ -190,159 +194,91 @@ def cmd_version(args):
     engine = get_db_engine()
     current = get_current_version(engine)
     
-    if current == 0:
+    if not current:
         print_warning("Database not initialized. Run 'init' command first.")
     else:
-        print_info(f"Current database version: V{current:03d}")
+        print_info(f"Current database version: v{current}")
         
         # Show applied migrations
         with engine.connect() as conn:
             result = conn.execute(text(
-                "SELECT version, description, applied_at FROM schema_version ORDER BY version"
+                "SELECT version, description, applied_at FROM migration_version ORDER BY applied_at"
             ))
             print("\nApplied migrations:")
             for row in result:
-                print(f"  V{row[0]:03d}: {row[1]} (applied: {row[2]})")
+                print(f"  v{row[0]}: {row[1]} (applied: {row[2]})")
 
 
-def cmd_check(args):
-    """Check for pending migrations."""
-    engine = get_db_engine()
-    current = get_current_version(engine)
+def cmd_list(args):
+    """List available migration files."""
     migrations = get_migration_files()
     
-    pending = [m for m in migrations if m['version'] > current]
-    
-    if not pending:
-        print_success("Database is up to date. No pending migrations.")
-    else:
-        print_warning(f"{len(pending)} pending migration(s):")
-        for m in pending:
-            print(f"  V{m['version']:03d}: {m['description']}")
-
-
-def cmd_upgrade(args):
-    """Apply all pending migrations."""
-    engine = get_db_engine()
-    current = get_current_version(engine)
-    migrations = get_migration_files()
-    
-    pending = [m for m in migrations if m['version'] > current]
-    
-    if not pending:
-        print_success("Database is up to date. No migrations to apply.")
+    if not migrations:
+        print_info("No migration files found in db/migrations/")
         return
     
-    print_info(f"Applying {len(pending)} migration(s)...")
-    
-    for migration in pending:
-        print(f"\nApplying V{migration['version']:03d}: {migration['description']}")
-        if apply_migration(engine, migration, 'upgrade'):
-            print_success(f"Successfully applied V{migration['version']:03d}")
-        else:
-            print_error(f"Failed to apply V{migration['version']:03d}")
-            print_error("Migration stopped. Fix the issue and try again.")
-            sys.exit(1)
-    
-    print_success(f"\nAll migrations applied successfully. Current version: V{get_current_version(engine):03d}")
+    print_info(f"Available migration files:")
+    for m in migrations:
+        print(f"  v{m['from_version']} -> v{m['to_version']}: {m['filename']}")
 
 
-def cmd_downgrade(args):
-    """Rollback the last migration or to a specific version."""
-    engine = get_db_engine()
-    current = get_current_version(engine)
-    
-    if current <= 1:
-        print_warning("Already at base version (V001). Cannot downgrade further.")
+def cmd_apply(args):
+    """Apply a specific migration file."""
+    if not args.migration_file:
+        print_error("Migration file required")
         return
     
-    target_version = None
-    if args.target:
-        # Parse target version (e.g., "V003" or "3")
-        match = re.match(r'^V?(\d+)$', args.target)
-        if match:
-            target_version = int(match.group(1))
-        else:
-            print_error(f"Invalid target version: {args.target}")
-            return
-        
-        if target_version >= current:
-            print_error(f"Target version V{target_version:03d} is not less than current version V{current:03d}")
-            return
-    else:
-        # Rollback one version
-        target_version = current - 1
-    
-    migrations = get_migration_files()
-    migrations_to_rollback = [m for m in migrations if target_version < m['version'] <= current]
-    migrations_to_rollback.reverse()  # Apply rollbacks in reverse order
-    
-    print_info(f"Rolling back from V{current:03d} to V{target_version:03d}...")
-    
-    for migration in migrations_to_rollback:
-        print(f"\nRolling back V{migration['version']:03d}: {migration['description']}")
-        if apply_migration(engine, migration, 'downgrade'):
-            print_success(f"Successfully rolled back V{migration['version']:03d}")
-        else:
-            print_error(f"Failed to roll back V{migration['version']:03d}")
-            print_error("Rollback stopped. Fix the issue and try again.")
-            sys.exit(1)
-    
-    print_success(f"\nRollback complete. Current version: V{get_current_version(engine):03d}")
-
-
-def cmd_force_version(args):
-    """Force set the database version (use with extreme caution)."""
-    if not args.version:
-        print_error("Version number required")
+    filepath = os.path.join(MIGRATIONS_DIR, args.migration_file)
+    if not os.path.exists(filepath):
+        print_error(f"Migration file not found: {filepath}")
         return
     
-    match = re.match(r'^V?(\d+)$', args.version)
+    # Parse filename to get version info
+    pattern = re.compile(r'^migrate_(.+)_to_(.+)\.sql$')
+    match = pattern.match(args.migration_file)
     if not match:
-        print_error(f"Invalid version format: {args.version}")
+        print_error("Invalid migration filename format")
         return
     
-    version = int(match.group(1))
-    
-    print_warning(f"WARNING: Force-setting version to V{version:03d}")
-    print_warning("This does NOT apply any migrations, only updates the version tracking.")
-    response = input("Are you sure? (yes/no): ")
-    
-    if response.lower() != 'yes':
-        print_info("Cancelled.")
-        return
+    migration = {
+        'from_version': match.group(1).replace('_', '.'),
+        'to_version': match.group(2).replace('_', '.'),
+        'filename': args.migration_file,
+        'path': filepath
+    }
     
     engine = get_db_engine()
-    ensure_schema_version_table(engine)
+    current = get_current_version(engine)
     
-    with engine.connect() as conn:
-        # Clear all version records
-        conn.execute(text("DELETE FROM schema_version"))
-        
-        # Set new version
-        conn.execute(text(
-            "INSERT INTO schema_version (version, description) VALUES (:version, :description)"
-        ), {'version': version, 'description': f'Force-set to V{version:03d}'})
-        
-        conn.commit()
+    print_info(f"Current version: v{current if current else 'uninitialized'}")
+    print_info(f"Applying migration: v{migration['from_version']} -> v{migration['to_version']}")
     
-    print_success(f"Version force-set to V{version:03d}")
+    if args.downgrade:
+        print_warning("Applying DOWNGRADE (rollback)")
+        if apply_migration(engine, migration, 'downgrade'):
+            print_success(f"Successfully rolled back to v{migration['from_version']}")
+        else:
+            print_error("Migration rollback failed")
+            sys.exit(1)
+    else:
+        if apply_migration(engine, migration, 'upgrade'):
+            print_success(f"Successfully migrated to v{migration['to_version']}")
+        else:
+            print_error("Migration failed")
+            sys.exit(1)
 
 
 def main():
-    import argparse
-    
     parser = argparse.ArgumentParser(
         description='Manage database migrations for Recipes application',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  %(prog)s init                    Initialize migration system
-  %(prog)s version                 Show current database version
-  %(prog)s check                   Check for pending migrations
-  %(prog)s upgrade                 Apply all pending migrations
-  %(prog)s downgrade               Rollback last migration
-  %(prog)s downgrade --target V003 Rollback to version V003
+  %(prog)s init                                    Initialize migration system
+  %(prog)s version                                 Show current database version
+  %(prog)s list                                    List available migrations
+  %(prog)s apply migrate_1_0_0_to_1_1_0.sql        Apply specific migration
+  %(prog)s apply migrate_1_0_0_to_1_1_0.sql --downgrade   Rollback migration
         """
     )
     
@@ -354,19 +290,13 @@ Examples:
     # version command
     parser_version = subparsers.add_parser('version', help='Show current database version')
     
-    # check command
-    parser_check = subparsers.add_parser('check', help='Check for pending migrations')
+    # list command
+    parser_list = subparsers.add_parser('list', help='List available migration files')
     
-    # upgrade command
-    parser_upgrade = subparsers.add_parser('upgrade', help='Apply all pending migrations')
-    
-    # downgrade command
-    parser_downgrade = subparsers.add_parser('downgrade', help='Rollback migrations')
-    parser_downgrade.add_argument('--target', help='Target version to rollback to (e.g., V003)')
-    
-    # force-version command (hidden, for emergency use)
-    parser_force = subparsers.add_parser('force-version', help='Force set database version (DANGEROUS)')
-    parser_force.add_argument('version', help='Version to set (e.g., V003)')
+    # apply command
+    parser_apply = subparsers.add_parser('apply', help='Apply a migration file')
+    parser_apply.add_argument('migration_file', help='Migration file to apply (e.g., migrate_1_0_0_to_1_1_0.sql)')
+    parser_apply.add_argument('--downgrade', action='store_true', help='Apply downgrade instead of upgrade')
     
     args = parser.parse_args()
     
@@ -378,10 +308,8 @@ Examples:
     commands = {
         'init': cmd_init,
         'version': cmd_version,
-        'check': cmd_check,
-        'upgrade': cmd_upgrade,
-        'downgrade': cmd_downgrade,
-        'force-version': cmd_force_version,
+        'list': cmd_list,
+        'apply': cmd_apply,
     }
     
     commands[args.command](args)
