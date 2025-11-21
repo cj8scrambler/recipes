@@ -1,0 +1,7 @@
+# Staging environment configuration
+# Copy this file and customize for your staging setup
+
+DEPLOY_HOST="staging.example.com"
+DEPLOY_USER="recipes"
+DEPLOY_PATH="/opt/recipes"
+SERVICE_NAME="recipes-backend"

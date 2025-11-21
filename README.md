@@ -45,16 +45,37 @@ Open a local browser at: http://localhost:5173
 
 ## Production Deployment
 
-For production deployment to self-hosted Proxmox instances with database migration support:
+Multiple deployment options available:
+
+### Docker Deployment (Recommended)
+
+For containerized deployment with Docker Compose:
+
+- **Docker Guide**: [DOCKER_DEPLOYMENT.md](DOCKER_DEPLOYMENT.md) - Complete Docker deployment guide
+
+Quick start:
+```bash
+git checkout v1.0.0
+cp .env.example .env
+# Edit .env with your settings
+docker-compose --profile internal-db up -d
+```
+
+### Traditional Deployment
+
+For self-hosted Proxmox instances or VMs:
 
 - **Quick Start**: [DEPLOYMENT_QUICKSTART.md](DEPLOYMENT_QUICKSTART.md) - Get up and running in 20-30 minutes
 - **Complete Guide**: [DEPLOYMENT.md](DEPLOYMENT.md) - Comprehensive deployment documentation
 
 Key features:
+- **Docker Compose**: Full-stack deployment with single command
+- **Flexible database**: Use internal MySQL container or external database
+- **Tag-based deployments**: Deploy specific releases
 - Production-ready WSGI server (Gunicorn) configuration
 - Tag-based database migration system with automated generation
 - Systemd service files for automatic startup
-- Deployment automation scripts
+- Deployment automation scripts with config file support
 - CI/CD pipeline examples (GitHub Actions, GitLab CI)
 - Automated backup and maintenance tools
 - Separate production and development environment strategies

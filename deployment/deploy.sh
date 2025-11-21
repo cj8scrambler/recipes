@@ -47,32 +47,29 @@ fi
 ENVIRONMENT=$1
 VERSION=${2:-main}
 
-# Load environment-specific configuration
-case "$ENVIRONMENT" in
-    production)
-        DEPLOY_HOST="production.example.com"
-        DEPLOY_USER="recipes"
-        DEPLOY_PATH="/opt/recipes"
-        SERVICE_NAME="recipes-backend"
-        ;;
-    development)
-        DEPLOY_HOST="dev.example.com"
-        DEPLOY_USER="recipes"
-        DEPLOY_PATH="/opt/recipes"
-        SERVICE_NAME="recipes-backend"
-        ;;
-    staging)
-        DEPLOY_HOST="staging.example.com"
-        DEPLOY_USER="recipes"
-        DEPLOY_PATH="/opt/recipes"
-        SERVICE_NAME="recipes-backend"
-        ;;
-    *)
-        log_error "Unknown environment: $ENVIRONMENT"
-        log_info "Valid environments: production, development, staging"
-        exit 1
-        ;;
-esac
+# Get script directory to find config files
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+CONFIG_DIR="${SCRIPT_DIR}/config"
+CONFIG_FILE="${CONFIG_DIR}/${ENVIRONMENT}.conf"
+
+# Load environment-specific configuration from file
+if [ ! -f "$CONFIG_FILE" ]; then
+    log_error "Configuration file not found: $CONFIG_FILE"
+    log_info "Please create a configuration file for the '$ENVIRONMENT' environment"
+    log_info "Example: cp ${CONFIG_DIR}/production.conf ${CONFIG_FILE}"
+    log_info "Then edit $CONFIG_FILE with your settings"
+    exit 1
+fi
+
+log_info "Loading configuration from: $CONFIG_FILE"
+source "$CONFIG_FILE"
+
+# Validate required configuration variables
+if [ -z "$DEPLOY_HOST" ] || [ -z "$DEPLOY_USER" ] || [ -z "$DEPLOY_PATH" ] || [ -z "$SERVICE_NAME" ]; then
+    log_error "Missing required configuration variables in $CONFIG_FILE"
+    log_info "Required variables: DEPLOY_HOST, DEPLOY_USER, DEPLOY_PATH, SERVICE_NAME"
+    exit 1
+fi
 
 log_info "Deploying to $ENVIRONMENT environment"
 log_info "Host: $DEPLOY_HOST"

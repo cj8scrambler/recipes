@@ -8,6 +8,12 @@ This directory contains deployment configuration files and scripts for the Recip
 
 - **deploy.sh** - Automated deployment script for pushing updates to production, staging, or development environments
 
+### Configuration
+
+- **config/** - Environment-specific configuration files (production, development, staging)
+  - See [config/README.md](config/README.md) for setup instructions
+  - Copy `.conf.example` files to `.conf` and customize
+
 ### Systemd Service Files
 
 - **systemd/recipes-backend.service** - Systemd service configuration for the backend (Gunicorn)
@@ -16,6 +22,7 @@ This directory contains deployment configuration files and scripts for the Recip
 ### Configuration Examples
 
 - **nginx-example.conf** - Example Nginx reverse proxy configuration with SSL support
+- **nginx-frontend.conf** - Nginx configuration for frontend Docker container
 
 ## Quick Start
 
@@ -103,6 +110,27 @@ sudo certbot --nginx -d recipes.example.com
 
 ## Deployment Workflows
 
+### Setup Configuration (First Time)
+
+Before using the deployment script, create your environment configuration:
+
+```bash
+# Create production config
+cd deployment/config
+cp production.conf.example production.conf
+nano production.conf
+```
+
+Edit with your actual values:
+```bash
+DEPLOY_HOST="your-server.example.com"
+DEPLOY_USER="recipes"
+DEPLOY_PATH="/opt/recipes"
+SERVICE_NAME="recipes-backend"
+```
+
+**Note**: Configuration files (without `.example` suffix) are excluded from git for security.
+
 ### Deploying to Production
 
 Before deploying to production:
@@ -118,6 +146,13 @@ Then deploy:
 cd /opt/recipes/deployment
 ./deploy.sh production v1.2.3
 ```
+
+The script will:
+- Load configuration from `config/production.conf`
+- SSH to the server
+- Pull the specified version
+- Apply migrations
+- Restart services
 
 ### Manual Deployment
 
