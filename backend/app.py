@@ -278,16 +278,17 @@ def convert_unit_quantity(quantity, from_unit, to_unit):
 def calculate_ingredient_cost(recipe_ingredient, units_dict):
     """
     Calculate cost for a single recipe ingredient.
-    Returns tuple: (cost, has_price_data)
+    Returns tuple: (cost, has_price_data, details)
     - cost: float or None if price data unavailable
     - has_price_data: bool indicating if price data was available
+    - details: dict with breakdown information (original_price, price_unit, converted_price, recipe_quantity, recipe_unit)
     """
     ingredient = recipe_ingredient.ingredient
     recipe_unit = recipe_ingredient.unit
     recipe_quantity = recipe_ingredient.quantity
     
     if not ingredient or not recipe_unit or not recipe_quantity:
-        return None, False
+        return None, False, None
     
     # Find a price for this ingredient that matches a compatible unit
     matching_price = None
@@ -305,18 +306,36 @@ def calculate_ingredient_cost(recipe_ingredient, units_dict):
         pass
     
     if not matching_price:
-        return None, False
+        return None, False, None
     
     # Convert recipe quantity to price unit
     price_unit = units_dict.get(matching_price.unit_id)
     converted_quantity = convert_unit_quantity(recipe_quantity, recipe_unit, price_unit)
     
     if converted_quantity is None:
-        return None, False
+        return None, False, None
     
     # Calculate cost (convert Decimal to float for calculation)
-    cost = float(converted_quantity) * float(matching_price.price)
-    return cost, True
+    original_price = float(matching_price.price)
+    converted_qty = float(converted_quantity)
+    cost = converted_qty * original_price
+    
+    # Calculate the price per recipe unit
+    # This is the price after unit conversion
+    price_per_recipe_unit = cost / float(recipe_quantity)
+    
+    # Build details dict
+    details = {
+        'original_price': original_price,
+        'original_unit': price_unit.abbreviation if price_unit else None,
+        'original_unit_name': price_unit.name if price_unit else None,
+        'price_per_recipe_unit': price_per_recipe_unit,
+        'recipe_unit': recipe_unit.abbreviation if recipe_unit else None,
+        'recipe_unit_name': recipe_unit.name if recipe_unit else None,
+        'recipe_quantity': float(recipe_quantity),
+    }
+    
+    return cost, True, details
 
 def calculate_recipe_cost(recipe, units_list, scale_factor=1.0):
     """
@@ -329,17 +348,33 @@ def calculate_recipe_cost(recipe, units_list, scale_factor=1.0):
     ingredients_cost = []
     
     for ri in recipe.ingredients:
-        cost, has_price = calculate_ingredient_cost(ri, units_dict)
+        cost, has_price, details = calculate_ingredient_cost(ri, units_dict)
         
         if has_price and cost is not None:
             scaled_cost = cost * scale_factor
+            scaled_quantity = float(ri.quantity) * scale_factor
             total_cost += scaled_cost
-            ingredients_cost.append({
+            
+            ingredient_info = {
                 'ingredient_id': ri.ingredient_id,
                 'name': ri.ingredient.name if ri.ingredient else None,
                 'cost': round(scaled_cost, 2),
                 'has_price_data': True
-            })
+            }
+            
+            # Add detailed breakdown if available
+            if details:
+                ingredient_info['details'] = {
+                    'original_price': details['original_price'],
+                    'original_unit': details['original_unit'],
+                    'original_unit_name': details['original_unit_name'],
+                    'price_per_recipe_unit': details['price_per_recipe_unit'],
+                    'recipe_unit': details['recipe_unit'],
+                    'recipe_unit_name': details['recipe_unit_name'],
+                    'recipe_quantity': scaled_quantity,
+                }
+            
+            ingredients_cost.append(ingredient_info)
         else:
             has_missing_prices = True
             ingredients_cost.append({

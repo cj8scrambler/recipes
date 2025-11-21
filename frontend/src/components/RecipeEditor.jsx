@@ -281,37 +281,65 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
           }}>
             <h4 style={{ margin: '0 0 0.5em 0' }}>Cost Information</h4>
             {recipeCost.ingredients_cost && recipeCost.ingredients_cost.length > 0 && (
-              <div style={{ marginBottom: '0.5em' }}>
-                {recipeCost.ingredients_cost.map((ingCost, idx) => (
-                  <div key={idx} style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between',
-                    fontSize: '0.9em',
-                    marginBottom: '0.25em'
-                  }}>
-                    <span>{ingCost.name}:</span>
-                    <span>
-                      {ingCost.has_price_data ? (
-                        `$${ingCost.cost?.toFixed(2) || '0.00'}`
-                      ) : (
-                        <span style={{ color: '#d9534f' }}>Price not available</span>
-                      )}
-                    </span>
-                  </div>
-                ))}
+              <div style={{ marginBottom: '0.5em', overflowX: 'auto' }}>
+                <table style={{ 
+                  width: '100%', 
+                  fontSize: '0.85em',
+                  borderCollapse: 'collapse'
+                }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid #ddd' }}>
+                      <th style={{ textAlign: 'left', padding: '0.5em', fontWeight: 'bold' }}>Ingredient</th>
+                      <th style={{ textAlign: 'left', padding: '0.5em', fontWeight: 'bold' }}>Original Cost</th>
+                      <th style={{ textAlign: 'left', padding: '0.5em', fontWeight: 'bold' }}>Recipe Cost</th>
+                      <th style={{ textAlign: 'right', padding: '0.5em', fontWeight: 'bold' }}>Quantity</th>
+                      <th style={{ textAlign: 'right', padding: '0.5em', fontWeight: 'bold' }}>Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recipeCost.ingredients_cost.map((ingCost, idx) => (
+                      <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
+                        <td style={{ padding: '0.5em' }}>{ingCost.name}</td>
+                        {ingCost.has_price_data && ingCost.details ? (
+                          <>
+                            <td style={{ padding: '0.5em' }}>
+                              ${ingCost.details.original_price.toFixed(2)} / {ingCost.details.original_unit}
+                            </td>
+                            <td style={{ padding: '0.5em' }}>
+                              ${ingCost.details.price_per_recipe_unit.toFixed(3)} / {ingCost.details.recipe_unit}
+                            </td>
+                            <td style={{ textAlign: 'right', padding: '0.5em' }}>
+                              {ingCost.details.recipe_quantity.toFixed(1)} {ingCost.details.recipe_unit}
+                            </td>
+                            <td style={{ textAlign: 'right', padding: '0.5em', fontWeight: 'bold' }}>
+                              ${ingCost.cost.toFixed(2)}
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td colSpan="4" style={{ padding: '0.5em', color: '#d9534f', textAlign: 'center' }}>
+                              Price not available
+                            </td>
+                          </>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
             {recipeCost.total_cost !== null ? (
               <div style={{ 
-                borderTop: '1px solid #ddd', 
+                borderTop: '2px solid #ddd', 
                 paddingTop: '0.5em',
-                fontWeight: 'bold'
+                fontWeight: 'bold',
+                fontSize: '1em'
               }}>
                 Total: ${recipeCost.total_cost.toFixed(2)}
               </div>
             ) : (
               <div style={{ 
-                borderTop: '1px solid #ddd', 
+                borderTop: '2px solid #ddd', 
                 paddingTop: '0.5em',
                 color: '#d9534f'
               }}>
