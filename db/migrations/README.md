@@ -134,6 +134,10 @@ ALTER TABLE TableName MODIFY COLUMN column_name VARCHAR(255);
 
 - V001: Initial schema (base from db.sql)
 - V002: Add default_unit_id to Ingredients table
+- V003: Add ingredient grouping support (Ingredient_Groups table)
+- V004: Add ingredient price tracking (Ingredient_Prices table)
+- V005: Add user authentication (users table)
+- V006: Add session management (sessions table)
 
 ## Troubleshooting
 

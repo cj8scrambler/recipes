@@ -9,6 +9,7 @@ The deployment strategy supports:
 - **Development environment**: Running latest code with example/test data only
 - **Database versioning**: Automated schema migrations with rollback capability
 - **Production-ready server**: WSGI server (Gunicorn) instead of Flask development server
+- **User authentication**: Session-based authentication with role-based access control
 
 ## Architecture
 
@@ -168,14 +169,23 @@ For automatic startup and management, use systemd:
    python manage_migrations.py init
    ```
 
-5. **Setup frontend**:
+5. **Create admin user** (for authentication):
+   ```bash
+   # The application includes session-based authentication
+   # Create first admin user via the API after starting the backend:
+   curl -X POST http://localhost:8000/api/auth/register \
+     -H "Content-Type: application/json" \
+     -d '{"email":"admin@example.com","password":"your-secure-password","role":"admin"}'
+   ```
+
+6. **Setup frontend**:
    ```bash
    cd ../frontend
    npm ci
    npm run build
    ```
 
-6. **Start services**:
+7. **Start services**:
    ```bash
    sudo systemctl start recipes-backend
    sudo systemctl start recipes-frontend

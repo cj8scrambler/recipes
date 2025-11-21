@@ -53,11 +53,33 @@ mysql -u dbuser -p -h dbhost recipes_prod < /opt/recipes/db/db.sql
 mysql -u dbuser -p -h dbhost recipes_prod < /opt/recipes/db/data.sql
 
 # Initialize migration system
+cd /opt/recipes/backend
 source .venv/bin/activate
 python manage_migrations.py init
 ```
 
-### 4. Frontend Setup (5 minutes)
+### 4. Create Admin User (1 minute)
+
+```bash
+# Start backend temporarily to create admin user
+cd /opt/recipes/backend
+source .venv/bin/activate
+flask run &
+FLASK_PID=$!
+
+# Wait for server to start
+sleep 3
+
+# Create admin user
+curl -X POST http://localhost:5000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@example.com","password":"your-secure-password","role":"admin"}'
+
+# Stop temporary server
+kill $FLASK_PID
+```
+
+### 5. Frontend Setup (5 minutes)
 
 ```bash
 cd /opt/recipes/frontend
@@ -65,7 +87,7 @@ npm ci
 npm run build
 ```
 
-### 5. Install Systemd Service (3 minutes)
+### 6. Install Systemd Service (3 minutes)
 
 ```bash
 # Edit service file with your paths
@@ -79,7 +101,7 @@ sudo systemctl start recipes-backend
 sudo systemctl status recipes-backend
 ```
 
-### 6. Setup Nginx (Optional, 10 minutes)
+### 7. Setup Nginx (Optional, 10 minutes)
 
 ```bash
 # Install nginx if needed
