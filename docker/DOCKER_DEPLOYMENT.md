@@ -391,6 +391,27 @@ docker-compose restart backend
 docker-compose exec backend env | grep CORS_ORIGINS
 ```
 
+**Enable debug logging to see CORS configuration**:
+
+Add to your `.env` file:
+```bash
+GUNICORN_LOG_LEVEL=debug
+```
+
+Then restart and view logs:
+```bash
+docker-compose restart backend
+docker-compose logs backend | grep CORS
+```
+
+You should see output like:
+```
+[CORS DEBUG] CORS_ORIGINS environment variable: http://localhost:5173,http://192.168.1.100:5173
+[CORS DEBUG] Allowed origins: ['http://localhost:5173', 'http://192.168.1.100:5173']
+```
+
+This confirms your CORS configuration is being applied correctly.
+
 ### Frontend Shows API Errors
 
 **Check VITE_API_URL**:
