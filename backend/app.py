@@ -28,10 +28,6 @@ db = SQLAlchemy(app)
 cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173')
 allowed_origins = [origin.strip() for origin in cors_origins.split(',')]
 
-# Log CORS configuration for debugging
-print(f"[CORS DEBUG] CORS_ORIGINS environment variable: {cors_origins}")
-print(f"[CORS DEBUG] Allowed origins: {allowed_origins}")
-
 CORS(app, resources={
     r"/api/*": {
         "origins": allowed_origins,
