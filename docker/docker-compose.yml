@@ -18,7 +18,7 @@ services:
     ports:
       - "${MYSQL_PORT:-3306}:3306"
     networks:
-      - recipes-network
+      - nginx-proxy-net
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
       interval: 10s
@@ -32,7 +32,7 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.backend
-    image: recipes-backend:${IMAGE_TAG:-latest}
+    image: recipes-backend:latest
     container_name: recipes-backend
     restart: unless-stopped
     environment:
@@ -45,7 +45,7 @@ services:
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     networks:
-      - recipes-network
+      - nginx-proxy-net
     depends_on:
       db:
         condition: service_healthy
@@ -63,13 +63,13 @@ services:
       dockerfile: docker/Dockerfile.frontend
       args:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
-    image: recipes-frontend:${IMAGE_TAG:-latest}
+    image: recipes-frontend:latest
     container_name: recipes-frontend
     restart: unless-stopped
     ports:
       - "${FRONTEND_PORT:-5173}:80"
     networks:
-      - recipes-network
+      - nginx-proxy-net
     depends_on:
       - backend
     healthcheck:
@@ -83,5 +83,5 @@ volumes:
     driver: local
 
 networks:
-  recipes-network:
-    driver: bridge
+  nginx-proxy-net:
+    external: true

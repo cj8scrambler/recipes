@@ -4,10 +4,17 @@ This is a basic recipe app.  It's nothing new and there are other ones out there
 ## Setup
 
 ### Database
-The initial databsase schema and some example data is available in `db/`.  You'll need to get it into an SQL database that you can access.  It will be something like:
+Setup a database (customize as needed):
 ```
-mysql -u myusername -p"mySecretPassword" -h db.provider.com recipes < db.sql
-mysql -u myusername -p"mySecretPassword" -h db.provider.com recipes < data.sql
+mysql -u root -p -h db.provider.com -e "CREATE DATABASE recipes;"
+mysql -u root -p -h db.provider.com -e "CREATE USER 'myusername'@'%' IDENTIFIED BY 'mypassword';"
+mysql -u root -p -h db.provider.com -e "GRANT ALL PRIVILEGES ON recipes.* TO 'myusername'@'%';"
+```
+
+Populate The initial databsase schema and some example data is available in `db/`.  Populate the database with:
+```
+mysql -u myusername -p -h db.provider.com recipes < db.sql
+mysql -u myusername -p -h db.provider.com recipes < data.sql
 ```
 
 ### Backend
