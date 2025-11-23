@@ -61,12 +61,6 @@ export default function Login({ onLogin }) {
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
-        
-        <div className="login-hint">
-          <p><strong>Test Accounts:</strong></p>
-          <p>Admin: admin@example.com / adminpass</p>
-          <p>User: user@example.com / userpass</p>
-        </div>
       </div>
     </div>
   )
