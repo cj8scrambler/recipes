@@ -32,7 +32,7 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.backend
-    image: recipes-backend:latest
+    image: recipes-backend:${IMAGE_TAG:-latest}
     container_name: recipes-backend
     restart: unless-stopped
     environment:
@@ -63,7 +63,7 @@ services:
       dockerfile: docker/Dockerfile.frontend
       args:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
-    image: recipes-frontend:latest
+    image: recipes-frontend:${IMAGE_TAG:-latest}
     container_name: recipes-frontend
     restart: unless-stopped
     ports:
