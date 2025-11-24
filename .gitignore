@@ -87,3 +87,10 @@ docker-compose.override.yml
 *.bak
 *.tmp
 
+# Deployment config files with real credentials (keep .example files)
+deployment/config/*.conf
+
+# Backup files
+*.sql.backup
+backup-*.sql
+

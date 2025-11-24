@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    image: recipes-backend:latest
+    container_name: recipes-backend
+    restart: unless-stopped
+    environment:
+      # Use DATABASE_URL if set, otherwise construct from individual vars
+      DATABASE_URL: ${DATABASE_URL}
+      FLASK_ENV: ${FLASK_ENV:-production}
+      SECRET_KEY: ${SECRET_KEY}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+      GUNICORN_LOG_LEVEL: ${GUNICORN_LOG_LEVEL:-info}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    networks:
+      - nginx-proxy-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+    image: recipes-frontend:latest
+    container_name: recipes-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    networks:
+      - nginx-proxy-net
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  nginx-proxy-net:
+    external: true
