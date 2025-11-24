@@ -6,13 +6,13 @@ This document outlines the deployment strategy for the Recipes application, desi
 ```bash
 OLD_TAG=v1.0.0
 NEW_TAG=v1.1.0
-git tag -a ${NEW_TAG} -m "Temporary ${NEW_TAG} tag"`
-cd backend
-python generate_migration.py --from-tag ${OLD_TAG} --to-tag ${NEW_TAG}
+git tag -a ${NEW_TAG} -m "Temporary ${NEW_TAG} tag"
+cd db/
+python3 generate_migration.py --from-tag ${OLD_TAG} --to-tag ${NEW_TAG}
 git add migrations/migrate_${OLD_TAG//./_}_to_${NEW_TAG//./_}.sql
-git commit -m "DB migrade ${OLD} -> ${NEW_TAG}
+git commit -m "DB migrate ${OLD} -> ${NEW_TAG}"
 git tag -d ${NEW_TAG}
-git tag -a ${NEW_TAG} -m "Release ${NEW_TAG}"`
+git tag -a ${NEW_TAG} -m "Release ${NEW_TAG}"
 git push origin --follow-tags
 ```
 

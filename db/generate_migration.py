@@ -183,8 +183,8 @@ def generate_migration_file(from_tag, to_tag, output_dir):
         return None
     
     # Create migration filename
-    from_version = from_tag.replace('v', '').replace('.', '_')
-    to_version = to_tag.replace('v', '').replace('.', '_') if to_tag != "HEAD" else "next"
+    from_version = from_tag.replace('.', '_')
+    to_version = to_tag.replace('.', '_') if to_tag != "HEAD" else "next"
     migration_filename = f"migrate_{from_version}_to_{to_version}.sql"
     migration_path = os.path.join(output_dir, migration_filename)
     
