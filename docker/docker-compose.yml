@@ -1,33 +1,6 @@
 version: '3.8'
 
 services:
-  # MySQL Database (optional - only used if DATABASE_URL not set)
-  db:
-    image: mysql:8.0
-    container_name: recipes-db
-    restart: unless-stopped
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpassword}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-recipes}
-      MYSQL_USER: ${MYSQL_USER:-recipes_user}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-recipes_password}
-    volumes:
-      - mysql_data:/var/lib/mysql
-      - ../db/db.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ../db/data.sql:/docker-entrypoint-initdb.d/02-data.sql:ro
-    ports:
-      - "${MYSQL_PORT:-3306}:3306"
-    networks:
-      - nginx-proxy-net
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-rootpassword}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    profiles:
-      - internal-db
-
-  # Backend (Flask/Gunicorn)
   backend:
     build:
       context: ..
@@ -37,26 +10,21 @@ services:
     restart: unless-stopped
     environment:
       # Use DATABASE_URL if set, otherwise construct from individual vars
-      DATABASE_URL: ${DATABASE_URL:-mysql+pymysql://${MYSQL_USER:-recipes_user}:${MYSQL_PASSWORD:-recipes_password}@${DB_HOST:-db}:${DB_PORT:-3306}/${MYSQL_DATABASE:-recipes}}
+      DATABASE_URL: ${DATABASE_URL}
       FLASK_ENV: ${FLASK_ENV:-production}
-      SECRET_KEY: ${SECRET_KEY:-change-this-in-production}
+      SECRET_KEY: ${SECRET_KEY}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
       GUNICORN_LOG_LEVEL: ${GUNICORN_LOG_LEVEL:-info}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     networks:
       - nginx-proxy-net
-    depends_on:
-      db:
-        condition: service_healthy
-        required: false
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       interval: 30s
       timeout: 10s
       retries: 3
 
-  # Frontend (Node/Vite)
   frontend:
     build:
       context: ..
