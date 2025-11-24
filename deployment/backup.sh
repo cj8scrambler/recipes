@@ -115,11 +115,9 @@ if [ -f "frontend/.env" ]; then
     log_success "Backed up frontend/.env"
 fi
 
-# Backup uploaded files (if uploads directory exists)
-if [ -d "uploads" ]; then
-    log_info "Backing up uploaded files..."
-    cp -r uploads "${BACKUP_PATH}/uploads"
-    log_success "Backed up uploads directory"
+if [ -f "docker/.env" ]; then
+    cp docker/.env "${BACKUP_PATH}/config/docker.env"
+    log_success "Backed up docker/.env"
 fi
 
 # Create backup manifest

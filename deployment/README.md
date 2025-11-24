@@ -2,6 +2,20 @@
 
 This document outlines the deployment strategy for the Recipes application, designed for self-hosting instances with separate production and development environments.
 
+## TLDR
+```bash
+OLD_TAG=v1.0.0
+NEW_TAG=v1.1.0
+git tag -a ${NEW_TAG} -m "Temporary ${NEW_TAG} tag"`
+cd backend
+python generate_migration.py --from-tag ${OLD_TAG} --to-tag ${NEW_TAG}
+git add migrations/migrate_${OLD_TAG//./_}_to_${NEW_TAG//./_}.sql
+git commit -m "DB migrade ${OLD} -> ${NEW_TAG}
+git tag -d ${NEW_TAG}
+git tag -a ${NEW_TAG} -m "Release ${NEW_TAG}"`
+git push origin --follow-tags
+```
+
 ## Overview
 
 The deployment strategy supports:
@@ -40,10 +54,10 @@ When preparing a new release (e.g., v1.1.0 from v1.0.0):
 1. Ensure all schema changes are committed to `db/db.sql`
 2. Generate migration file:
    ```bash
-   cd backend
+   cd db/
    python generate_migration.py --from-tag v1.0.0 --to-tag HEAD
    ```
-3. Review `db/migrations/migrate_1_0_0_to_1_1_0.sql`
+3. Review `migrations/migrate_1_0_0_to_1_1_0.sql`
 4. Edit to add any manual ALTER TABLE statements needed
 5. Test the migration on a staging database
 6. Commit the migration file
@@ -88,323 +102,3 @@ To rollback:
 ```bash
 python manage_migrations.py apply migrate_1_0_0_to_1_1_0.sql --downgrade
 ```
-
-## Production Server Setup
-
-### Docker container build
-
-1. **Rebuild and tag docker containers**:
-   ```bash
-   docker compose build
-   ```
-
-2. **Run with Gunicorn**:
-   ```bash
-   cd docker
-   gunicorn -c gunicorn.conf.py app:app
-   ```
-
-3. **Gunicorn Configuration** (`backend/gunicorn.conf.py`):
-   - Worker processes: 4
-   - Bind address: 0.0.0.0:8000
-   - Timeout: 120 seconds
-   - Access logs enabled
-
-### Systemd Service (Linux)
-
-For automatic startup and management, use systemd:
-
-1. **Copy service files**:
-   ```bash
-   sudo cp deployment/systemd/recipes-backend.service /etc/systemd/system/
-   sudo cp deployment/systemd/recipes-frontend.service /etc/systemd/system/
-   ```
-
-2. **Update service files** with your paths and user
-
-3. **Enable and start**:
-   ```bash
-   sudo systemctl enable recipes-backend
-   sudo systemctl start recipes-backend
-   sudo systemctl status recipes-backend
-   ```
-
-## Deployment Workflows
-
-### Initial Setup
-
-#### Production Instance
-
-1. **Clone repository**:
-   ```bash
-   git clone https://github.com/cj8scrambler/recipes.git /opt/recipes
-   cd /opt/recipes
-   ```
-
-2. **Setup backend**:
-   ```bash
-   cd backend
-   python3 -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
-   ```
-
-3. **Configure database connection**:
-   ```bash
-   echo "DATABASE_URL=mysql+pymysql://user:pass@dbhost:3306/recipes_prod" > .env
-   ```
-
-4. **Initialize database**:
-   ```bash
-   # Import base schema
-   mysql -u user -p -h dbhost recipes_prod < db/db.sql
-   
-   # Import initial data (if first time)
-   mysql -u user -p -h dbhost recipes_prod < db/data.sql
-   
-   # Initialize versioning (marks current state as V001)
-   python manage_migrations.py init
-   ```
-
-5. **Create admin user** (for authentication):
-   ```bash
-   # The application includes session-based authentication
-   # Create first admin user via the API after starting the backend:
-   curl -X POST http://localhost:8000/api/auth/register \
-     -H "Content-Type: application/json" \
-     -d '{"email":"admin@example.com","password":"your-secure-password","role":"admin"}'
-   ```
-
-6. **Setup frontend**:
-   ```bash
-   cd ../frontend
-   npm ci
-   npm run build
-   ```
-
-7. **Start services**:
-   ```bash
-   sudo systemctl start recipes-backend
-   sudo systemctl start recipes-frontend
-   ```
-
-#### Development Instance
-
-Same as production, but:
-- Use different database: `recipes_dev`
-- Always use example data: `db/data.sql`
-- Can use Flask development server: `flask run`
-- Optional: Set up auto-deployment from git
-
-### Pushing Code to Production
-
-#### Option 1: Manual Deployment (Recommended for Small Teams)
-
-1. **Test in development first**:
-   ```bash
-   # On dev instance
-   cd /opt/recipes
-   git pull origin main
-   cd backend
-   source .venv/bin/activate
-   python manage_migrations.py check  # Check for pending migrations
-   python manage_migrations.py upgrade  # Apply migrations
-   flask run  # Test the application
-   ```
-
-2. **Deploy to production**:
-   ```bash
-   # SSH to production instance
-   ssh production-server
-   
-   cd /opt/recipes
-   git pull origin main  # Or specific tag/release
-   
-   # Apply migrations
-   cd backend
-   source .venv/bin/activate
-   python manage_migrations.py check
-   python manage_migrations.py upgrade
-   
-   # Restart services
-   sudo systemctl restart recipes-backend
-   
-   # Update frontend if needed
-   cd ../frontend
-   npm ci
-   npm run build
-   sudo systemctl restart recipes-frontend
-   ```
-
-#### Option 2: Automated Deployment Script
-
-Use the provided deployment script:
-
-```bash
-# On your local machine or CI/CD server
-./deployment/deploy.sh production v1.2.3
-```
-
-The script will:
-- SSH to the production server
-- Pull the specified version
-- Apply database migrations
-- Build frontend
-- Restart services
-- Verify deployment
-
-#### Option 3: CI/CD Pipeline (Advanced)
-
-Set up automated deployments using GitHub Actions, GitLab CI, or Jenkins:
-
-1. Commit to `main` branch triggers tests
-2. Create a release tag (e.g., `v1.2.3`)
-3. CI/CD automatically deploys to production
-4. Includes automated rollback on failure
-
-See `deployment/ci-cd-examples/` for sample configurations.
-
-### Rolling Back Changes
-
-If a deployment causes issues:
-
-1. **Quick rollback** (revert to previous git version):
-   ```bash
-   cd /opt/recipes
-   git checkout v1.2.2  # Previous working version
-   
-   cd backend
-   source .venv/bin/activate
-   python manage_migrations.py downgrade  # Revert migrations
-   sudo systemctl restart recipes-backend
-   ```
-
-2. **Database rollback only** (if code is fine but schema change failed):
-   ```bash
-   cd /opt/recipes/backend
-   source .venv/bin/activate
-   python manage_migrations.py downgrade --target V005  # Revert to specific version
-   ```
-
-3. **Full system restore** (worst case):
-   - Restore database from backup
-   - Checkout last known good version
-   - Restart services
-
-### Migration Management Commands
-
-```bash
-# Check current database version
-python manage_migrations.py version
-
-# Check for pending migrations
-python manage_migrations.py check
-
-# Apply all pending migrations
-python manage_migrations.py upgrade
-
-# Rollback to previous version
-python manage_migrations.py downgrade
-
-# Rollback to specific version
-python manage_migrations.py downgrade --target V003
-
-# Initialize versioning system (one-time)
-python manage_migrations.py init
-```
-
-## Best Practices
-
-### Development Workflow
-
-1. **Make changes** in feature branch
-2. **Create migration** if schema changes needed
-3. **Test locally** with example data
-4. **Test in dev environment** with dev database
-5. **Create pull request** and review
-6. **Merge to main** after approval
-7. **Deploy to production** using deployment script
-
-### Database Changes
-
-1. **Always create migration files** for schema changes
-2. **Test both upgrade and downgrade** SQL
-3. **Keep migrations small** and focused
-4. **Never modify applied migrations** - create new ones
-5. **Backup database** before major migrations
-
-### Version Control
-
-1. **Tag releases**: `git tag -a v1.2.3 -m "Release 1.2.3"`
-2. **Use semantic versioning**: MAJOR.MINOR.PATCH
-3. **Keep changelog**: Document changes in each version
-4. **Production deploys from tags**, not branches
-
-### Monitoring
-
-1. **Check application logs**: `journalctl -u recipes-backend -f`
-2. **Monitor database**: Watch for slow queries, connection issues
-3. **Set up alerts**: For service failures, errors
-4. **Regular backups**: Automated database backups
-
-## Troubleshooting
-
-### Service won't start
-
-```bash
-# Check logs
-sudo journalctl -u recipes-backend -n 50
-
-# Check if port is in use
-sudo netstat -tlnp | grep 8000
-
-# Verify configuration
-cd /opt/recipes/backend
-source .venv/bin/activate
-python -c "from app import app; print('Config OK')"
-```
-
-### Migration fails
-
-```bash
-# Check current version
-python manage_migrations.py version
-
-# Review migration file
-cat db/migrations/V00X_failing_migration.sql
-
-# Try manual SQL if needed
-mysql -u user -p -h dbhost recipes_prod < fix.sql
-
-# Force version update (use with caution)
-python manage_migrations.py force-version V00X
-```
-
-### Database connection issues
-
-```bash
-# Test connection
-mysql -u user -p -h dbhost recipes_prod
-
-# Verify .env file
-cat backend/.env
-
-# Check firewall
-sudo ufw status
-```
-
-## Security Considerations
-
-1. **Database credentials**: Store in `.env` file, never commit
-2. **File permissions**: Restrict `.env` to owner only (`chmod 600`)
-3. **Firewall rules**: Only allow necessary ports
-4. **Regular updates**: Keep dependencies updated
-5. **SSL/TLS**: Use HTTPS for production (reverse proxy)
-6. **Backup encryption**: Encrypt database backups
-
-## Additional Resources
-
-- **Gunicorn Documentation**: https://docs.gunicorn.org/
-- **Systemd Service Management**: `man systemd.service`
-- **MySQL Backup**: `mysqldump` documentation
-- **Nginx Reverse Proxy**: See `deployment/nginx-example.conf`
