@@ -294,6 +294,10 @@ def convert_unit_quantity(quantity, from_unit, to_unit):
     if not from_unit or not to_unit or not can_convert_units(from_unit, to_unit):
         return None
     
+    # Check for None conversion factors
+    if from_unit.base_conversion_factor is None or to_unit.base_conversion_factor is None:
+        return None
+    
     # Convert to base unit, then to target unit
     base_quantity = quantity * from_unit.base_conversion_factor
     converted_quantity = base_quantity / to_unit.base_conversion_factor
@@ -427,9 +431,11 @@ def calculate_ingredient_weight(recipe_ingredient):
         return {'base_weight': None, 'scaled_weight': None, 'has_weight': False}
     
     # Get the ingredient's base weight (grams per default unit)
+    # Weight is only valid if BOTH weight value AND default_unit_id are set
     base_weight = ingredient.weight
+    default_unit_id = ingredient.default_unit_id
     
-    if base_weight is None:
+    if base_weight is None or default_unit_id is None:
         return {'base_weight': None, 'scaled_weight': None, 'has_weight': False}
     
     # Calculate scaled weight based on recipe quantity
