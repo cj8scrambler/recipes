@@ -413,7 +413,7 @@ def calculate_ingredient_weight(recipe_ingredient):
     ingredient = recipe_ingredient.ingredient
     recipe_quantity = recipe_ingredient.quantity
     
-    if not ingredient or not recipe_quantity:
+    if not ingredient or recipe_quantity is None:
         return {'base_weight': None, 'scaled_weight': None, 'has_weight': False}
     
     # Get the ingredient's base weight (grams per default unit)
