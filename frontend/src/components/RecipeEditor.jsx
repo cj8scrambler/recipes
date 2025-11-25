@@ -22,6 +22,8 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
   const [units, setUnits] = useState([])
   const [allIngredients, setAllIngredients] = useState([])
   const [ingredientGroups, setIngredientGroups] = useState([])
+  const [allTags, setAllTags] = useState([])
+  const [selectedTags, setSelectedTags] = useState([])
   const [recipeCost, setRecipeCost] = useState(null)
   const [recipeWeight, setRecipeWeight] = useState(null)
 
@@ -29,6 +31,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
     loadUnits()
     loadIngredients()
     loadIngredientGroups()
+    loadTags()
   }, [])
 
   useEffect(() => {
@@ -44,6 +47,8 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
         notes: ing.notes || '',
         group_id: ing.group_id || ''
       })))
+      // Set selected tags
+      setSelectedTags((recipe.tags || []).map(t => t.tag_id))
       // Load cost and weight if editing existing recipe
       if (recipe.recipe_id) {
         loadRecipeCost(recipe.recipe_id)
@@ -54,6 +59,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
       setInstructions('')
       setServings(1)
       setIngredients([])
+      setSelectedTags([])
       setRecipeCost(null)
       setRecipeWeight(null)
     }
@@ -106,6 +112,15 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
     }
   }
 
+  async function loadTags() {
+    try {
+      const tags = await api.adminListTags()
+      setAllTags(tags || [])
+    } catch (err) {
+      console.error('Failed to load tags:', err)
+    }
+  }
+
   function addIngredient() {
     setIngredients([
       ...ingredients,
@@ -130,6 +145,14 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
     }
     
     setIngredients(updated)
+  }
+
+  function toggleTag(tagId) {
+    if (selectedTags.includes(tagId)) {
+      setSelectedTags(selectedTags.filter(t => t !== tagId))
+    } else {
+      setSelectedTags([...selectedTags, tagId])
+    }
   }
 
   function submit(e) {
@@ -166,7 +189,8 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
       name,
       instructions,
       base_servings: Number(servings),
-      ingredients: processedIngredients
+      ingredients: processedIngredients,
+      tags: selectedTags.map(tag_id => ({ tag_id }))
     })
   }
 
@@ -186,101 +210,170 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
         </label>
       </div>
       <div className="form-group">
+        <label>Tags</label>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5em', marginTop: '0.5em' }}>
+          {allTags.length === 0 ? (
+            <span className="text-muted">No tags available. Create tags in the Tags tab.</span>
+          ) : (
+            allTags.map(tag => (
+              <button
+                key={tag.tag_id}
+                type="button"
+                onClick={() => toggleTag(tag.tag_id)}
+                style={{
+                  padding: '0.25em 0.75em',
+                  borderRadius: '1em',
+                  border: selectedTags.includes(tag.tag_id) ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                  background: selectedTags.includes(tag.tag_id) ? 'var(--primary-light)' : 'var(--bg-primary)',
+                  color: selectedTags.includes(tag.tag_id) ? 'var(--primary)' : 'var(--gray-700)',
+                  cursor: 'pointer',
+                  fontSize: '0.9em'
+                }}
+              >
+                {tag.name}
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+      <div className="form-group">
         <label>Ingredients</label>
-        {ingredients.map((ing, idx) => {
-          const selectedIngredient = allIngredients.find(i => i.ingredient_id === parseInt(ing.ingredient_id))
-          const selectedUnit = units.find(u => u.unit_id === parseInt(ing.unit_id))
+        {(() => {
+          // Group ingredients by group_id for display
+          const grouped = ingredients.reduce((acc, ing, idx) => {
+            const groupKey = ing.group_id || 'ungrouped'
+            if (!acc[groupKey]) {
+              acc[groupKey] = {
+                name: ingredientGroups.find(g => g.group_id === parseInt(ing.group_id))?.name || null,
+                ingredients: []
+              }
+            }
+            acc[groupKey].ingredients.push({ ...ing, originalIndex: idx })
+            return acc
+          }, {})
           
-          return (
-            <div key={idx} style={{ 
-              display: 'grid', 
-              gridTemplateColumns: '2fr 1fr 2fr 2fr 1.5fr auto', 
-              gap: '0.5em', 
-              marginBottom: '0.5em',
-              alignItems: 'start'
-            }}>
-              <select 
-                value={ing.ingredient_id} 
-                onChange={(e) => updateIngredient(idx, 'ingredient_id', e.target.value)}
-                required
-              >
-                <option value="">Select ingredient</option>
-                {allIngredients.map(i => (
-                  <option key={i.ingredient_id} value={i.ingredient_id}>
-                    {i.name}
-                  </option>
-                ))}
-              </select>
-              <input 
-                type="number" 
-                step="0.1"
-                value={ing.quantity} 
-                onChange={(e) => updateIngredient(idx, 'quantity', e.target.value)}
-                placeholder="Qty"
-                required
-              />
-              <select 
-                value={ing.unit_id} 
-                onChange={(e) => updateIngredient(idx, 'unit_id', e.target.value)}
-                required
-              >
-                <option value="">Select unit</option>
-                {/* Group units by category for easier navigation */}
-                {selectedUnit && (
-                  <optgroup label={`${selectedUnit.category} (Current)`}>
-                    {units
-                      .filter(u => u.category === selectedUnit.category)
-                      .map(u => (
-                        <option key={u.unit_id} value={u.unit_id}>
-                          {u.name} ({u.abbreviation})
-                        </option>
-                      ))}
-                  </optgroup>
-                )}
-                {/* Show other categories for switching */}
-                {['Volume', 'Dry Volume', 'Liquid Volume', 'Weight', 'Item', 'Temperature']
-                  .filter(cat => !selectedUnit || cat !== selectedUnit.category)
-                  .map(category => {
-                    const categoryUnits = units.filter(u => u.category === category)
-                    if (categoryUnits.length === 0) return null
-                    return (
-                      <optgroup key={category} label={category}>
-                        {categoryUnits.map(u => (
-                          <option key={u.unit_id} value={u.unit_id}>
-                            {u.name} ({u.abbreviation})
+          // Sort groups: ungrouped first, then by group name
+          const sortedGroups = Object.entries(grouped).sort(([keyA], [keyB]) => {
+            if (keyA === 'ungrouped') return -1
+            if (keyB === 'ungrouped') return 1
+            return 0
+          })
+          
+          return sortedGroups.map(([groupKey, group]) => (
+            <div key={groupKey} style={{ marginBottom: '1em' }}>
+              {groupKey !== 'ungrouped' && group.name && (
+                <h4 style={{ 
+                  fontSize: '1em', 
+                  fontWeight: 600, 
+                  marginTop: '0.5em', 
+                  marginBottom: '0.5em',
+                  color: 'var(--gray-700)',
+                  paddingLeft: '0.5em',
+                  borderLeft: '3px solid var(--primary)'
+                }}>
+                  {group.name}
+                </h4>
+              )}
+              <div style={{ paddingLeft: groupKey !== 'ungrouped' ? '1rem' : 0 }}>
+                {group.ingredients.map((ing) => {
+                  const idx = ing.originalIndex
+                  const selectedIngredient = allIngredients.find(i => i.ingredient_id === parseInt(ing.ingredient_id))
+                  const selectedUnit = units.find(u => u.unit_id === parseInt(ing.unit_id))
+                  
+                  return (
+                    <div key={idx} style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: '2fr 1fr 2fr 2fr 1.5fr auto', 
+                      gap: '0.5em', 
+                      marginBottom: '0.5em',
+                      alignItems: 'start'
+                    }}>
+                      <select 
+                        value={ing.ingredient_id} 
+                        onChange={(e) => updateIngredient(idx, 'ingredient_id', e.target.value)}
+                        required
+                      >
+                        <option value="">Select ingredient</option>
+                        {allIngredients.map(i => (
+                          <option key={i.ingredient_id} value={i.ingredient_id}>
+                            {i.name}
                           </option>
                         ))}
-                      </optgroup>
-                    )
-                  })}
-              </select>
-              <input 
-                type="text"
-                value={ing.notes || ''} 
-                onChange={(e) => updateIngredient(idx, 'notes', e.target.value)}
-                placeholder="Notes (optional)"
-              />
-              <select 
-                value={ing.group_id || ''} 
-                onChange={(e) => updateIngredient(idx, 'group_id', e.target.value)}
-              >
-                <option value="">No group</option>
-                {ingredientGroups.map(g => (
-                  <option key={g.group_id} value={g.group_id}>
-                    {g.name}
-                  </option>
-                ))}
-              </select>
-              <button 
-                type="button" 
-                className="small danger" 
-                onClick={() => removeIngredient(idx)}
-              >
-                Remove
-              </button>
+                      </select>
+                      <input 
+                        type="number" 
+                        step="0.1"
+                        value={ing.quantity} 
+                        onChange={(e) => updateIngredient(idx, 'quantity', e.target.value)}
+                        placeholder="Qty"
+                        required
+                      />
+                      <select 
+                        value={ing.unit_id} 
+                        onChange={(e) => updateIngredient(idx, 'unit_id', e.target.value)}
+                        required
+                      >
+                        <option value="">Select unit</option>
+                        {/* Group units by category for easier navigation */}
+                        {selectedUnit && (
+                          <optgroup label={`${selectedUnit.category} (Current)`}>
+                            {units
+                              .filter(u => u.category === selectedUnit.category)
+                              .map(u => (
+                                <option key={u.unit_id} value={u.unit_id}>
+                                  {u.name} ({u.abbreviation})
+                                </option>
+                              ))}
+                          </optgroup>
+                        )}
+                        {/* Show other categories for switching */}
+                        {['Volume', 'Dry Volume', 'Liquid Volume', 'Weight', 'Item', 'Temperature']
+                          .filter(cat => !selectedUnit || cat !== selectedUnit.category)
+                          .map(category => {
+                            const categoryUnits = units.filter(u => u.category === category)
+                            if (categoryUnits.length === 0) return null
+                            return (
+                              <optgroup key={category} label={category}>
+                                {categoryUnits.map(u => (
+                                  <option key={u.unit_id} value={u.unit_id}>
+                                    {u.name} ({u.abbreviation})
+                                  </option>
+                                ))}
+                              </optgroup>
+                            )
+                          })}
+                      </select>
+                      <input 
+                        type="text"
+                        value={ing.notes || ''} 
+                        onChange={(e) => updateIngredient(idx, 'notes', e.target.value)}
+                        placeholder="Notes (optional)"
+                      />
+                      <select 
+                        value={ing.group_id || ''} 
+                        onChange={(e) => updateIngredient(idx, 'group_id', e.target.value)}
+                      >
+                        <option value="">No group</option>
+                        {ingredientGroups.map(g => (
+                          <option key={g.group_id} value={g.group_id}>
+                            {g.name}
+                          </option>
+                        ))}
+                      </select>
+                      <button 
+                        type="button" 
+                        className="small danger" 
+                        onClick={() => removeIngredient(idx)}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
-          )
-        })}
+          ))
+        })()}
         <button type="button" className="small secondary" onClick={addIngredient}>
           + Add Ingredient
         </button>

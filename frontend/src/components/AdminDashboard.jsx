@@ -3,6 +3,7 @@ import { api } from '../api'
 import RecipeEditor from './RecipeEditor'
 import IngredientEditor from './IngredientEditor'
 import IngredientGroupEditor from './IngredientGroupEditor'
+import TagEditor from './TagEditor'
 import UserManagement from './UserManagement'
 
 export default function AdminDashboard() {
@@ -10,10 +11,12 @@ export default function AdminDashboard() {
   const [recipes, setRecipes] = useState([])
   const [ingredients, setIngredients] = useState([])
   const [ingredientGroups, setIngredientGroups] = useState([])
+  const [tags, setTags] = useState([])
   const [users, setUsers] = useState([])
   const [editingRecipe, setEditingRecipe] = useState(null)
   const [editingIngredient, setEditingIngredient] = useState(null)
   const [editingGroup, setEditingGroup] = useState(null)
+  const [editingTag, setEditingTag] = useState(null)
   const [error, setError] = useState(null)
 
   useEffect(() => {
@@ -22,15 +25,17 @@ export default function AdminDashboard() {
 
   async function loadAll() {
     try {
-      const [rs, is, gs, us] = await Promise.all([
+      const [rs, is, gs, ts, us] = await Promise.all([
         api.adminListRecipes(),
         api.adminListIngredients(),
         api.adminListIngredientGroups(),
+        api.adminListTags(),
         api.adminListUsers()
       ])
       setRecipes(rs || [])
       setIngredients(is || [])
       setIngredientGroups(gs || [])
+      setTags(ts || [])
       setUsers(us || [])
     } catch (err) {
       setError(err.message)
@@ -112,6 +117,30 @@ export default function AdminDashboard() {
     }
   }
 
+  async function saveTag(payload) {
+    try {
+      if (payload.tag_id) {
+        await api.adminUpdateTag(payload.tag_id, payload)
+      } else {
+        await api.adminCreateTag(payload)
+      }
+      setEditingTag(null)
+      await loadAll()
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  async function removeTag(id) {
+    if (!confirm('Delete this tag? This action cannot be undone.')) return
+    try {
+      await api.adminDeleteTag(id)
+      await loadAll()
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
   return (
     <div className="admin">
       <h2>Admin Dashboard</h2>
@@ -135,6 +164,12 @@ export default function AdminDashboard() {
           onClick={() => setActiveTab('groups')}
         >
           Ingredient Groups
+        </button>
+        <button 
+          className={`tab ${activeTab === 'tags' ? 'active' : ''}`}
+          onClick={() => setActiveTab('tags')}
+        >
+          Tags
         </button>
         <button 
           className={`tab ${activeTab === 'users' ? 'active' : ''}`}
@@ -265,6 +300,38 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {activeTab === 'tags' && (
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title">Manage Tags</h3>
+            <button onClick={() => setEditingTag({})}>+ New Tag</button>
+          </div>
+          {tags.length === 0 && (
+            <div className="empty-state">
+              <p>No tags yet. Add tags to categorize your recipes.</p>
+            </div>
+          )}
+          <ul>
+            {tags.map(t => (
+              <li key={t.tag_id}>
+                <div>
+                  <span>{t.name}</span>
+                  {t.description && (
+                    <div className="text-muted" style={{fontSize: '0.9em', marginTop: '0.25em'}}>
+                      {t.description}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <button className="small secondary" onClick={() => setEditingTag(t)}>Edit</button>
+                  <button className="small danger" onClick={() => removeTag(t.tag_id)}>Delete</button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {activeTab === 'recipes' && editingRecipe && (
         <RecipeEditor
           recipe={editingRecipe}
@@ -286,6 +353,14 @@ export default function AdminDashboard() {
           group={editingGroup}
           onCancel={() => setEditingGroup(null)}
           onSave={saveGroup}
+        />
+      )}
+
+      {activeTab === 'tags' && editingTag && (
+        <TagEditor
+          tag={editingTag}
+          onCancel={() => setEditingTag(null)}
+          onSave={saveTag}
         />
       )}
 

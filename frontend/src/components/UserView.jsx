@@ -152,16 +152,26 @@ export default function UserView({ user }) {
     return snapped || 0.1
   }
 
-  // Handle servings input change with validation
+  // Handle servings input change - allow free-form typing
   function handleServingsChange(e) {
     const rawValue = Number(e.target.value)
     if (isNaN(rawValue) || rawValue <= 0) return
     
-    const newScale = formatServingsValue(rawValue)
-    setScale(newScale)
+    // Set the raw value while typing - don't format yet
+    setScale(rawValue)
     if (selected?.recipe_id) {
-      loadRecipeCost(selected.recipe_id, newScale)
-      loadRecipeWeight(selected.recipe_id, newScale)
+      loadRecipeCost(selected.recipe_id, rawValue)
+      loadRecipeWeight(selected.recipe_id, rawValue)
+    }
+  }
+
+  // Format servings on blur to snap to allowed values
+  function handleServingsBlur() {
+    const formattedValue = formatServingsValue(scale)
+    setScale(formattedValue)
+    if (selected?.recipe_id) {
+      loadRecipeCost(selected.recipe_id, formattedValue)
+      loadRecipeWeight(selected.recipe_id, formattedValue)
     }
   }
 
@@ -190,7 +200,7 @@ export default function UserView({ user }) {
                   step="0.1" 
                   style={{ width: '80px' }}
                   onChange={handleServingsChange}
-                  onBlur={() => setScale(formatServingsValue(scale))}
+                  onBlur={handleServingsBlur}
                 />
               </div>
               {recipeCost && (recipeCost.total_cost !== null ? (
@@ -228,6 +238,26 @@ export default function UserView({ user }) {
                     <option value="">Default</option>
                     {versions.map(v => <option value={v.id} key={v.id}>{v.name || v.id}</option>)}
                   </select>
+                </div>
+              )}
+              {selected.tags && selected.tags.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <label style={{ marginBottom: 0 }}>Tags</label>
+                  {selected.tags.map(tag => (
+                    <span 
+                      key={tag.tag_id}
+                      style={{
+                        padding: '0.2em 0.6em',
+                        borderRadius: '1em',
+                        background: 'var(--primary-light)',
+                        color: 'var(--primary)',
+                        fontSize: '0.85em',
+                        fontWeight: 500
+                      }}
+                    >
+                      {tag.name}
+                    </span>
+                  ))}
                 </div>
               )}
             </div>
