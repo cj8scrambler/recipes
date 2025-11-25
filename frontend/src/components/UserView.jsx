@@ -145,9 +145,11 @@ export default function UserView({ user }) {
     }
     // For values < 1, snap to nearest allowed fraction (0.1, 0.25, 0.5)
     const allowedFractions = [0.1, 0.25, 0.5]
-    return allowedFractions.reduce((prev, curr) =>
+    const snapped = allowedFractions.reduce((prev, curr) =>
       Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev
     )
+    // Fallback to minimum allowed value if something goes wrong
+    return snapped || 0.1
   }
 
   // Handle servings input change with validation
@@ -259,33 +261,36 @@ export default function UserView({ user }) {
                     return 0
                   })
                   
-                  return sortedGroups.map(([groupKey, group]) => (
-                    <div key={groupKey} style={{ marginBottom: groupKey !== sortedGroups[sortedGroups.length - 1]?.[0] ? '1em' : 0 }}>
-                      {groupKey !== 'ungrouped' && group.name && (
-                        <h4 style={{ 
-                          fontSize: '1em', 
-                          fontWeight: 600, 
-                          marginTop: '0.5em', 
-                          marginBottom: '0.5em',
-                          color: 'var(--gray-700)'
-                        }}>
-                          {group.name}
-                        </h4>
-                      )}
-                      <ul style={{ paddingLeft: groupKey !== 'ungrouped' ? '1.5rem' : 0 }}>
-                        {group.ingredients.map((ing, idx) => (
-                          <li key={idx}>
-                            <span>
-                              {ing.quantity && ing.displayUnit ? (
-                                <strong>{formatRecipeUnits(ing.quantity, 2)} {ing.displayUnit.abbreviation}</strong>
-                              ) : ''} {ing.name}
-                              {ing.notes ? <span className="text-muted"> — {ing.notes}</span> : ''}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))
+                  return sortedGroups.map(([groupKey, group], index) => {
+                    const isLastGroup = index === sortedGroups.length - 1
+                    return (
+                      <div key={groupKey} style={{ marginBottom: isLastGroup ? 0 : '1em' }}>
+                        {groupKey !== 'ungrouped' && group.name && (
+                          <h4 style={{ 
+                            fontSize: '1em', 
+                            fontWeight: 600, 
+                            marginTop: '0.5em', 
+                            marginBottom: '0.5em',
+                            color: 'var(--gray-700)'
+                          }}>
+                            {group.name}
+                          </h4>
+                        )}
+                        <ul style={{ paddingLeft: groupKey !== 'ungrouped' ? '1.5rem' : 0 }}>
+                          {group.ingredients.map((ing, idx) => (
+                            <li key={idx}>
+                              <span>
+                                {ing.quantity && ing.displayUnit ? (
+                                  <strong>{formatRecipeUnits(ing.quantity, 2)} {ing.displayUnit.abbreviation}</strong>
+                                ) : ''} {ing.name}
+                                {ing.notes ? <span className="text-muted"> — {ing.notes}</span> : ''}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )
+                  })
                 })()}
               </div>
             </section>
