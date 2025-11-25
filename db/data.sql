@@ -20,26 +20,27 @@ INSERT INTO Units (name, abbreviation, category, `system`, base_conversion_facto
 ('Cup', 'c', 'Liquid Volume', 'US Customary', 236.588),
 ('Gallon', 'gal', 'Liquid Volume', 'US Customary', 3785.41),
 -- Item units
-('Item', 'item', 'Item', 'Other', NULL),
-('Slice', 'slice', 'Item', 'Other', NULL),
+('Each', 'ea', 'Item', 'Other', NULL),
+('Cube', 'cube', 'Item', 'Other', NULL),
 -- Temperature units
 ('Celsius', '°C', 'Temperature', 'Metric', NULL),
 ('Fahrenheit', '°F', 'Temperature', 'US Customary', NULL);
 
 -- 2. Ingredients
 -- Note: price_unit_id FKs refer to the IDs from the Units inserts
--- (e.g., 2 = 'Kilogram', 7 = 'Liter', 14 = 'Item')
-INSERT INTO Ingredients (name, price, price_unit_id, contains_peanuts, gluten_status) VALUES
-('Chicken Breast', 15.49, 2, FALSE, 'Gluten-Free'),
-('All-Purpose Flour', 3.99, 2, FALSE, 'Contains'),
-('Gluten-Free AP Flour', 8.99, 2, FALSE, 'GF_Available'),
-('Peanut Butter', 7.50, 2, TRUE, 'Gluten-Free'),
-('Olive Oil', 12.99, 7, FALSE, 'Gluten-Free'),
-('Large Egg', 4.50, 14, FALSE, 'Gluten-Free'),
-('Table Salt', 2.99, 2, FALSE, 'Gluten-Free'),
-('Water', NULL, NULL, FALSE, 'Gluten-Free'),
-('Flour Tortilla', 3.49, 14, FALSE, 'Contains'),
-('Corn Tortilla', 4.00, 14, FALSE, 'Gluten-Free');
+-- (e.g., 2 = 'Kilogram', 7 = 'Liter', 14 = 'Each')
+-- weight is in grams per default unit
+INSERT INTO Ingredients (name, price, price_unit_id, weight, contains_peanuts, gluten_status) VALUES
+('Chicken Breast', 15.49, 2, 200, FALSE, 'Gluten-Free'),
+('All-Purpose Flour', 3.99, 2, 125, FALSE, 'Contains'),
+('Gluten-Free AP Flour', 8.99, 2, 125, FALSE, 'GF_Available'),
+('Peanut Butter', 7.50, 2, 16, TRUE, 'Gluten-Free'),
+('Olive Oil', 12.99, 7, 0.92, FALSE, 'Gluten-Free'),
+('Large Egg', 4.50, 14, 50, FALSE, 'Gluten-Free'),
+('Table Salt', 2.99, 2, 6, FALSE, 'Gluten-Free'),
+('Water', NULL, NULL, 1, FALSE, 'Gluten-Free'),
+('Flour Tortilla', 3.49, 14, 45, FALSE, 'Contains'),
+('Corn Tortilla', 4.00, 14, 30, FALSE, 'Gluten-Free');
 
 -- 3. Ingredient_Groups
 -- Common group names for organizing ingredients within recipes
@@ -107,7 +108,21 @@ INSERT INTO Recipe_Ingredients (recipe_id, ingredient_id, quantity, unit_id, not
 (4, 5, 5, 6, 'for the pan', NULL),         -- 5 mL Olive Oil
 (4, 7, 1, 1, 'to taste', NULL);            -- 1 g Table Salt
 
--- 8. User Seed Data (OPTIONAL - for development/testing only)
+-- 8. Ingredient_Prices
+-- Each ingredient needs a price in a unit compatible with the recipe's usage
+-- (e.g., 1 = 'Gram', 2 = 'Kilogram', 5 = 'Pound', 6 = 'Milliliter', 7 = 'Liter', 14 = 'Each')
+INSERT INTO Ingredient_Prices (ingredient_id, price, unit_id, price_note) VALUES
+(1, 15.49, 2, 'Costco bulk'),              -- Chicken Breast: $15.49/kg
+(2, 3.99, 2, 'Store brand'),               -- All-Purpose Flour: $3.99/kg
+(3, 8.99, 2, 'Specialty brand'),           -- Gluten-Free AP Flour: $8.99/kg
+(4, 7.50, 2, 'Jif'),                       -- Peanut Butter: $7.50/kg
+(5, 12.99, 7, 'Extra virgin'),             -- Olive Oil: $12.99/L
+(6, 0.38, 14, 'Large eggs'),               -- Large Egg: $0.38 each
+(7, 2.99, 2, 'Morton'),                    -- Table Salt: $2.99/kg
+(9, 0.29, 14, 'Mission brand'),            -- Flour Tortilla: $0.29 each
+(10, 0.33, 14, 'Guerrero brand');          -- Corn Tortilla: $0.33 each
+
+-- 9. User Seed Data (OPTIONAL - for development/testing only)
 -- WARNING: Change these passwords in production!
 -- These are test accounts with bcrypt-hashed passwords for manual testing
 

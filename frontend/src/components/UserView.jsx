@@ -13,6 +13,7 @@ export default function UserView({ user }) {
   const [error, setError] = useState(null)
   const [units, setUnits] = useState([])
   const [recipeCost, setRecipeCost] = useState(null)
+  const [recipeWeight, setRecipeWeight] = useState(null)
   
   // Use user's setting for preferred unit system, fallback to 'US Customary'
   const preferredSystem = user?.settings?.unit === 'metric' ? 'Metric' : 'US Customary'
@@ -46,11 +47,13 @@ export default function UserView({ user }) {
     setSelectedVersion(null)
     setScale(1)
     setRecipeCost(null)
+    setRecipeWeight(null)
     try {
       const full = await api.getRecipe(recipe.recipe_id)
       setSelected(full)
-      // Load recipe cost
+      // Load recipe cost and weight
       loadRecipeCost(recipe.recipe_id, 1)
+      loadRecipeWeight(recipe.recipe_id, 1)
       // Attempt to fetch versions; backend may not provide — handle gracefully
       try {
         const vs = await api.listRecipeVersions(recipe.recipe_id)
@@ -70,6 +73,16 @@ export default function UserView({ user }) {
     } catch (err) {
       console.error('Failed to load recipe cost:', err)
       setRecipeCost(null)
+    }
+  }
+
+  async function loadRecipeWeight(recipeId, scaleFactor) {
+    try {
+      const weight = await api.getRecipeWeight(recipeId, scaleFactor)
+      setRecipeWeight(weight)
+    } catch (err) {
+      console.error('Failed to load recipe weight:', err)
+      setRecipeWeight(null)
     }
   }
 
@@ -154,6 +167,7 @@ export default function UserView({ user }) {
                       setScale(newScale)
                       if (selected?.recipe_id) {
                         loadRecipeCost(selected.recipe_id, newScale)
+                        loadRecipeWeight(selected.recipe_id, newScale)
                       }
                     }} 
                   />
@@ -176,9 +190,9 @@ export default function UserView({ user }) {
               )}
             </div>
 
-            {recipeCost && (
+            {(recipeCost || recipeWeight) && (
               <div style={{ marginTop: '1em', padding: '0.75em', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
-                {recipeCost.total_cost !== null ? (
+                {recipeCost && (recipeCost.total_cost !== null ? (
                   <p style={{ margin: 0, fontSize: '1.1em' }}>
                     <strong>Estimated Cost:</strong> ${recipeCost.total_cost.toFixed(2)}
                   </p>
@@ -186,7 +200,16 @@ export default function UserView({ user }) {
                   <p style={{ margin: 0, fontSize: '1em', color: '#666' }}>
                     <strong>Cost information incomplete:</strong> Some ingredient prices are not available
                   </p>
-                )}
+                ))}
+                {recipeWeight && (recipeWeight.total_weight !== null ? (
+                  <p style={{ margin: '0.5em 0 0 0', fontSize: '1.1em' }}>
+                    <strong>Total Weight:</strong> {recipeWeight.total_weight.toFixed(0)}g
+                  </p>
+                ) : (
+                  <p style={{ margin: '0.5em 0 0 0', fontSize: '1em', color: '#666' }}>
+                    <strong>Weight information incomplete:</strong> Some ingredient weights are not available
+                  </p>
+                ))}
               </div>
             )}
 

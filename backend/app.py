@@ -68,6 +68,7 @@ class Ingredient(db.Model):
     price = Column(Float(10, 2))
     price_unit_id = Column(Integer, ForeignKey('Units.unit_id'))
     default_unit_id = Column(Integer, ForeignKey('Units.unit_id'))
+    weight = Column(Float(10, 2))
     contains_peanuts = Column(Boolean, default=False, nullable=False)
     gluten_status = Column(Enum('Contains', 'Gluten-Free', 'GF_Available'), default='Gluten-Free', nullable=False)
 
@@ -153,7 +154,7 @@ class RecipeTag(db.Model):
 
 # --- 3. Serialization Helpers (Converting SQLAlchemy objects to JSON) ---
 
-def serialize_recipe_ingredient(ri, include_cost=False, units_dict=None):
+def serialize_recipe_ingredient(ri, include_cost=False, include_weight=False, units_dict=None):
     """Converts a RecipeIngredient ORM object to a dictionary for JSON response."""
     result = {
         'ingredient_id': ri.ingredient_id,
@@ -171,6 +172,13 @@ def serialize_recipe_ingredient(ri, include_cost=False, units_dict=None):
         cost, has_price = calculate_ingredient_cost(ri, units_dict)
         result['cost'] = round(cost, 2) if cost is not None else None
         result['has_price_data'] = has_price
+    
+    # Optionally include weight information (for admin views)
+    if include_weight:
+        weight_info = calculate_ingredient_weight(ri)
+        result['base_weight'] = weight_info['base_weight']
+        result['scaled_weight'] = weight_info['scaled_weight']
+        result['has_weight_data'] = weight_info['has_weight']
     
     return result
 
@@ -216,6 +224,7 @@ def serialize_ingredient(ingredient):
         'price': ingredient.price,
         'price_unit_id': ingredient.price_unit_id,
         'default_unit_id': ingredient.default_unit_id,
+        'weight': ingredient.weight,
         'gluten_status': ingredient.gluten_status,
         'prices': prices_list
     }
@@ -393,6 +402,73 @@ def calculate_recipe_cost(recipe, units_list, scale_factor=1.0):
         'total_cost': round(total_cost, 2) if not has_missing_prices else None,
         'ingredients_cost': ingredients_cost,
         'has_missing_prices': has_missing_prices
+    }
+
+def calculate_ingredient_weight(recipe_ingredient):
+    """
+    Calculate weight for a single recipe ingredient.
+    Returns dict with base_weight, scaled_weight, and has_weight flag.
+    The weight is in grams.
+    """
+    ingredient = recipe_ingredient.ingredient
+    recipe_quantity = recipe_ingredient.quantity
+    
+    if not ingredient or recipe_quantity is None:
+        return {'base_weight': None, 'scaled_weight': None, 'has_weight': False}
+    
+    # Get the ingredient's base weight (grams per default unit)
+    base_weight = ingredient.weight
+    
+    if base_weight is None:
+        return {'base_weight': None, 'scaled_weight': None, 'has_weight': False}
+    
+    # Calculate scaled weight based on recipe quantity
+    scaled_weight = float(base_weight) * float(recipe_quantity)
+    
+    return {
+        'base_weight': float(base_weight),
+        'scaled_weight': round(scaled_weight, 2),
+        'has_weight': True
+    }
+
+def calculate_recipe_weight(recipe, scale_factor=1.0):
+    """
+    Calculate total weight for a recipe and per-ingredient weights.
+    Returns dict with total_weight, ingredients_weight, and missing_weights flag.
+    Weight is in grams.
+    """
+    total_weight = 0.0
+    has_missing_weights = False
+    ingredients_weight = []
+    
+    for ri in recipe.ingredients:
+        weight_info = calculate_ingredient_weight(ri)
+        
+        if weight_info['has_weight'] and weight_info['scaled_weight'] is not None:
+            scaled_weight = weight_info['scaled_weight'] * scale_factor
+            total_weight += scaled_weight
+            
+            ingredients_weight.append({
+                'ingredient_id': ri.ingredient_id,
+                'name': ri.ingredient.name if ri.ingredient else None,
+                'base_weight': weight_info['base_weight'],
+                'scaled_weight': round(scaled_weight, 2),
+                'has_weight_data': True
+            })
+        else:
+            has_missing_weights = True
+            ingredients_weight.append({
+                'ingredient_id': ri.ingredient_id,
+                'name': ri.ingredient.name if ri.ingredient else None,
+                'base_weight': None,
+                'scaled_weight': None,
+                'has_weight_data': False
+            })
+    
+    return {
+        'total_weight': round(total_weight, 2) if not has_missing_weights else None,
+        'ingredients_weight': ingredients_weight,
+        'has_missing_weights': has_missing_weights
     }
 
 
@@ -577,6 +653,26 @@ def recipe_cost(recipe_id):
         print(f"Error calculating recipe cost: {e}")
         return jsonify({"error": "Failed to calculate recipe cost"}), 500
 
+@app.route('/api/recipes/<int:recipe_id>/weight', methods=['GET'])
+@login_required
+def recipe_weight(recipe_id):
+    """Endpoint to get recipe weight information."""
+    try:
+        recipe = db.session.execute(db.select(Recipe).filter_by(recipe_id=recipe_id)).scalar_one_or_none()
+        if recipe is None:
+            return jsonify({"error": "Recipe not found."}), 404
+        
+        # Get scale factor from query params (default to 1.0)
+        scale_factor = float(request.args.get('scale', 1.0))
+        
+        # Calculate weight
+        weight_info = calculate_recipe_weight(recipe, scale_factor)
+        
+        return jsonify(weight_info)
+    except Exception as e:
+        print(f"Error calculating recipe weight: {e}")
+        return jsonify({"error": "Failed to calculate recipe weight"}), 500
+
 @app.route("/api/ingredients", methods=['GET', 'POST'])
 @login_required
 def ingredients_list():
@@ -600,6 +696,7 @@ def ingredients_list():
                 price=data.get('price'),
                 price_unit_id=data.get('price_unit_id'),
                 default_unit_id=data.get('default_unit_id'),
+                weight=data.get('weight'),
                 contains_peanuts=data.get('contains_peanuts', False),
                 gluten_status=data.get('gluten_status', 'Gluten-Free')
             )
@@ -639,6 +736,8 @@ def ingredient(ingredient_id):
                 ingredient.price_unit_id = data['price_unit_id']
             if 'default_unit_id' in data:
                 ingredient.default_unit_id = data['default_unit_id']
+            if 'weight' in data:
+                ingredient.weight = data['weight']
             if 'contains_peanuts' in data:
                 ingredient.contains_peanuts = data['contains_peanuts']
             if 'gluten_status' in data:
