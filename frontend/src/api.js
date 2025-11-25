@@ -19,6 +19,7 @@ export const api = {
   login: (email, password) => request('/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   logout: () => request('/logout', { method: 'POST' }),
   getMe: () => request('/me'),
+  isTestDatabase: () => request('/is-test-database'),
   getSettings: () => request('/settings'),
   updateSettings: (settings) => request('/settings', { method: 'PUT', body: JSON.stringify(settings) }),
   changePassword: (currentPassword, newPassword) => request('/change-password', { 

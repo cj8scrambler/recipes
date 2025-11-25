@@ -4,10 +4,20 @@ import { formatRecipeUnits } from '../utils'
 import { getDisplayUnit, toBaseUnit } from '../unitConversions'
 import RecipeList from './RecipeList'
 
+// Constants for servings input
+const DEFAULT_SERVINGS = 1
+const DEFAULT_SERVINGS_STR = '1'
+
+// Round to tenths (1 decimal place)
+function roundToTenths(value) {
+  return Math.round(value * 10) / 10
+}
+
 export default function UserView({ user }) {
   const [recipes, setRecipes] = useState([])
   const [selected, setSelected] = useState(null)
-  const [scale, setScale] = useState(1)
+  const [scale, setScale] = useState(DEFAULT_SERVINGS)
+  const [scaleInput, setScaleInput] = useState(DEFAULT_SERVINGS_STR) // String state for free-form input
   const [versions, setVersions] = useState([])
   const [selectedVersion, setSelectedVersion] = useState(null)
   const [error, setError] = useState(null)
@@ -45,15 +55,16 @@ export default function UserView({ user }) {
     setSelected(null)
     setVersions([])
     setSelectedVersion(null)
-    setScale(1)
+    setScale(DEFAULT_SERVINGS)
+    setScaleInput(DEFAULT_SERVINGS_STR)
     setRecipeCost(null)
     setRecipeWeight(null)
     try {
       const full = await api.getRecipe(recipe.recipe_id)
       setSelected(full)
       // Load recipe cost and weight
-      loadRecipeCost(recipe.recipe_id, 1)
-      loadRecipeWeight(recipe.recipe_id, 1)
+      loadRecipeCost(recipe.recipe_id, DEFAULT_SERVINGS)
+      loadRecipeWeight(recipe.recipe_id, DEFAULT_SERVINGS)
       // Attempt to fetch versions; backend may not provide — handle gracefully
       try {
         const vs = await api.listRecipeVersions(recipe.recipe_id)
@@ -138,40 +149,49 @@ export default function UserView({ user }) {
     }
   }
 
-  // Format servings value - whole numbers when >= 1, specific fractional values otherwise
-  function formatServingsValue(value) {
-    if (value >= 1) {
-      return Math.round(value)
+  // Format number to show minimum decimals (tenths only, no trailing zeros)
+  function formatServingsDisplay(value) {
+    if (value === null || value === undefined || isNaN(value)) return DEFAULT_SERVINGS_STR
+    const rounded = roundToTenths(value)
+    // Remove trailing .0 for whole numbers
+    if (rounded === Math.floor(rounded)) {
+      return String(Math.floor(rounded))
     }
-    // For values < 1, snap to nearest allowed fraction (0.1, 0.25, 0.5)
-    const allowedFractions = [0.1, 0.25, 0.5]
-    const snapped = allowedFractions.reduce((prev, curr) =>
-      Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev
-    )
-    // Fallback to minimum allowed value if something goes wrong
-    return snapped || 0.1
+    return rounded.toFixed(1)
   }
 
-  // Handle servings input change - allow free-form typing
+  // Handle servings input change - allow free-form typing including empty, decimals, etc.
   function handleServingsChange(e) {
-    const rawValue = Number(e.target.value)
-    if (isNaN(rawValue) || rawValue <= 0) return
+    const inputValue = e.target.value
+    // Allow empty string and any characters for typing
+    setScaleInput(inputValue)
     
-    // Set the raw value while typing - don't format yet
-    setScale(rawValue)
-    if (selected?.recipe_id) {
-      loadRecipeCost(selected.recipe_id, rawValue)
-      loadRecipeWeight(selected.recipe_id, rawValue)
+    // Only update scale if it's a valid positive number
+    const numValue = parseFloat(inputValue)
+    if (!isNaN(numValue) && numValue > 0) {
+      setScale(numValue)
+      if (selected?.recipe_id) {
+        loadRecipeCost(selected.recipe_id, numValue)
+        loadRecipeWeight(selected.recipe_id, numValue)
+      }
     }
   }
 
-  // Format servings on blur to snap to allowed values
+  // Format servings on blur - validate and format to tenths
   function handleServingsBlur() {
-    const formattedValue = formatServingsValue(scale)
-    setScale(formattedValue)
+    const numValue = parseFloat(scaleInput)
+    // If invalid or <= 0, reset to previous valid scale
+    if (isNaN(numValue) || numValue <= 0) {
+      setScaleInput(formatServingsDisplay(scale))
+      return
+    }
+    // Round to tenths and format
+    const rounded = roundToTenths(numValue)
+    setScale(rounded)
+    setScaleInput(formatServingsDisplay(rounded))
     if (selected?.recipe_id) {
-      loadRecipeCost(selected.recipe_id, formattedValue)
-      loadRecipeWeight(selected.recipe_id, formattedValue)
+      loadRecipeCost(selected.recipe_id, rounded)
+      loadRecipeWeight(selected.recipe_id, rounded)
     }
   }
 
@@ -195,9 +215,9 @@ export default function UserView({ user }) {
                 <label style={{ marginBottom: 0 }}>Servings</label>
                 <input 
                   type="number" 
-                  value={scale} 
+                  value={scaleInput} 
                   min="0.1" 
-                  step="0.1" 
+                  step="1" 
                   style={{ width: '80px' }}
                   onChange={handleServingsChange}
                   onBlur={handleServingsBlur}
