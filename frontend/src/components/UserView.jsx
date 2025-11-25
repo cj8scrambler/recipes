@@ -187,6 +187,15 @@ export default function UserView({ user }) {
                     <strong>Cost information incomplete:</strong> Some ingredient prices are not available
                   </p>
                 )}
+                {recipeCost.total_weight !== null ? (
+                  <p style={{ margin: '0.5em 0 0 0', fontSize: '1.1em' }}>
+                    <strong>Total Weight:</strong> {recipeCost.total_weight.toFixed(0)}g
+                  </p>
+                ) : (
+                  <p style={{ margin: '0.5em 0 0 0', fontSize: '1em', color: '#666' }}>
+                    <strong>Weight information incomplete:</strong> Some ingredient weights are not available
+                  </p>
+                )}
               </div>
             )}
 

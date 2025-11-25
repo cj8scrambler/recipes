@@ -188,17 +188,47 @@ export default function AdminDashboard() {
             </div>
           )}
           <ul>
-            {ingredients.map(i => (
-              <li key={i.ingredient_id}>
-                <span>
-                  {i.name} {i.unit ? <span className="text-muted">({i.unit})</span> : ''}
-                </span>
-                <div>
-                  <button className="small secondary" onClick={() => setEditingIngredient(i)}>Edit</button>
-                  <button className="small danger" onClick={() => removeIngredient(i.ingredient_id)}>Delete</button>
-                </div>
-              </li>
-            ))}
+            {ingredients.map(i => {
+              const hasNoPrice = !i.prices || i.prices.length === 0
+              const hasNoWeight = i.weight === null || i.weight === undefined
+              return (
+                <li key={i.ingredient_id}>
+                  <span>
+                    {i.name} {i.unit ? <span className="text-muted">({i.unit})</span> : ''}
+                    {hasNoPrice && (
+                      <span 
+                        style={{ 
+                          marginLeft: '0.5em', 
+                          color: '#d9534f', 
+                          fontSize: '0.85em',
+                          fontWeight: 'bold'
+                        }}
+                        title="No price defined"
+                      >
+                        💲
+                      </span>
+                    )}
+                    {hasNoWeight && (
+                      <span 
+                        style={{ 
+                          marginLeft: '0.5em', 
+                          color: '#f0ad4e', 
+                          fontSize: '0.85em',
+                          fontWeight: 'bold'
+                        }}
+                        title="No weight defined"
+                      >
+                        ⚖️
+                      </span>
+                    )}
+                  </span>
+                  <div>
+                    <button className="small secondary" onClick={() => setEditingIngredient(i)}>Edit</button>
+                    <button className="small danger" onClick={() => removeIngredient(i.ingredient_id)}>Delete</button>
+                  </div>
+                </li>
+              )
+            })}
           </ul>
         </div>
       )}

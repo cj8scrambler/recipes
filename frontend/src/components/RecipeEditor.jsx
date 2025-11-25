@@ -346,6 +346,66 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
                 Total cost cannot be calculated - some prices missing
               </div>
             )}
+
+            <h4 style={{ margin: '1em 0 0.5em 0' }}>Weight Information</h4>
+            {recipeCost.ingredients_weight && recipeCost.ingredients_weight.length > 0 && (
+              <div style={{ marginBottom: '0.5em', overflowX: 'auto' }}>
+                <table style={{ 
+                  width: '100%', 
+                  fontSize: '0.85em',
+                  borderCollapse: 'collapse'
+                }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid #ddd' }}>
+                      <th style={{ textAlign: 'left', padding: '0.5em', fontWeight: 'bold' }}>Ingredient</th>
+                      <th style={{ textAlign: 'right', padding: '0.5em', fontWeight: 'bold' }}>Base Weight (g)</th>
+                      <th style={{ textAlign: 'right', padding: '0.5em', fontWeight: 'bold' }}>Recipe Weight (g)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recipeCost.ingredients_weight.map((ingWeight, idx) => (
+                      <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
+                        <td style={{ padding: '0.5em' }}>{ingWeight.name}</td>
+                        {ingWeight.has_weight_data ? (
+                          <>
+                            <td style={{ textAlign: 'right', padding: '0.5em' }}>
+                              {ingWeight.base_weight.toFixed(0)}
+                            </td>
+                            <td style={{ textAlign: 'right', padding: '0.5em', fontWeight: 'bold' }}>
+                              {ingWeight.scaled_weight.toFixed(0)}
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td colSpan="2" style={{ padding: '0.5em', color: '#d9534f', textAlign: 'center' }}>
+                              Weight not available
+                            </td>
+                          </>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+            {recipeCost.total_weight !== null ? (
+              <div style={{ 
+                borderTop: '2px solid #ddd', 
+                paddingTop: '0.5em',
+                fontWeight: 'bold',
+                fontSize: '1em'
+              }}>
+                Total Weight: {recipeCost.total_weight.toFixed(0)}g
+              </div>
+            ) : (
+              <div style={{ 
+                borderTop: '2px solid #ddd', 
+                paddingTop: '0.5em',
+                color: '#d9534f'
+              }}>
+                Total weight cannot be calculated - some weights missing
+              </div>
+            )}
           </div>
         )}
       </div>

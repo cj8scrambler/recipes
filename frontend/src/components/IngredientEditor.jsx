@@ -4,6 +4,7 @@ import { api } from '../api'
 export default function IngredientEditor({ ingredient = null, onCancel, onSave }) {
   const [name, setName] = useState('')
   const [defaultUnitId, setDefaultUnitId] = useState('')
+  const [weight, setWeight] = useState('')
   const [notes, setNotes] = useState('')
   const [units, setUnits] = useState([])
   const [prices, setPrices] = useState([])
@@ -17,6 +18,7 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
     if (ingredient) {
       setName(ingredient.name || '')
       setDefaultUnitId(ingredient.default_unit_id || '')
+      setWeight(ingredient.weight !== null && ingredient.weight !== undefined ? String(ingredient.weight) : '')
       setNotes(ingredient.notes || '')
       // Load prices if editing existing ingredient
       if (ingredient.ingredient_id) {
@@ -27,6 +29,7 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
     } else {
       setName('')
       setDefaultUnitId('')
+      setWeight('')
       setNotes('')
       setPrices([])
     }
@@ -120,6 +123,7 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
         ...ingredient,
         name,
         default_unit_id: defaultUnitId ? parseInt(defaultUnitId) : null,
+        weight: weight ? parseFloat(weight) : null,
         notes
       })
       
@@ -192,6 +196,21 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
           Notes (Optional)
           <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any additional information" />
         </label>
+      </div>
+      <div className="form-group">
+        <label>
+          Weight per Unit (grams)
+          <input 
+            type="number" 
+            step="0.01"
+            value={weight} 
+            onChange={(e) => setWeight(e.target.value)} 
+            placeholder="e.g., 50 for a 50g egg" 
+          />
+        </label>
+        <p style={{ fontSize: '0.9em', color: '#666', marginTop: '0.25em' }}>
+          Weight in grams per default unit. Used to calculate total recipe weight.
+        </p>
       </div>
       
       <div className="form-group">
