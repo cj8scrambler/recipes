@@ -51,6 +51,9 @@ export const api = {
   // Recipe Costs
   getRecipeCost: (id, scale = 1.0) => request(`/recipes/${id}/cost?scale=${scale}`),
 
+  // Recipe Weights
+  getRecipeWeight: (id, scale = 1.0) => request(`/recipes/${id}/weight?scale=${scale}`),
+
   // Admin - Ingredient Prices
   listIngredientPrices: (ingredientId) => request(`/ingredients/${ingredientId}/prices`),
   createIngredientPrice: (ingredientId, payload) => request(`/ingredients/${ingredientId}/prices`, { method: 'POST', body: JSON.stringify(payload) }),

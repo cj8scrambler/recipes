@@ -23,6 +23,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
   const [allIngredients, setAllIngredients] = useState([])
   const [ingredientGroups, setIngredientGroups] = useState([])
   const [recipeCost, setRecipeCost] = useState(null)
+  const [recipeWeight, setRecipeWeight] = useState(null)
 
   useEffect(() => {
     loadUnits()
@@ -43,9 +44,10 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
         notes: ing.notes || '',
         group_id: ing.group_id || ''
       })))
-      // Load cost if editing existing recipe
+      // Load cost and weight if editing existing recipe
       if (recipe.recipe_id) {
         loadRecipeCost(recipe.recipe_id)
+        loadRecipeWeight(recipe.recipe_id)
       }
     } else {
       setName('')
@@ -53,6 +55,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
       setServings(1)
       setIngredients([])
       setRecipeCost(null)
+      setRecipeWeight(null)
     }
   }, [recipe])
 
@@ -63,6 +66,16 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
     } catch (err) {
       console.error('Failed to load recipe cost:', err)
       setRecipeCost(null)
+    }
+  }
+
+  async function loadRecipeWeight(recipeId) {
+    try {
+      const weight = await api.getRecipeWeight(recipeId, 1.0)
+      setRecipeWeight(weight)
+    } catch (err) {
+      console.error('Failed to load recipe weight:', err)
+      setRecipeWeight(null)
     }
   }
 
@@ -346,9 +359,18 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
                 Total cost cannot be calculated - some prices missing
               </div>
             )}
+          </div>
+        )}
 
-            <h4 style={{ margin: '1em 0 0.5em 0' }}>Weight Information</h4>
-            {recipeCost.ingredients_weight && recipeCost.ingredients_weight.length > 0 && (
+        {recipeWeight && recipe?.recipe_id && (
+          <div style={{ 
+            marginTop: '1em', 
+            padding: '0.75em', 
+            backgroundColor: '#f5f5f5', 
+            borderRadius: '4px' 
+          }}>
+            <h4 style={{ margin: '0 0 0.5em 0' }}>Weight Information</h4>
+            {recipeWeight.ingredients_weight && recipeWeight.ingredients_weight.length > 0 && (
               <div style={{ marginBottom: '0.5em', overflowX: 'auto' }}>
                 <table style={{ 
                   width: '100%', 
@@ -363,7 +385,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {recipeCost.ingredients_weight.map((ingWeight, idx) => (
+                    {recipeWeight.ingredients_weight.map((ingWeight, idx) => (
                       <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
                         <td style={{ padding: '0.5em' }}>{ingWeight.name}</td>
                         {ingWeight.has_weight_data ? (
@@ -388,14 +410,14 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
                 </table>
               </div>
             )}
-            {recipeCost.total_weight !== null ? (
+            {recipeWeight.total_weight !== null ? (
               <div style={{ 
                 borderTop: '2px solid #ddd', 
                 paddingTop: '0.5em',
                 fontWeight: 'bold',
                 fontSize: '1em'
               }}>
-                Total Weight: {recipeCost.total_weight.toFixed(0)}g
+                Total Weight: {recipeWeight.total_weight.toFixed(0)}g
               </div>
             ) : (
               <div style={{ 

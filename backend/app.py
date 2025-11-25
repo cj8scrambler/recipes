@@ -648,21 +648,30 @@ def recipe_cost(recipe_id):
         # Calculate cost
         cost_info = calculate_recipe_cost(recipe, units, scale_factor)
         
-        # Calculate weight
-        weight_info = calculate_recipe_weight(recipe, scale_factor)
-        
-        # Combine cost and weight information
-        result = {
-            **cost_info,
-            'total_weight': weight_info['total_weight'],
-            'ingredients_weight': weight_info['ingredients_weight'],
-            'has_missing_weights': weight_info['has_missing_weights']
-        }
-        
-        return jsonify(result)
+        return jsonify(cost_info)
     except Exception as e:
         print(f"Error calculating recipe cost: {e}")
         return jsonify({"error": "Failed to calculate recipe cost"}), 500
+
+@app.route('/api/recipes/<int:recipe_id>/weight', methods=['GET'])
+@login_required
+def recipe_weight(recipe_id):
+    """Endpoint to get recipe weight information."""
+    try:
+        recipe = db.session.execute(db.select(Recipe).filter_by(recipe_id=recipe_id)).scalar_one_or_none()
+        if recipe is None:
+            return jsonify({"error": "Recipe not found."}), 404
+        
+        # Get scale factor from query params (default to 1.0)
+        scale_factor = float(request.args.get('scale', 1.0))
+        
+        # Calculate weight
+        weight_info = calculate_recipe_weight(recipe, scale_factor)
+        
+        return jsonify(weight_info)
+    except Exception as e:
+        print(f"Error calculating recipe weight: {e}")
+        return jsonify({"error": "Failed to calculate recipe weight"}), 500
 
 @app.route("/api/ingredients", methods=['GET', 'POST'])
 @login_required
