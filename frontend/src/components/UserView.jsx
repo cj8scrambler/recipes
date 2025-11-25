@@ -138,6 +138,31 @@ export default function UserView({ user }) {
     }
   }
 
+  // Format servings value - whole numbers when >= 1, specific fractional values otherwise
+  function formatServingsValue(value) {
+    if (value >= 1) {
+      return Math.round(value)
+    }
+    // For values < 1, snap to nearest allowed fraction (0.1, 0.25, 0.5)
+    const allowedFractions = [0.1, 0.25, 0.5]
+    return allowedFractions.reduce((prev, curr) =>
+      Math.abs(curr - value) < Math.abs(prev - value) ? curr : prev
+    )
+  }
+
+  // Handle servings input change with validation
+  function handleServingsChange(e) {
+    const rawValue = Number(e.target.value)
+    if (isNaN(rawValue) || rawValue <= 0) return
+    
+    const newScale = formatServingsValue(rawValue)
+    setScale(newScale)
+    if (selected?.recipe_id) {
+      loadRecipeCost(selected.recipe_id, newScale)
+      loadRecipeWeight(selected.recipe_id, newScale)
+    }
+  }
+
   return (
     <div className="user-view">
       <div className="sidebar">
@@ -154,116 +179,115 @@ export default function UserView({ user }) {
           <article>
             <h2>{selected.name}</h2>
             <div className="meta">
-              <div className="form-group">
-                <label>
-                  Servings
-                  <input 
-                    type="number" 
-                    value={scale} 
-                    min="0.25" 
-                    step="0.25" 
-                    onChange={(e) => {
-                      const newScale = Number(e.target.value)
-                      setScale(newScale)
-                      if (selected?.recipe_id) {
-                        loadRecipeCost(selected.recipe_id, newScale)
-                        loadRecipeWeight(selected.recipe_id, newScale)
-                      }
-                    }} 
-                  />
-                </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <label style={{ marginBottom: 0 }}>Servings</label>
+                <input 
+                  type="number" 
+                  value={scale} 
+                  min="0.1" 
+                  step="0.1" 
+                  style={{ width: '80px' }}
+                  onChange={handleServingsChange}
+                  onBlur={() => setScale(formatServingsValue(scale))}
+                />
               </div>
+              {recipeCost && (recipeCost.total_cost !== null ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <label style={{ marginBottom: 0 }}>Estimated Cost</label>
+                  <span style={{ fontWeight: 600, fontSize: '1.1em' }}>${recipeCost.total_cost.toFixed(2)}</span>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--gray-500)' }}>
+                  <label style={{ marginBottom: 0 }}>Cost</label>
+                  <span style={{ fontSize: '0.9em' }}>incomplete</span>
+                </div>
+              ))}
+              {recipeWeight && (recipeWeight.total_weight !== null ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <label style={{ marginBottom: 0 }}>Total Weight</label>
+                  <span style={{ fontWeight: 600, fontSize: '1.1em' }}>{recipeWeight.total_weight.toFixed(0)}g</span>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--gray-500)' }}>
+                  <label style={{ marginBottom: 0 }}>Weight</label>
+                  <span style={{ fontSize: '0.9em' }}>incomplete</span>
+                </div>
+              ))}
               {(versions.length > 0) && (
-                <div className="form-group">
-                  <label>
-                    Version
-                    <select onChange={(e) => {
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <label style={{ marginBottom: 0 }}>Version</label>
+                  <select 
+                    style={{ width: 'auto' }}
+                    onChange={(e) => {
                       const v = versions.find(x => String(x.id) === e.target.value)
                       setSelectedVersion(v || null)
                       if (v) switchVersion(v)
                     }}>
-                      <option value="">Default</option>
-                      {versions.map(v => <option value={v.id} key={v.id}>{v.name || v.id}</option>)}
-                    </select>
-                  </label>
+                    <option value="">Default</option>
+                    {versions.map(v => <option value={v.id} key={v.id}>{v.name || v.id}</option>)}
+                  </select>
                 </div>
               )}
             </div>
 
-            {(recipeCost || recipeWeight) && (
-              <div style={{ marginTop: '1em', padding: '0.75em', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
-                {recipeCost && (recipeCost.total_cost !== null ? (
-                  <p style={{ margin: 0, fontSize: '1.1em' }}>
-                    <strong>Estimated Cost:</strong> ${recipeCost.total_cost.toFixed(2)}
-                  </p>
-                ) : (
-                  <p style={{ margin: 0, fontSize: '1em', color: '#666' }}>
-                    <strong>Cost information incomplete:</strong> Some ingredient prices are not available
-                  </p>
-                ))}
-                {recipeWeight && (recipeWeight.total_weight !== null ? (
-                  <p style={{ margin: '0.5em 0 0 0', fontSize: '1.1em' }}>
-                    <strong>Total Weight:</strong> {recipeWeight.total_weight.toFixed(0)}g
-                  </p>
-                ) : (
-                  <p style={{ margin: '0.5em 0 0 0', fontSize: '1em', color: '#666' }}>
-                    <strong>Weight information incomplete:</strong> Some ingredient weights are not available
-                  </p>
-                ))}
-              </div>
-            )}
-
             <section>
               <h3>Ingredients</h3>
-              {(() => {
-                // Group ingredients by group_id
-                const grouped = scaledIngredients().reduce((acc, ing) => {
-                  const groupKey = ing.group_id || 'ungrouped'
-                  if (!acc[groupKey]) {
-                    acc[groupKey] = {
-                      name: ing.group_name,
-                      ingredients: []
+              <div style={{ 
+                background: 'var(--bg-tertiary)', 
+                padding: '1.25rem', 
+                borderRadius: 'var(--border-radius-sm)',
+                border: '1px solid var(--border-color)'
+              }}>
+                {(() => {
+                  // Group ingredients by group_id
+                  const grouped = scaledIngredients().reduce((acc, ing) => {
+                    const groupKey = ing.group_id || 'ungrouped'
+                    if (!acc[groupKey]) {
+                      acc[groupKey] = {
+                        name: ing.group_name,
+                        ingredients: []
+                      }
                     }
-                  }
-                  acc[groupKey].ingredients.push(ing)
-                  return acc
-                }, {})
-                
-                // Sort groups: ungrouped first, then by group name
-                const sortedGroups = Object.entries(grouped).sort(([keyA], [keyB]) => {
-                  if (keyA === 'ungrouped') return -1
-                  if (keyB === 'ungrouped') return 1
-                  return 0
-                })
-                
-                return sortedGroups.map(([groupKey, group]) => (
-                  <div key={groupKey} style={{ marginBottom: '1em' }}>
-                    {groupKey !== 'ungrouped' && group.name && (
-                      <h4 style={{ 
-                        fontSize: '1em', 
-                        fontWeight: 'bold', 
-                        marginTop: '1em', 
-                        marginBottom: '0.5em',
-                        color: '#555'
-                      }}>
-                        {group.name}
-                      </h4>
-                    )}
-                    <ul>
-                      {group.ingredients.map((ing, idx) => (
-                        <li key={idx}>
-                          <span>
-                            {ing.quantity && ing.displayUnit ? (
-                              <strong>{formatRecipeUnits(ing.quantity, 2)} {ing.displayUnit.abbreviation}</strong>
-                            ) : ''} {ing.name}
-                            {ing.notes ? <span className="text-muted"> — {ing.notes}</span> : ''}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))
-              })()}
+                    acc[groupKey].ingredients.push(ing)
+                    return acc
+                  }, {})
+                  
+                  // Sort groups: ungrouped first, then by group name
+                  const sortedGroups = Object.entries(grouped).sort(([keyA], [keyB]) => {
+                    if (keyA === 'ungrouped') return -1
+                    if (keyB === 'ungrouped') return 1
+                    return 0
+                  })
+                  
+                  return sortedGroups.map(([groupKey, group]) => (
+                    <div key={groupKey} style={{ marginBottom: groupKey !== sortedGroups[sortedGroups.length - 1]?.[0] ? '1em' : 0 }}>
+                      {groupKey !== 'ungrouped' && group.name && (
+                        <h4 style={{ 
+                          fontSize: '1em', 
+                          fontWeight: 600, 
+                          marginTop: '0.5em', 
+                          marginBottom: '0.5em',
+                          color: 'var(--gray-700)'
+                        }}>
+                          {group.name}
+                        </h4>
+                      )}
+                      <ul style={{ paddingLeft: groupKey !== 'ungrouped' ? '1.5rem' : 0 }}>
+                        {group.ingredients.map((ing, idx) => (
+                          <li key={idx}>
+                            <span>
+                              {ing.quantity && ing.displayUnit ? (
+                                <strong>{formatRecipeUnits(ing.quantity, 2)} {ing.displayUnit.abbreviation}</strong>
+                              ) : ''} {ing.name}
+                              {ing.notes ? <span className="text-muted"> — {ing.notes}</span> : ''}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))
+                })()}
+              </div>
             </section>
 
             <section>
