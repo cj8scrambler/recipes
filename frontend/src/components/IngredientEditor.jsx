@@ -4,6 +4,7 @@ import { api } from '../api'
 export default function IngredientEditor({ ingredient = null, onCancel, onSave }) {
   const [name, setName] = useState('')
   const [defaultUnitId, setDefaultUnitId] = useState('')
+  const [previousDefaultUnitId, setPreviousDefaultUnitId] = useState('')
   const [weight, setWeight] = useState('')
   const [notes, setNotes] = useState('')
   const [units, setUnits] = useState([])
@@ -18,6 +19,7 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
     if (ingredient) {
       setName(ingredient.name || '')
       setDefaultUnitId(ingredient.default_unit_id || '')
+      setPreviousDefaultUnitId(ingredient.default_unit_id || '')
       setWeight(ingredient.weight !== null && ingredient.weight !== undefined ? String(ingredient.weight) : '')
       setNotes(ingredient.notes || '')
       // Load prices if editing existing ingredient
@@ -29,6 +31,7 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
     } else {
       setName('')
       setDefaultUnitId('')
+      setPreviousDefaultUnitId('')
       setWeight('')
       setNotes('')
       setPrices([])
@@ -118,12 +121,30 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
     setError(null)
     
     try {
+      // Determine the weight value to save
+      let weightToSave = null
+      
+      if (defaultUnitId) {
+        const unitForWeight = units.find(u => u.unit_id === parseInt(defaultUnitId))
+        if (unitForWeight?.category === 'Weight') {
+          // Weight-based unit: use the base_conversion_factor directly
+          // base_conversion_factor is grams per unit (e.g., 453.592 for pounds)
+          weightToSave = unitForWeight.base_conversion_factor 
+            ? parseFloat(unitForWeight.base_conversion_factor.toFixed(2))
+            : null
+        } else {
+          // Non-weight-based unit: use the user-entered weight
+          weightToSave = weight ? parseFloat(weight) : null
+        }
+      }
+      // If no default unit, weight stays null
+      
       // First save the ingredient
       const savedIngredient = await onSave({
         ...ingredient,
         name,
         default_unit_id: defaultUnitId ? parseInt(defaultUnitId) : null,
-        weight: weight ? parseFloat(weight) : null,
+        weight: weightToSave,
         notes
       })
       
@@ -163,6 +184,29 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
     return acc
   }, {})
 
+  // Get the selected default unit object
+  const selectedUnit = defaultUnitId ? units.find(u => u.unit_id === parseInt(defaultUnitId)) : null
+  
+  // Determine if the selected unit is weight-based
+  const isWeightBasedUnit = selectedUnit?.category === 'Weight'
+  
+  // Calculate the weight in grams for weight-based units
+  // base_conversion_factor is how many grams per unit (e.g., 453.592 for pounds)
+  // So "Weight per pound (in grams)" = 453.6
+  const calculatedWeight = isWeightBasedUnit && selectedUnit?.base_conversion_factor 
+    ? selectedUnit.base_conversion_factor.toFixed(1)
+    : null
+
+  // Handle default unit change - clear weight if unit changes
+  function handleDefaultUnitChange(newUnitId) {
+    // If unit is changing, clear the weight
+    if (newUnitId !== previousDefaultUnitId) {
+      setWeight('')
+    }
+    setDefaultUnitId(newUnitId)
+    setPreviousDefaultUnitId(newUnitId)
+  }
+
   return (
     <form className="editor" onSubmit={submit}>
       <h3>{ingredient?.ingredient_id ? 'Edit Ingredient' : 'New Ingredient'}</h3>
@@ -177,7 +221,7 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
       <div className="form-group">
         <label>
           Unit of Measurement (Default)
-          <select value={defaultUnitId} onChange={(e) => setDefaultUnitId(e.target.value)}>
+          <select value={defaultUnitId} onChange={(e) => handleDefaultUnitChange(e.target.value)}>
             <option value="">Select unit</option>
             {Object.keys(groupedUnits).map(category => (
               <optgroup key={category} label={category}>
@@ -197,21 +241,46 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
           <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any additional information" />
         </label>
       </div>
-      <div className="form-group">
-        <label>
-          Weight per Unit (grams)
-          <input 
-            type="number" 
-            step="0.01"
-            value={weight} 
-            onChange={(e) => setWeight(e.target.value)} 
-            placeholder="e.g., 50 for a 50g egg" 
-          />
-        </label>
-        <p style={{ fontSize: '0.9em', color: '#666', marginTop: '0.25em' }}>
-          Weight in grams per default unit. Used to calculate total recipe weight.
-        </p>
-      </div>
+      
+      {/* Weight field - only show if a default unit is selected */}
+      {selectedUnit && (
+        <div className="form-group">
+          {isWeightBasedUnit ? (
+            // Weight-based unit: show calculated read-only value
+            <>
+              <label>
+                Weight per {selectedUnit.name.toLowerCase()} (in grams)
+                <input 
+                  type="number" 
+                  value={calculatedWeight || ''}
+                  readOnly
+                  style={{ backgroundColor: '#f5f5f5', cursor: 'not-allowed' }}
+                />
+              </label>
+              <p style={{ fontSize: '0.9em', color: '#666', marginTop: '0.25em' }}>
+                Automatically calculated based on the weight unit conversion.
+              </p>
+            </>
+          ) : (
+            // Non-weight-based unit: show editable input
+            <>
+              <label>
+                Weight per {selectedUnit.name.toLowerCase()} (in grams)
+                <input 
+                  type="number" 
+                  step="0.01"
+                  value={weight} 
+                  onChange={(e) => setWeight(e.target.value)} 
+                  placeholder={`e.g., grams per ${selectedUnit.abbreviation}`}
+                />
+              </label>
+              <p style={{ fontSize: '0.9em', color: '#666', marginTop: '0.25em' }}>
+                Enter the weight in grams for one {selectedUnit.name.toLowerCase()}. Used to calculate total recipe weight.
+              </p>
+            </>
+          )}
+        </div>
+      )}
       
       <div className="form-group">
         <label>Prices per Unit</label>
