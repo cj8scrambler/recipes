@@ -190,11 +190,20 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
   // Determine if the selected unit is weight-based
   const isWeightBasedUnit = selectedUnit?.category === 'Weight'
   
+  // Format number with minimum decimals (remove trailing zeros)
+  function formatWeight(value) {
+    if (value === null || value === undefined) return ''
+    const num = parseFloat(value)
+    if (isNaN(num)) return ''
+    // Round to 2 decimal places, then remove trailing zeros
+    return parseFloat(num.toFixed(2)).toString()
+  }
+  
   // Calculate the weight in grams for weight-based units
   // base_conversion_factor is how many grams per unit (e.g., 453.592 for pounds)
-  // So "Weight per pound (in grams)" = 453.6
+  // So "Weight per pound (in grams)" = 453.59
   const calculatedWeight = isWeightBasedUnit && selectedUnit?.base_conversion_factor 
-    ? selectedUnit.base_conversion_factor.toFixed(1)
+    ? formatWeight(selectedUnit.base_conversion_factor)
     : null
 
   // Handle default unit change - clear weight if unit changes
@@ -242,8 +251,17 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
         </label>
       </div>
       
-      {/* Weight field - only show if a default unit is selected */}
-      {selectedUnit && (
+      {/* Weight field - show message if no default unit, otherwise show appropriate field */}
+      {!selectedUnit ? (
+        <div className="form-group">
+          <label style={{ color: '#666', fontStyle: 'italic' }}>
+            Weight per unit (in grams)
+          </label>
+          <p style={{ fontSize: '0.9em', color: '#999', marginTop: '0.25em', fontStyle: 'italic' }}>
+            Select a default unit above to configure weight.
+          </p>
+        </div>
+      ) : (
         <div className="form-group">
           {isWeightBasedUnit ? (
             // Weight-based unit: show calculated read-only value

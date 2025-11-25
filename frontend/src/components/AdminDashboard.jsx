@@ -225,7 +225,8 @@ export default function AdminDashboard() {
           <ul>
             {ingredients.map(i => {
               const hasNoPrice = !i.prices || i.prices.length === 0
-              const hasNoWeight = i.weight === null || i.weight === undefined
+              // Check for missing weight: null, undefined, 0, empty string, or no default unit
+              const hasNoWeight = i.weight === null || i.weight === undefined || i.weight === 0 || i.weight === '' || !i.default_unit_id
               return (
                 <li key={i.ingredient_id}>
                   <span>
