@@ -1124,13 +1124,7 @@ def ingredient_type(type_id):
             return jsonify({"error": "Failed to update ingredient type"}), 500
     elif request.method == 'DELETE':
         # Delete ingredient type
-        # Check if type is used in any ingredients
-        if ingredient_type.ingredients:
-            ingredient_count = len(ingredient_type.ingredients)
-            return jsonify({
-                "error": f"Cannot delete ingredient type '{ingredient_type.name}' because it is assigned to {ingredient_count} ingredient(s). The type will be removed from those ingredients if you delete it."
-            }), 400
-        
+        # Note: ON DELETE SET NULL will automatically clear type_id from any ingredients using this type
         try:
             db.session.delete(ingredient_type)
             db.session.commit()
