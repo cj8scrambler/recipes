@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from 'react'
 import { api } from '../api'
 
+// Format number with minimum decimals (remove trailing zeros)
+function formatWeightValue(value) {
+  if (value === null || value === undefined) return ''
+  const num = parseFloat(value)
+  if (isNaN(num)) return ''
+  // Round to 2 decimal places, then remove trailing zeros
+  return parseFloat(num.toFixed(2)).toString()
+}
+
 export default function IngredientEditor({ ingredient = null, onCancel, onSave }) {
   const [name, setName] = useState('')
   const [defaultUnitId, setDefaultUnitId] = useState('')
@@ -20,7 +29,7 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
       setName(ingredient.name || '')
       setDefaultUnitId(ingredient.default_unit_id || '')
       setPreviousDefaultUnitId(ingredient.default_unit_id || '')
-      setWeight(ingredient.weight !== null && ingredient.weight !== undefined ? String(ingredient.weight) : '')
+      setWeight(formatWeightValue(ingredient.weight))
       setNotes(ingredient.notes || '')
       // Load prices if editing existing ingredient
       if (ingredient.ingredient_id) {
@@ -129,9 +138,8 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
         if (unitForWeight?.category === 'Weight') {
           // Weight-based unit: use the base_conversion_factor directly
           // base_conversion_factor is grams per unit (e.g., 453.592 for pounds)
-          weightToSave = unitForWeight.base_conversion_factor 
-            ? parseFloat(unitForWeight.base_conversion_factor.toFixed(2))
-            : null
+          const factor = parseFloat(unitForWeight.base_conversion_factor)
+          weightToSave = !isNaN(factor) ? parseFloat(factor.toFixed(2)) : null
         } else {
           // Non-weight-based unit: use the user-entered weight
           weightToSave = weight ? parseFloat(weight) : null
@@ -190,20 +198,11 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
   // Determine if the selected unit is weight-based
   const isWeightBasedUnit = selectedUnit?.category === 'Weight'
   
-  // Format number with minimum decimals (remove trailing zeros)
-  function formatWeight(value) {
-    if (value === null || value === undefined) return ''
-    const num = parseFloat(value)
-    if (isNaN(num)) return ''
-    // Round to 2 decimal places, then remove trailing zeros
-    return parseFloat(num.toFixed(2)).toString()
-  }
-  
   // Calculate the weight in grams for weight-based units
   // base_conversion_factor is how many grams per unit (e.g., 453.592 for pounds)
   // So "Weight per pound (in grams)" = 453.59
   const calculatedWeight = isWeightBasedUnit && selectedUnit?.base_conversion_factor 
-    ? formatWeight(selectedUnit.base_conversion_factor)
+    ? formatWeightValue(selectedUnit.base_conversion_factor)
     : null
 
   // Handle default unit change - clear weight if unit changes
