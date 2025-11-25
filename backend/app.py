@@ -61,6 +61,15 @@ class Unit(db.Model):
     recipe_ingredients = relationship("RecipeIngredient", back_populates="unit")
     ingredient_prices = relationship("IngredientPrice", back_populates="unit")
 
+class IngredientType(db.Model):
+    __tablename__ = 'Ingredient_Types'
+    type_id = Column(Integer, primary_key=True)
+    name = Column(String(100), unique=True, nullable=False)
+    description = Column(db.Text)
+
+    # Relationships
+    ingredients = relationship("Ingredient", back_populates="ingredient_type")
+
 class Ingredient(db.Model):
     __tablename__ = 'Ingredients'
     ingredient_id = Column(Integer, primary_key=True)
@@ -71,12 +80,14 @@ class Ingredient(db.Model):
     weight = Column(Float(10, 2))
     contains_peanuts = Column(Boolean, default=False, nullable=False)
     gluten_status = Column(Enum('Contains', 'Gluten-Free', 'GF_Available'), default='Gluten-Free', nullable=False)
+    type_id = Column(Integer, ForeignKey('Ingredient_Types.type_id', ondelete='SET NULL'))
 
     # Relationships
     price_unit = relationship("Unit", foreign_keys=[price_unit_id], back_populates="ingredient_prices_old")
     default_unit = relationship("Unit", foreign_keys=[default_unit_id])
     recipe_items = relationship("RecipeIngredient", back_populates="ingredient")
     prices = relationship("IngredientPrice", back_populates="ingredient", cascade="all, delete-orphan")
+    ingredient_type = relationship("IngredientType", back_populates="ingredients")
 
 class IngredientPrice(db.Model):
     __tablename__ = 'Ingredient_Prices'
@@ -220,6 +231,18 @@ def serialize_ingredient(ingredient):
         print(f"Warning: Could not load prices for ingredient {ingredient.ingredient_id}: {e}")
         pass
     
+    # Get ingredient type info if available
+    type_id = None
+    type_name = None
+    try:
+        if hasattr(ingredient, 'type_id'):
+            type_id = ingredient.type_id
+        if hasattr(ingredient, 'ingredient_type') and ingredient.ingredient_type:
+            type_name = ingredient.ingredient_type.name
+    except Exception as e:
+        print(f"Warning: Could not load type for ingredient {ingredient.ingredient_id}: {e}")
+        pass
+    
     return {
         'ingredient_id': ingredient.ingredient_id,
         'name': ingredient.name,
@@ -228,6 +251,8 @@ def serialize_ingredient(ingredient):
         'default_unit_id': ingredient.default_unit_id,
         'weight': ingredient.weight,
         'gluten_status': ingredient.gluten_status,
+        'type_id': type_id,
+        'type_name': type_name,
         'prices': prices_list
     }
 
@@ -248,6 +273,14 @@ def serialize_ingredient_group(group):
         'group_id': group.group_id,
         'name': group.name,
         'description': group.description
+    }
+
+def serialize_ingredient_type(ingredient_type):
+    """Converts an IngredientType ORM object to a dictionary."""
+    return {
+        'type_id': ingredient_type.type_id,
+        'name': ingredient_type.name,
+        'description': ingredient_type.description
     }
 
 def serialize_ingredient_price(price):
@@ -748,7 +781,8 @@ def ingredients_list():
                 default_unit_id=data.get('default_unit_id'),
                 weight=data.get('weight'),
                 contains_peanuts=data.get('contains_peanuts', False),
-                gluten_status=data.get('gluten_status', 'Gluten-Free')
+                gluten_status=data.get('gluten_status', 'Gluten-Free'),
+                type_id=data.get('type_id')
             )
             
             db.session.add(new_ingredient)
@@ -792,6 +826,8 @@ def ingredient(ingredient_id):
                 ingredient.contains_peanuts = data['contains_peanuts']
             if 'gluten_status' in data:
                 ingredient.gluten_status = data['gluten_status']
+            if 'type_id' in data:
+                ingredient.type_id = data['type_id']
             
             db.session.commit()
             return jsonify(serialize_ingredient(ingredient))
@@ -1023,6 +1059,86 @@ def ingredient_group(group_id):
             db.session.rollback()
             print(f"Error deleting ingredient group: {e}")
             return jsonify({"error": "Failed to delete ingredient group"}), 500
+    else:
+        return jsonify({"error": "Method not allowed."}), 405
+
+@app.route("/api/ingredient-types", methods=['GET', 'POST'])
+@login_required
+def ingredient_types_list():
+    """Endpoint for listing ingredient types (GET) or creating new types (POST)."""
+    if request.method == 'GET':
+        try:
+            types = db.session.execute(db.select(IngredientType)).scalars().all()
+            return jsonify([serialize_ingredient_type(t) for t in types])
+        except Exception as e:
+            print(f"Database error in get_ingredient_types: {e}")
+            return jsonify({"error": "Failed to fetch ingredient types from database."}), 500
+    elif request.method == 'POST':
+        # Create new ingredient type
+        try:
+            data = request.get_json()
+            
+            # Create type with provided fields
+            new_type = IngredientType(
+                name=data.get('name'),
+                description=data.get('description')
+            )
+            
+            db.session.add(new_type)
+            db.session.commit()
+            return jsonify(serialize_ingredient_type(new_type)), 201
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error creating ingredient type: {e}")
+            return jsonify({"error": "Failed to create ingredient type"}), 500
+
+@app.route('/api/ingredient-types/<int:type_id>', methods=['GET', 'PUT', 'DELETE'])
+@login_required
+def ingredient_type(type_id):
+    """Endpoint for getting, updating, or deleting a specific ingredient type."""
+    try:
+        ingredient_type = db.session.execute(db.select(IngredientType).filter_by(type_id=type_id)).scalar_one_or_none()
+        if ingredient_type is None:
+            return jsonify({"error": "Ingredient type not found."}), 404
+    except Exception as e:
+        return jsonify({"error": "Failed to fetch ingredient type from database."}), 500
+    
+    if request.method == 'GET':
+        return jsonify(serialize_ingredient_type(ingredient_type))
+    elif request.method == 'PUT':
+        # Update ingredient type
+        try:
+            data = request.get_json()
+            
+            # Update fields
+            if 'name' in data:
+                ingredient_type.name = data['name']
+            if 'description' in data:
+                ingredient_type.description = data['description']
+            
+            db.session.commit()
+            return jsonify(serialize_ingredient_type(ingredient_type))
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error updating ingredient type: {e}")
+            return jsonify({"error": "Failed to update ingredient type"}), 500
+    elif request.method == 'DELETE':
+        # Delete ingredient type
+        # Check if type is used in any ingredients
+        if ingredient_type.ingredients:
+            ingredient_count = len(ingredient_type.ingredients)
+            return jsonify({
+                "error": f"Cannot delete ingredient type '{ingredient_type.name}' because it is assigned to {ingredient_count} ingredient(s). The type will be removed from those ingredients if you delete it."
+            }), 400
+        
+        try:
+            db.session.delete(ingredient_type)
+            db.session.commit()
+            return jsonify({"message": "Ingredient type deleted successfully"}), 200
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error deleting ingredient type: {e}")
+            return jsonify({"error": "Failed to delete ingredient type"}), 500
     else:
         return jsonify({"error": "Method not allowed."}), 405
 

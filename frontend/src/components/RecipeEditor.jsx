@@ -22,6 +22,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
   const [units, setUnits] = useState([])
   const [allIngredients, setAllIngredients] = useState([])
   const [ingredientGroups, setIngredientGroups] = useState([])
+  const [ingredientTypes, setIngredientTypes] = useState([])
   const [allTags, setAllTags] = useState([])
   const [selectedTags, setSelectedTags] = useState([])
   const [recipeCost, setRecipeCost] = useState(null)
@@ -31,6 +32,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
     loadUnits()
     loadIngredients()
     loadIngredientGroups()
+    loadIngredientTypes()
     loadTags()
   }, [])
 
@@ -109,6 +111,15 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
       setIngredientGroups(groups || [])
     } catch (err) {
       console.error('Failed to load ingredient groups:', err)
+    }
+  }
+
+  async function loadIngredientTypes() {
+    try {
+      const types = await api.listIngredientTypes()
+      setIngredientTypes(types || [])
+    } catch (err) {
+      console.error('Failed to load ingredient types:', err)
     }
   }
 
@@ -294,11 +305,38 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
                         required
                       >
                         <option value="">Select ingredient</option>
-                        {allIngredients.map(i => (
-                          <option key={i.ingredient_id} value={i.ingredient_id}>
-                            {i.name}
-                          </option>
-                        ))}
+                        {/* First show ingredients without a type */}
+                        {(() => {
+                          const noTypeIngredients = allIngredients
+                            .filter(i => !i.type_id)
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                          if (noTypeIngredients.length > 0) {
+                            return noTypeIngredients.map(i => (
+                              <option key={i.ingredient_id} value={i.ingredient_id}>
+                                {i.name}
+                              </option>
+                            ))
+                          }
+                          return null
+                        })()}
+                        {/* Then show ingredients grouped by type */}
+                        {ingredientTypes
+                          .sort((a, b) => a.name.localeCompare(b.name))
+                          .map(type => {
+                            const typeIngredients = allIngredients
+                              .filter(i => i.type_id === type.type_id)
+                              .sort((a, b) => a.name.localeCompare(b.name))
+                            if (typeIngredients.length === 0) return null
+                            return (
+                              <optgroup key={type.type_id} label={type.name}>
+                                {typeIngredients.map(i => (
+                                  <option key={i.ingredient_id} value={i.ingredient_id}>
+                                    {i.name}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            )
+                          })}
                       </select>
                       <input 
                         type="number" 

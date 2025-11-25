@@ -9,7 +9,15 @@ CREATE TABLE Units (
     UNIQUE KEY unique_unit (name, category, `system`)
 );
 
--- 2. Ingredients Table
+-- 2. Ingredient_Types Table
+-- Stores ingredient category types (e.g., Dairy, Vegetables, Spices)
+CREATE TABLE Ingredient_Types (
+    type_id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT
+);
+
+-- 3. Ingredients Table
 CREATE TABLE Ingredients (
     ingredient_id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(255) NOT NULL UNIQUE,
@@ -19,11 +27,13 @@ CREATE TABLE Ingredients (
     weight DECIMAL(10, 2),
     contains_peanuts BOOLEAN NOT NULL DEFAULT FALSE,
     gluten_status ENUM('Contains', 'Gluten-Free', 'GF_Available') NOT NULL DEFAULT 'Gluten-Free',
+    type_id INT,
     FOREIGN KEY (price_unit_id) REFERENCES Units(unit_id),
-    FOREIGN KEY (default_unit_id) REFERENCES Units(unit_id)
+    FOREIGN KEY (default_unit_id) REFERENCES Units(unit_id),
+    FOREIGN KEY (type_id) REFERENCES Ingredient_Types(type_id) ON DELETE SET NULL
 );
 
--- 3. Recipes Table
+-- 4. Recipes Table
 CREATE TABLE Recipes (
     recipe_id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(255) NOT NULL,
@@ -35,7 +45,7 @@ CREATE TABLE Recipes (
     FOREIGN KEY (parent_recipe_id) REFERENCES Recipes(recipe_id) ON DELETE SET NULL
 );
 
--- 4. Ingredient_Groups Table
+-- 5. Ingredient_Groups Table
 -- Stores reusable group names for organizing ingredients within recipes
 CREATE TABLE Ingredient_Groups (
     group_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -43,7 +53,7 @@ CREATE TABLE Ingredient_Groups (
     description TEXT
 );
 
--- 5. Recipe_Ingredients (Junction Table)
+-- 6. Recipe_Ingredients (Junction Table)
 CREATE TABLE Recipe_Ingredients (
     recipe_id INT NOT NULL,
     ingredient_id INT NOT NULL,
@@ -58,14 +68,14 @@ CREATE TABLE Recipe_Ingredients (
     FOREIGN KEY (group_id) REFERENCES Ingredient_Groups(group_id) ON DELETE SET NULL
 );
 
--- 6. Tags Table
+-- 7. Tags Table
 CREATE TABLE Tags (
     tag_id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(100) NOT NULL UNIQUE,
     description TEXT
 );
 
--- 7. Recipe_Tags (Junction Table)
+-- 8. Recipe_Tags (Junction Table)
 CREATE TABLE Recipe_Tags (
     recipe_id INT NOT NULL,
     tag_id INT NOT NULL,
@@ -74,7 +84,7 @@ CREATE TABLE Recipe_Tags (
     FOREIGN KEY (tag_id) REFERENCES Tags(tag_id) ON DELETE CASCADE
 );
 
--- 8. Ingredient_Prices Table
+-- 9. Ingredient_Prices Table
 -- Stores multiple price entries per ingredient for different unit types
 CREATE TABLE Ingredient_Prices (
     price_id INT PRIMARY KEY AUTO_INCREMENT,
@@ -90,7 +100,7 @@ CREATE TABLE Ingredient_Prices (
     INDEX idx_ingredient_prices_ingredient (ingredient_id)
 );
 
--- 9. Users Table
+-- 10. Users Table
 -- Stores user accounts with authentication and role information
 CREATE TABLE users (
     id CHAR(36) PRIMARY KEY,  -- UUID stored as string
@@ -103,7 +113,7 @@ CREATE TABLE users (
     INDEX idx_email (email)
 );
 
--- 10. Sessions Table
+-- 11. Sessions Table
 -- Stores active user sessions for session-based authentication
 CREATE TABLE sessions (
     session_id CHAR(36) PRIMARY KEY,  -- UUID stored as string

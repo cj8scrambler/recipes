@@ -40,6 +40,9 @@ export const api = {
   // Ingredients (public list)
   listIngredients: () => request('/ingredients'),
 
+  // Ingredient Types (public list)
+  listIngredientTypes: () => request('/ingredient-types'),
+
   // Admin - Ingredients
   adminListIngredients: () => request('/ingredients'),
   adminCreateIngredient: (payload) => request('/ingredients', { method: 'POST', body: JSON.stringify(payload) }),
@@ -80,5 +83,11 @@ export const api = {
   adminListTags: () => request('/tags'),
   adminCreateTag: (payload) => request('/tags', { method: 'POST', body: JSON.stringify(payload) }),
   adminUpdateTag: (id, payload) => request(`/tags/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
-  adminDeleteTag: (id) => request(`/tags/${id}`, { method: 'DELETE' })
+  adminDeleteTag: (id) => request(`/tags/${id}`, { method: 'DELETE' }),
+
+  // Admin - Ingredient Types
+  adminListIngredientTypes: () => request('/ingredient-types'),
+  adminCreateIngredientType: (payload) => request('/ingredient-types', { method: 'POST', body: JSON.stringify(payload) }),
+  adminUpdateIngredientType: (id, payload) => request(`/ingredient-types/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  adminDeleteIngredientType: (id) => request(`/ingredient-types/${id}`, { method: 'DELETE' })
 }
