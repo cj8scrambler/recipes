@@ -177,6 +177,51 @@ export default function UserView({ user }) {
     }
   }
 
+  // Handle arrow keys for integer stepping
+  function handleServingsKeyDown(e) {
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault() // Prevent default browser behavior
+      
+      const currentValue = parseFloat(scaleInput)
+      // If current value is invalid, start from 1
+      if (isNaN(currentValue) || currentValue <= 0) {
+        const newValue = 1
+        setScale(newValue)
+        setScaleInput(formatServingsDisplay(newValue))
+        if (selected?.recipe_id) {
+          loadRecipeCost(selected.recipe_id, newValue)
+          loadRecipeWeight(selected.recipe_id, newValue)
+        }
+        return
+      }
+      
+      let newValue
+      if (e.key === 'ArrowUp') {
+        // Go to next whole number (ceiling + 1 if already whole, otherwise ceiling)
+        newValue = Math.floor(currentValue) + 1
+      } else {
+        // Go to previous whole number, minimum 1
+        // If on a decimal like 1.5, go to 1
+        // If on a whole number like 2, go to 1
+        const floorValue = Math.floor(currentValue)
+        if (currentValue > floorValue) {
+          // Has decimal part, go to floor
+          newValue = Math.max(1, floorValue)
+        } else {
+          // Already a whole number, go down by 1
+          newValue = Math.max(1, floorValue - 1)
+        }
+      }
+      
+      setScale(newValue)
+      setScaleInput(formatServingsDisplay(newValue))
+      if (selected?.recipe_id) {
+        loadRecipeCost(selected.recipe_id, newValue)
+        loadRecipeWeight(selected.recipe_id, newValue)
+      }
+    }
+  }
+
   // Format servings on blur - validate and format to tenths
   function handleServingsBlur() {
     const numValue = parseFloat(scaleInput)
@@ -220,6 +265,7 @@ export default function UserView({ user }) {
                   step="1" 
                   style={{ width: '80px' }}
                   onChange={handleServingsChange}
+                  onKeyDown={handleServingsKeyDown}
                   onBlur={handleServingsBlur}
                 />
               </div>
