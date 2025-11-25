@@ -6,13 +6,45 @@ import AdminDashboard from './components/AdminDashboard'
 import UserView from './components/UserView'
 import Settings from './components/Settings'
 
+// Test database warning banner component
+function TestDatabaseBanner() {
+  return (
+    <div style={{
+      background: '#f59e0b',
+      color: '#1f2937',
+      padding: '0.5rem 1rem',
+      textAlign: 'center',
+      fontWeight: 600,
+      fontSize: '0.9rem',
+      position: 'sticky',
+      top: 0,
+      zIndex: 1000
+    }}>
+      ⚠️ TEST DATABASE - This is not production data
+    </div>
+  )
+}
+
 export default function App() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [isTestDb, setIsTestDb] = useState(false)
 
   useEffect(() => {
+    checkTestDatabase()
     checkAuth()
   }, [])
+
+  async function checkTestDatabase() {
+    try {
+      const result = await api.isTestDatabase()
+      setIsTestDb(result.is_test === true)
+    } catch (err) {
+      // If check fails, assume not test database
+      console.error('Failed to check test database:', err)
+      setIsTestDb(false)
+    }
+  }
 
   async function checkAuth() {
     try {
@@ -43,6 +75,7 @@ export default function App() {
   if (loading) {
     return (
       <div className="app loading">
+        {isTestDb && <TestDatabaseBanner />}
         <p>Loading...</p>
       </div>
     )
@@ -50,12 +83,18 @@ export default function App() {
 
   // Show login screen if not authenticated
   if (!user) {
-    return <Login onLogin={handleLogin} />
+    return (
+      <div className="app">
+        {isTestDb && <TestDatabaseBanner />}
+        <Login onLogin={handleLogin} />
+      </div>
+    )
   }
 
   // Authenticated - show main app
   return (
     <div className="app">
+      {isTestDb && <TestDatabaseBanner />}
       <header>
         <div>
           <h1>Recipes</h1>

@@ -117,6 +117,27 @@ def admin_required(f):
 
 # --- Authentication Endpoints ---
 
+# Default test admin email - if this user exists, it's a test database
+TEST_ADMIN_EMAIL = 'admin@example.com'
+
+@auth_bp.route('/is-test-database', methods=['GET'])
+def is_test_database():
+    """
+    Check if this is a test database by looking for the default admin account.
+    This endpoint is public (no auth required) so it can be called before login.
+    Response: {"is_test": true/false}
+    """
+    try:
+        test_user = db.session.execute(
+            db.select(User).filter_by(email=TEST_ADMIN_EMAIL)
+        ).scalar_one_or_none()
+        
+        return jsonify({"is_test": test_user is not None})
+    except Exception as e:
+        print(f"Error checking test database: {e}")
+        return jsonify({"is_test": False})
+
+
 @auth_bp.route('/login', methods=['POST'])
 def login():
     """

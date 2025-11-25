@@ -38,7 +38,7 @@ CORS(app, resources={
 # --- Import Authentication Module ---
 # Import the auth module and initialize it with the database
 # This must be done after db is created but before routes are defined
-from auth import auth_bp, init_auth, login_required
+from auth import auth_bp, init_auth, login_required, admin_required
 init_auth(db)
 
 
@@ -195,7 +195,9 @@ def serialize_recipe(recipe, include_cost=False, units_list=None):
         'description': recipe.description,
         # Recursively serialize the list of RecipeIngredient objects
         'ingredients': [serialize_recipe_ingredient(ri, include_cost, units_dict) for ri in recipe.ingredients],
-        'instructions': recipe.instructions
+        'instructions': recipe.instructions,
+        # Include tags
+        'tags': [{'tag_id': rt.tag.tag_id, 'name': rt.tag.name} for rt in recipe.tags if rt.tag]
     }
     
     # Optionally include total cost
@@ -261,6 +263,14 @@ def serialize_ingredient_price(price):
         'price_note': price.price_note
     }
 
+def serialize_tag(tag):
+    """Converts a Tag ORM object to a dictionary."""
+    return {
+        'tag_id': tag.tag_id,
+        'name': tag.name,
+        'description': tag.description
+    }
+
 # --- Cost Calculation Helpers ---
 
 def can_convert_units(from_unit, to_unit):
@@ -282,6 +292,10 @@ def can_convert_units(from_unit, to_unit):
 def convert_unit_quantity(quantity, from_unit, to_unit):
     """Convert quantity from one unit to another."""
     if not from_unit or not to_unit or not can_convert_units(from_unit, to_unit):
+        return None
+    
+    # Check for None conversion factors
+    if from_unit.base_conversion_factor is None or to_unit.base_conversion_factor is None:
         return None
     
     # Convert to base unit, then to target unit
@@ -417,9 +431,11 @@ def calculate_ingredient_weight(recipe_ingredient):
         return {'base_weight': None, 'scaled_weight': None, 'has_weight': False}
     
     # Get the ingredient's base weight (grams per default unit)
+    # Weight is only valid if BOTH weight value AND default_unit_id are set
     base_weight = ingredient.weight
+    default_unit_id = ingredient.default_unit_id
     
-    if base_weight is None:
+    if base_weight is None or default_unit_id is None:
         return {'base_weight': None, 'scaled_weight': None, 'has_weight': False}
     
     # Calculate scaled weight based on recipe quantity
@@ -609,6 +625,40 @@ def recipe(recipe_id):
             except Exception as e:
                 print(f"Error updating ingredients: {e}")  # Log for debugging
                 return jsonify({"error": "Failed to update ingredients"}), 500
+        
+        # Handle tags update if provided
+        tags_data = data.get('tags', None)
+        if tags_data is not None:
+            try:
+                # Get current tag IDs for this recipe
+                current_tags = {rt.tag_id: rt for rt in recipe.tags}
+                
+                # Get incoming tag IDs
+                incoming_tag_ids = set()
+                
+                for tag_data in tags_data:
+                    tag_id = tag_data.get('tag_id') if isinstance(tag_data, dict) else tag_data
+                    if not tag_id:
+                        continue
+                    
+                    incoming_tag_ids.add(tag_id)
+                    
+                    # Add new tag if not already present
+                    if tag_id not in current_tags:
+                        new_recipe_tag = RecipeTag(
+                            recipe_id=recipe.recipe_id,
+                            tag_id=tag_id
+                        )
+                        db.session.add(new_recipe_tag)
+                
+                # Remove tags that are no longer in the list
+                for tag_id in current_tags:
+                    if tag_id not in incoming_tag_ids:
+                        db.session.delete(current_tags[tag_id])
+                        
+            except Exception as e:
+                print(f"Error updating tags: {e}")  # Log for debugging
+                return jsonify({"error": "Failed to update tags"}), 500
         
         try:
             db.session.commit()
@@ -973,6 +1023,95 @@ def ingredient_group(group_id):
             db.session.rollback()
             print(f"Error deleting ingredient group: {e}")
             return jsonify({"error": "Failed to delete ingredient group"}), 500
+    else:
+        return jsonify({"error": "Method not allowed."}), 405
+
+@app.route("/api/tags", methods=['GET', 'POST'])
+@login_required
+def tags_list():
+    """Endpoint for listing tags (GET) or creating new tags (POST)."""
+    if request.method == 'GET':
+        try:
+            tags = db.session.execute(db.select(Tag)).scalars().all()
+            return jsonify([serialize_tag(t) for t in tags])
+        except Exception as e:
+            print(f"Database error in get_tags: {e}")
+            return jsonify({"error": "Failed to fetch tags from database."}), 500
+    elif request.method == 'POST':
+        # Create new tag - admin only
+        from flask import g
+        if not hasattr(g, 'current_user') or g.current_user.role != 'admin':
+            return jsonify({"error": "Admin access required"}), 403
+        try:
+            data = request.get_json()
+            
+            # Create tag with provided fields
+            new_tag = Tag(
+                name=data.get('name'),
+                description=data.get('description')
+            )
+            
+            db.session.add(new_tag)
+            db.session.commit()
+            return jsonify(serialize_tag(new_tag)), 201
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error creating tag: {e}")
+            return jsonify({"error": "Failed to create tag"}), 500
+
+@app.route('/api/tags/<int:tag_id>', methods=['GET', 'PUT', 'DELETE'])
+@login_required
+def tag(tag_id):
+    """Endpoint for getting, updating, or deleting a specific tag."""
+    try:
+        tag = db.session.execute(db.select(Tag).filter_by(tag_id=tag_id)).scalar_one_or_none()
+        if tag is None:
+            return jsonify({"error": "Tag not found."}), 404
+    except Exception as e:
+        return jsonify({"error": "Failed to fetch tag from database."}), 500
+    
+    if request.method == 'GET':
+        return jsonify(serialize_tag(tag))
+    elif request.method == 'PUT':
+        # Update tag - admin only
+        from flask import g
+        if not hasattr(g, 'current_user') or g.current_user.role != 'admin':
+            return jsonify({"error": "Admin access required"}), 403
+        try:
+            data = request.get_json()
+            
+            # Update fields
+            if 'name' in data:
+                tag.name = data['name']
+            if 'description' in data:
+                tag.description = data['description']
+            
+            db.session.commit()
+            return jsonify(serialize_tag(tag))
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error updating tag: {e}")
+            return jsonify({"error": "Failed to update tag"}), 500
+    elif request.method == 'DELETE':
+        # Delete tag - admin only
+        from flask import g
+        if not hasattr(g, 'current_user') or g.current_user.role != 'admin':
+            return jsonify({"error": "Admin access required"}), 403
+        # Check if tag is used in any recipes
+        if tag.recipes:
+            recipe_count = len(tag.recipes)
+            return jsonify({
+                "error": f"Cannot delete tag '{tag.name}' because it is used in {recipe_count} recipe(s). Please remove it from those recipes first."
+            }), 400
+        
+        try:
+            db.session.delete(tag)
+            db.session.commit()
+            return jsonify({"message": "Tag deleted successfully"}), 200
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error deleting tag: {e}")
+            return jsonify({"error": "Failed to delete tag"}), 500
     else:
         return jsonify({"error": "Method not allowed."}), 405
 

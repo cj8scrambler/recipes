@@ -19,6 +19,7 @@ export const api = {
   login: (email, password) => request('/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   logout: () => request('/logout', { method: 'POST' }),
   getMe: () => request('/me'),
+  isTestDatabase: () => request('/is-test-database'),
   getSettings: () => request('/settings'),
   updateSettings: (settings) => request('/settings', { method: 'PUT', body: JSON.stringify(settings) }),
   changePassword: (currentPassword, newPassword) => request('/change-password', { 
@@ -73,5 +74,11 @@ export const api = {
   adminListUsers: () => request('/admin/users'),
   adminCreateUser: (payload) => request('/admin/users', { method: 'POST', body: JSON.stringify(payload) }),
   adminUpdateUser: (id, payload) => request(`/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
-  adminDeleteUser: (id) => request(`/admin/users/${id}`, { method: 'DELETE' })
+  adminDeleteUser: (id) => request(`/admin/users/${id}`, { method: 'DELETE' }),
+
+  // Admin - Tags
+  adminListTags: () => request('/tags'),
+  adminCreateTag: (payload) => request('/tags', { method: 'POST', body: JSON.stringify(payload) }),
+  adminUpdateTag: (id, payload) => request(`/tags/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  adminDeleteTag: (id) => request(`/tags/${id}`, { method: 'DELETE' })
 }
