@@ -261,7 +261,7 @@ export default function UserView({ user }) {
                 <input 
                   type="number" 
                   value={scaleInput} 
-                  min="0.1" 
+                  min="1" 
                   step="1" 
                   style={{ width: '80px' }}
                   onChange={handleServingsChange}
