@@ -18,7 +18,7 @@ load_dotenv()
 DATABASE_URL = os.getenv('DATABASE_URL', 'mysql+pymysql://root:password@localhost:3306/recipe_db')
 
 # Migration directory
-MIGRATIONS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'db', 'migrations')
+MIGRATIONS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'migrations')
 
 # ANSI color codes for terminal output
 class Colors:
@@ -128,11 +128,80 @@ def parse_migration_file(filepath):
     
     return upgrade_sql, downgrade_sql
 
+def split_sql_statements(sql_text: str):
+    """ Return a list of SQL statements from sql_text."""
+
+    # 1) Remove lines that begin with a comment (after leading whitespace)
+    lines = sql_text.splitlines()
+    filtered_lines = []
+    for line in lines:
+        if line.lstrip().startswith('--'):
+            # drop the entire line
+            continue
+        filtered_lines.append(line)
+    cleaned = '\n'.join(filtered_lines)
+
+    # 2) Split into statements, keeping multi-line statements intact and
+    #    ignoring semicolons inside quotes.
+    statements = []
+    buf = []
+    in_single_quote = False
+    in_double_quote = False
+    i = 0
+    length = len(cleaned)
+
+    while i < length:
+        ch = cleaned[i]
+
+        # Handle single-quote strings (SQL standard: '' is an escaped single quote)
+        if ch == "'" and not in_double_quote:
+            # if this is a doubled single-quote inside a single-quote string,
+            # consume both characters as part of the literal
+            if in_single_quote and i + 1 < length and cleaned[i + 1] == "'":
+                buf.append("''")
+                i += 2
+                continue
+            in_single_quote = not in_single_quote
+            buf.append(ch)
+            i += 1
+            continue
+
+        # Handle double-quote identifiers / strings similarly
+        if ch == '"' and not in_single_quote:
+            if in_double_quote and i + 1 < length and cleaned[i + 1] == '"':
+                buf.append('""')
+                i += 2
+                continue
+            in_double_quote = not in_double_quote
+            buf.append(ch)
+            i += 1
+            continue
+
+        # Semicolon ends a statement only when not inside a quoted literal
+        if ch == ';' and not in_single_quote and not in_double_quote:
+            stmt = ''.join(buf).strip()
+            if stmt:
+                statements.append(stmt)
+            buf = []
+            i += 1
+            # skip the semicolon (do not include it in the returned statements)
+            continue
+
+        # Normal character accumulation
+        buf.append(ch)
+        i += 1
+
+    # Any trailing statement without a terminating semicolon
+    trailing = ''.join(buf).strip()
+    if trailing:
+        statements.append(trailing)
+
+    return statements
 
 def apply_migration(engine, migration, direction='upgrade'):
     """Apply a single migration."""
     upgrade_sql, downgrade_sql = parse_migration_file(migration['path'])
-    
+
     if not upgrade_sql:
         print_error(f"Invalid migration file: {migration['filename']}")
         return False
@@ -146,10 +215,11 @@ def apply_migration(engine, migration, direction='upgrade'):
     try:
         with engine.connect() as conn:
             # Execute each statement separately
-            statements = [s.strip() for s in sql_to_execute.split(';') if s.strip() and not s.strip().startswith('--')]
-            
+            statements = split_sql_statements(sql_to_execute)
+
             for statement in statements:
                 if statement:
+                    print(statement)
                     conn.execute(text(statement))
             
             # Update version tracking
