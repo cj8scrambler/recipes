@@ -54,8 +54,8 @@ log_info "Creating backup directory: ${BACKUP_PATH}"
 mkdir -p "${BACKUP_PATH}"
 
 # Load database configuration from .env
-if [ -f "backend/.env" ]; then
-    source backend/.env
+if [ -f ".env" ]; then
+    source .env
     log_success "Loaded database configuration"
 else
     log_error "Cannot find backend/.env file"
@@ -80,15 +80,19 @@ log_info "Database: ${DB_NAME} on ${DB_HOST}:${DB_PORT}"
 
 # Backup database
 log_info "Backing up database..."
+set -x
 mysqldump \
+    -v \
     -h "${DB_HOST}" \
     -P "${DB_PORT}" \
     -u "${DB_USER}" \
     -p"${DB_PASS}" \
+    --no-tablespaces \
     --single-transaction \
     --quick \
     --lock-tables=false \
     "${DB_NAME}" > "${BACKUP_PATH}/database.sql"
+set +x
 
 if [ $? -eq 0 ]; then
     log_success "Database backup created: database.sql"
