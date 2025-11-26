@@ -16,12 +16,15 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
   const [previousDefaultUnitId, setPreviousDefaultUnitId] = useState('')
   const [weight, setWeight] = useState('')
   const [notes, setNotes] = useState('')
+  const [typeId, setTypeId] = useState('')
   const [units, setUnits] = useState([])
+  const [ingredientTypes, setIngredientTypes] = useState([])
   const [prices, setPrices] = useState([])
   const [error, setError] = useState(null)
 
   useEffect(() => {
     loadUnits()
+    loadIngredientTypes()
   }, [])
 
   useEffect(() => {
@@ -31,6 +34,7 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
       setPreviousDefaultUnitId(ingredient.default_unit_id || '')
       setWeight(formatWeightValue(ingredient.weight))
       setNotes(ingredient.notes || '')
+      setTypeId(ingredient.type_id || '')
       // Load prices if editing existing ingredient
       if (ingredient.ingredient_id) {
         loadPrices(ingredient.ingredient_id)
@@ -43,6 +47,7 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
       setPreviousDefaultUnitId('')
       setWeight('')
       setNotes('')
+      setTypeId('')
       setPrices([])
     }
   }, [ingredient])
@@ -53,6 +58,15 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
       setUnits(us || [])
     } catch (err) {
       console.error('Failed to load units:', err)
+    }
+  }
+
+  async function loadIngredientTypes() {
+    try {
+      const types = await api.listIngredientTypes()
+      setIngredientTypes(types || [])
+    } catch (err) {
+      console.error('Failed to load ingredient types:', err)
     }
   }
 
@@ -153,7 +167,8 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
         name,
         default_unit_id: defaultUnitId ? parseInt(defaultUnitId) : null,
         weight: weightToSave,
-        notes
+        notes,
+        type_id: typeId ? parseInt(typeId) : null
       })
       
       // If we have an ingredient ID (either from existing or newly created), save prices
@@ -224,6 +239,19 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
         <label>
           Ingredient Name
           <input value={name} onChange={(e) => setName(e.target.value)} required placeholder="e.g., All-purpose flour" />
+        </label>
+      </div>
+      <div className="form-group">
+        <label>
+          Ingredient Type (Optional)
+          <select value={typeId} onChange={(e) => setTypeId(e.target.value)}>
+            <option value="">No type assigned</option>
+            {ingredientTypes.sort((a, b) => a.name.localeCompare(b.name)).map(t => (
+              <option key={t.type_id} value={t.type_id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
         </label>
       </div>
       <div className="form-group">
