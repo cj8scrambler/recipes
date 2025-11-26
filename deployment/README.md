@@ -10,11 +10,11 @@ git fetch --prune --prune-tags
 git tag -a ${NEW_TAG} -m "Temporary ${NEW_TAG} tag"
 cd db/
 python3 generate_migration.py --from-tag ${OLD_TAG} --to-tag ${NEW_TAG}
-git add migrations/migrate_${OLD_TAG//./_}_to_${NEW_TAG//./_}.sql
+git add migrations/migrate_${OLD_TAG}_to_${NEW_TAG}.sql
 git commit -m "DB migrate ${OLD} -> ${NEW_TAG}"
 git tag -d ${NEW_TAG}
 git tag -a ${NEW_TAG} -m "Release ${NEW_TAG}"
-git push --tags origin
+git push --tags origin HEAD:main
 ```
 
 ## Overview
