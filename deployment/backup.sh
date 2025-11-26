@@ -16,9 +16,14 @@
 set -e  # Exit on error
 
 # Configuration
-BACKUP_DIR="${1:-/var/backups/recipes}"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-BACKUP_NAME="recipes-backup-${TIMESTAMP}"
+BACKUP_DIR="${1:-/var/backups/recipes}"
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+cd ${SCRIPT_DIR}
+GIT_ROOT=$(git rev-parse --show-toplevel)
+cd ${GIT_ROOT}
+GIT_NAME=$(git describe --tags)
+BACKUP_NAME="recipes-backup-${GIT_NAME}-${TIMESTAMP}"
 BACKUP_PATH="${BACKUP_DIR}/${BACKUP_NAME}"
 
 # Colors
@@ -57,8 +62,11 @@ mkdir -p "${BACKUP_PATH}"
 if [ -f ".env" ]; then
     source .env
     log_success "Loaded database configuration"
+elif [ -f "deployment/.env" ]; then
+    source deployment/.env
+    log_success "Loaded database configuration"
 else
-    log_error "Cannot find backend/.env file"
+    log_error "Cannot find deployment/.env file"
     log_error "Please run this script from the repository root"
     exit 1
 fi
