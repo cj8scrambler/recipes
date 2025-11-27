@@ -431,6 +431,7 @@ export default function UserView({ user }) {
                   )}
                 </select>
               </div>
+            )}
             
             {/* Recipe Lists Section */}
             <div className="recipe-lists-section">
@@ -488,7 +489,6 @@ export default function UserView({ user }) {
               </div>
             )}
 
-            )}
             <div className="meta">
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <label style={{ marginBottom: 0 }}>Servings</label>
