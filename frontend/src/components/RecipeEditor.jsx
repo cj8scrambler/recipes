@@ -140,8 +140,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
 
   // Handle parent recipe selection change
   async function handleParentRecipeChange(newParentId) {
-    const parsedParentId = newParentId ? parseInt(newParentId) : null
-    const previousParentId = parentRecipeId
+    const parsedParentId = newParentId ? parseInt(newParentId, 10) : null
     
     setParentRecipeId(parsedParentId)
     

@@ -241,12 +241,14 @@ export default function UserView({ user }) {
   }
 
   // Filter out child recipes (variants) - only show parent recipes
-  const parentRecipes = recipes.filter(r => !r.parent_recipe_id)
+  const parentRecipes = React.useMemo(() => {
+    return recipes.filter(r => !r.parent_recipe_id)
+  }, [recipes])
 
-  // Find variants for the currently selected recipe
-  const getVariantsForRecipe = (recipeId) => {
+  // Find variants for the currently selected recipe (memoized)
+  const getVariantsForRecipe = React.useCallback((recipeId) => {
     return recipes.filter(r => r.parent_recipe_id === recipeId)
-  }
+  }, [recipes])
 
   // Get current variants (either from selected recipe's variants list or by filtering)
   const currentVariants = selected ? (selected.variants || getVariantsForRecipe(selected.recipe_id)) : []
@@ -266,7 +268,7 @@ export default function UserView({ user }) {
     }
     
     try {
-      const variant = await api.getRecipe(parseInt(variantId))
+      const variant = await api.getRecipe(parseInt(variantId, 10))
       setSelected(variant)
       setScale(DEFAULT_SERVINGS)
       setScaleInput(DEFAULT_SERVINGS_STR)
