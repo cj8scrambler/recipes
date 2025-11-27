@@ -482,8 +482,14 @@ export default function UserView({ user }) {
                     Create & Add
                   </button>
                 </form>
-                <p className="add-note">
-                  Will save with {Math.round(scale)} servings
+                <p className="add-note" style={{ 
+                  marginTop: '0.75rem',
+                  padding: '0.5rem',
+                  backgroundColor: 'var(--bg-tertiary)',
+                  borderRadius: 'var(--border-radius-sm)',
+                  fontWeight: 500
+                }}>
+                  📋 Saving with <strong>{Math.round(scale)} servings</strong>
                   {selectedVersion && ` • ${selectedVersion.variant_notes || selectedVersion.name}`}
                 </p>
               </div>
