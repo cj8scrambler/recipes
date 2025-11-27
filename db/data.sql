@@ -26,23 +26,35 @@ INSERT INTO Units (name, abbreviation, category, `system`, base_conversion_facto
 ('Celsius', '°C', 'Temperature', 'Metric', NULL),
 ('Fahrenheit', '°F', 'Temperature', 'US Customary', NULL);
 
--- 2. Ingredients
+-- 2. Ingredient_Types
+-- Category types for organizing ingredients
+INSERT INTO Ingredient_Types (name, description) VALUES
+('Protein', 'Meat, poultry, fish, and other protein sources'),
+('Dairy & Eggs', 'Milk products and eggs'),
+('Oils & Fats', 'Cooking oils, butter, and other fats'),
+('Grains & Flour', 'Flours, breads, tortillas, and grain products'),
+('Seasonings', 'Salt, spices, and other seasonings'),
+('Produce', 'Fresh fruits and vegetables');
+
+-- 3. Ingredients
 -- Note: price_unit_id FKs refer to the IDs from the Units inserts
 -- (e.g., 2 = 'Kilogram', 7 = 'Liter', 14 = 'Each')
 -- weight is in grams per default unit
-INSERT INTO Ingredients (name, price, price_unit_id, weight, contains_peanuts, gluten_status) VALUES
-('Chicken Breast', 15.49, 2, 200, FALSE, 'Gluten-Free'),
-('All-Purpose Flour', 3.99, 2, 125, FALSE, 'Contains'),
-('Gluten-Free AP Flour', 8.99, 2, 125, FALSE, 'GF_Available'),
-('Peanut Butter', 7.50, 2, 16, TRUE, 'Gluten-Free'),
-('Olive Oil', 12.99, 7, 0.92, FALSE, 'Gluten-Free'),
-('Large Egg', 4.50, 14, 50, FALSE, 'Gluten-Free'),
-('Table Salt', 2.99, 2, 6, FALSE, 'Gluten-Free'),
-('Water', NULL, NULL, 1, FALSE, 'Gluten-Free'),
-('Flour Tortilla', 3.49, 14, 45, FALSE, 'Contains'),
-('Corn Tortilla', 4.00, 14, 30, FALSE, 'Gluten-Free');
+-- type_id FKs refer to Ingredient_Types (1=Protein, 2=Dairy & Eggs, 3=Oils & Fats, 4=Grains & Flour, 5=Seasonings, 6=Produce)
+-- Note: Not all ingredients have a type_id assigned
+INSERT INTO Ingredients (name, price, price_unit_id, weight, contains_peanuts, gluten_status, type_id) VALUES
+('Chicken Breast', 15.49, 2, 200, FALSE, 'Gluten-Free', 1),
+('All-Purpose Flour', 3.99, 2, 125, FALSE, 'Contains', 4),
+('Gluten-Free AP Flour', 8.99, 2, 125, FALSE, 'GF_Available', 4),
+('Peanut Butter', 7.50, 2, 16, TRUE, 'Gluten-Free', NULL),
+('Olive Oil', 12.99, 7, 0.92, FALSE, 'Gluten-Free', 3),
+('Large Egg', 4.50, 14, 50, FALSE, 'Gluten-Free', 2),
+('Table Salt', 2.99, 2, 6, FALSE, 'Gluten-Free', 5),
+('Water', NULL, NULL, 1, FALSE, 'Gluten-Free', NULL),
+('Flour Tortilla', 3.49, 14, 45, FALSE, 'Contains', 4),
+('Corn Tortilla', 4.00, 14, 30, FALSE, 'Gluten-Free', 4);
 
--- 3. Ingredient_Groups
+-- 4. Ingredient_Groups
 -- Common group names for organizing ingredients within recipes
 INSERT INTO Ingredient_Groups (name, description) VALUES
 ('Dry Mix', 'Dry ingredients to be mixed together'),
@@ -52,7 +64,7 @@ INSERT INTO Ingredient_Groups (name, description) VALUES
 ('Sauce', 'Sauce ingredients'),
 ('Marinade', 'Marinade ingredients');
 
--- 4. Tags
+-- 5. Tags
 INSERT INTO Tags (name) VALUES
 ('Lightweight'),
 ('No-Cook'),
@@ -60,14 +72,15 @@ INSERT INTO Tags (name) VALUES
 ('Vegetarian'),
 ('Quick');
 
--- 5. Recipes
+-- 6. Recipes
 INSERT INTO Recipes (name, description, instructions, base_servings, parent_recipe_id, variant_notes) VALUES
 ('Grilled Chicken', 'Simple grilled chicken breast.', '1. Preheat grill. 2. Season chicken. 3. Grill 6-8 min per side. 4. Check temp (165°F).', 2, NULL, NULL),
 ('GF Grilled Chicken', 'Simple grilled chicken breast.', '1. Preheat grill. 2. Season chicken with GF seasoning. 3. Grill 6-8 min per side. 4. Check temp (165°F).', 2, 1, 'Gluten-free variant'),
 ('Backpacker Peanut Butter Wrap', 'Lightweight, no-cook trail lunch.', '1. Lay tortilla flat. 2. Spread peanut butter. 3. Roll it up.', 1, NULL, NULL),
-('Simple Scrambled Eggs', 'Classic breakfast.', '1. Crack eggs in bowl, add water, whisk. 2. Heat pan with oil. 3. Pour eggs, stir gently. 4. Add salt.', 1, NULL, NULL);
+('Simple Scrambled Eggs', 'Classic breakfast.', '1. Crack eggs in bowl, add water, whisk. 2. Heat pan with oil. 3. Pour eggs, stir gently. 4. Add salt.', 1, NULL, NULL),
+('Lemon Herb Grilled Chicken', 'Grilled chicken with lemon and herb marinade.', '1. Prepare lemon herb marinade. 2. Marinate chicken 30 min. 3. Preheat grill. 4. Grill 6-8 min per side. 5. Check temp (165°F).', 2, 1, 'Lemon herb variant');
 
--- 6. Recipe_Tags
+-- 7. Recipe_Tags
 -- (Recipe 1 'Grilled Chicken' -> Fresh Protein, Quick)
 INSERT INTO Recipe_Tags (recipe_id, tag_id) VALUES
 (1, 3), (1, 5),
@@ -76,9 +89,11 @@ INSERT INTO Recipe_Tags (recipe_id, tag_id) VALUES
 -- (Recipe 3 'Backpacker Wrap' -> Lightweight, No-Cook, Vegetarian, Quick)
 (3, 1), (3, 2), (3, 4), (3, 5),
 -- (Recipe 4 'Scrambled Eggs' -> Fresh Protein, Vegetarian, Quick)
-(4, 3), (4, 4), (4, 5);
+(4, 3), (4, 4), (4, 5),
+-- (Recipe 5 'Lemon Herb Grilled Chicken' -> Fresh Protein, Quick)
+(5, 3), (5, 5);
 
--- 7. Recipe_Ingredients
+-- 8. Recipe_Ingredients
 -- Note: unit_id FKs refer to the IDs from the Units inserts
 -- (e.g., 1 = 'Gram', 5 = 'Pound', 6 = 'Milliliter', 14 = 'Item')
 -- group_id FKs refer to Ingredient_Groups (optional - NULL means not in a group)
@@ -108,7 +123,13 @@ INSERT INTO Recipe_Ingredients (recipe_id, ingredient_id, quantity, unit_id, not
 (4, 5, 5, 6, 'for the pan', NULL),         -- 5 mL Olive Oil
 (4, 7, 1, 1, 'to taste', NULL);            -- 1 g Table Salt
 
--- 8. Ingredient_Prices
+-- Recipe 5: Lemon Herb Grilled Chicken (variant, serves 2)
+INSERT INTO Recipe_Ingredients (recipe_id, ingredient_id, quantity, unit_id, notes, group_id) VALUES
+(5, 1, 1, 5, 'Approx 1-2 breasts', NULL),  -- 1 lb Chicken Breast
+(5, 5, 30, 6, 'For marinade', 6),          -- 30 mL Olive Oil - Marinade group
+(5, 7, 3, 1, 'or to taste', 6);             -- 3 g Table Salt - Marinade group
+
+-- 9. Ingredient_Prices
 -- Each ingredient needs a price in a unit compatible with the recipe's usage
 -- (e.g., 1 = 'Gram', 2 = 'Kilogram', 5 = 'Pound', 6 = 'Milliliter', 7 = 'Liter', 14 = 'Each')
 INSERT INTO Ingredient_Prices (ingredient_id, price, unit_id, price_note) VALUES
@@ -122,7 +143,7 @@ INSERT INTO Ingredient_Prices (ingredient_id, price, unit_id, price_note) VALUES
 (9, 0.29, 14, 'Mission brand'),            -- Flour Tortilla: $0.29 each
 (10, 0.33, 14, 'Guerrero brand');          -- Corn Tortilla: $0.33 each
 
--- 9. User Seed Data (OPTIONAL - for development/testing only)
+-- 10. User Seed Data (OPTIONAL - for development/testing only)
 -- WARNING: Change these passwords in production!
 -- These are test accounts with bcrypt-hashed passwords for manual testing
 
