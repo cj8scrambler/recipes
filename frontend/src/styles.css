@@ -920,6 +920,40 @@ li:last-child {
   margin-top: 0;
 }
 
+/* List Totals */
+.list-totals {
+  display: flex;
+  gap: 1.5rem;
+  margin: 1rem 0;
+  padding: 1rem;
+  background: var(--bg-tertiary);
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-color);
+  flex-wrap: wrap;
+}
+
+.list-totals .total-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.list-totals .total-label {
+  font-size: 0.85em;
+  color: var(--gray-600);
+}
+
+.list-totals .total-value {
+  font-size: 1.25em;
+  font-weight: 600;
+  color: var(--gray-900);
+}
+
+.list-totals .total-item.incomplete .total-value {
+  font-weight: 400;
+  font-size: 1em;
+}
+
 .list-items {
   margin-top: 1rem;
 }

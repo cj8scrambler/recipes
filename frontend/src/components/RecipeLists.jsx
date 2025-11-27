@@ -12,6 +12,9 @@ export default function RecipeLists({ user }) {
   const [units, setUnits] = useState([])
   const [recipes, setRecipes] = useState([])
   
+  // List totals state
+  const [listTotals, setListTotals] = useState({ cost: null, weight: null, loading: false })
+  
   // Form states
   const [newListName, setNewListName] = useState('')
   const [editingListId, setEditingListId] = useState(null)
@@ -57,14 +60,83 @@ export default function RecipeLists({ user }) {
     }
   }
 
+  // Calculate total cost and weight for all items in the selected list
+  async function loadListTotals(listItems) {
+    if (!listItems || listItems.length === 0) {
+      setListTotals({ cost: null, weight: null, loading: false })
+      return
+    }
+
+    setListTotals(prev => ({ ...prev, loading: true }))
+    
+    try {
+      // For each item, get the cost and weight using the variant_id if present, otherwise recipe_id
+      // Scale is based on the item's servings divided by recipe's base_servings
+      const costPromises = listItems.map(async (item) => {
+        const recipeId = item.variant_id || item.recipe_id
+        try {
+          // Get the recipe to find base_servings
+          const recipe = await api.getRecipe(recipeId)
+          const scale = item.servings / (recipe.base_servings || 1)
+          const costData = await api.getRecipeCost(recipeId, scale)
+          return costData?.total_cost
+        } catch {
+          return null
+        }
+      })
+
+      const weightPromises = listItems.map(async (item) => {
+        const recipeId = item.variant_id || item.recipe_id
+        try {
+          const recipe = await api.getRecipe(recipeId)
+          const scale = item.servings / (recipe.base_servings || 1)
+          const weightData = await api.getRecipeWeight(recipeId, scale)
+          return weightData?.total_weight
+        } catch {
+          return null
+        }
+      })
+
+      const costs = await Promise.all(costPromises)
+      const weights = await Promise.all(weightPromises)
+
+      // Sum up the totals, ignoring null values
+      const validCosts = costs.filter(c => c !== null && c !== undefined)
+      const validWeights = weights.filter(w => w !== null && w !== undefined)
+
+      const totalCost = validCosts.length === listItems.length 
+        ? validCosts.reduce((sum, c) => sum + c, 0) 
+        : null // Only show total if all items have costs
+
+      const totalWeight = validWeights.length === listItems.length
+        ? validWeights.reduce((sum, w) => sum + w, 0)
+        : null // Only show total if all items have weights
+
+      setListTotals({ 
+        cost: totalCost, 
+        weight: totalWeight, 
+        loading: false,
+        partialCost: validCosts.length > 0 && validCosts.length < listItems.length,
+        partialWeight: validWeights.length > 0 && validWeights.length < listItems.length
+      })
+    } catch (err) {
+      console.error('Failed to load list totals:', err)
+      setListTotals({ cost: null, weight: null, loading: false })
+    }
+  }
+
   async function selectList(list) {
     setSelectedRecipe(null)
     setEditingItem(null)
+    setListTotals({ cost: null, weight: null, loading: true })
     try {
       const full = await api.getRecipeList(list.list_id)
       setSelectedList(full)
+      // Load totals after getting the list
+      loadListTotals(full.items)
     } catch (err) {
       setError(err.message)
+      setListTotals({ cost: null, weight: null, loading: false })
     }
   }
 
@@ -128,6 +200,8 @@ export default function RecipeLists({ user }) {
       const updated = await api.getRecipeList(selectedList.list_id)
       setSelectedList(updated)
       setEditingItem(null)
+      // Recalculate totals after updating item
+      loadListTotals(updated.items)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -141,6 +215,8 @@ export default function RecipeLists({ user }) {
       await api.removeRecipeFromList(selectedList.list_id, itemId)
       const updated = await api.getRecipeList(selectedList.list_id)
       setSelectedList(updated)
+      // Recalculate totals after removing item
+      loadListTotals(updated.items)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -295,6 +371,40 @@ export default function RecipeLists({ user }) {
           <div className="list-detail">
             <h2>{selectedList.name}</h2>
             <p className="text-muted">{selectedList.items?.length || 0} recipes</p>
+            
+            {/* List Totals */}
+            {selectedList.items && selectedList.items.length > 0 && (
+              <div className="list-totals">
+                {listTotals.loading ? (
+                  <span className="text-muted">Calculating totals...</span>
+                ) : (
+                  <>
+                    {listTotals.cost !== null ? (
+                      <div className="total-item">
+                        <span className="total-label">💰 Total Cost</span>
+                        <span className="total-value">${listTotals.cost.toFixed(2)}</span>
+                      </div>
+                    ) : listTotals.partialCost ? (
+                      <div className="total-item incomplete">
+                        <span className="total-label">💰 Cost</span>
+                        <span className="total-value text-muted">incomplete</span>
+                      </div>
+                    ) : null}
+                    {listTotals.weight !== null ? (
+                      <div className="total-item">
+                        <span className="total-label">⚖️ Total Weight</span>
+                        <span className="total-value">{listTotals.weight.toFixed(0)}g</span>
+                      </div>
+                    ) : listTotals.partialWeight ? (
+                      <div className="total-item incomplete">
+                        <span className="total-label">⚖️ Weight</span>
+                        <span className="total-value text-muted">incomplete</span>
+                      </div>
+                    ) : null}
+                  </>
+                )}
+              </div>
+            )}
             
             {(!selectedList.items || selectedList.items.length === 0) && (
               <div className="empty-state">
