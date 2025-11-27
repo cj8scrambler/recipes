@@ -1434,6 +1434,9 @@ def recipe_list_items(list_id):
                 ).scalar_one_or_none()
                 if variant is None:
                     return jsonify({"error": "Variant not found."}), 404
+                # Validate that variant is actually a variant of the specified recipe
+                if variant.parent_recipe_id != recipe_id:
+                    return jsonify({"error": "The specified variant is not a variant of this recipe."}), 400
             
             new_item = RecipeListItem(
                 list_id=list_id,
@@ -1498,6 +1501,9 @@ def recipe_list_item(list_id, item_id):
                     ).scalar_one_or_none()
                     if variant is None:
                         return jsonify({"error": "Variant not found."}), 404
+                    # Validate that variant is actually a variant of the item's recipe
+                    if variant.parent_recipe_id != item.recipe_id:
+                        return jsonify({"error": "The specified variant is not a variant of this recipe."}), 400
                 item.variant_id = variant_id
             if 'notes' in data:
                 item.notes = data['notes']

@@ -6,6 +6,7 @@
   --secondary: #4a5568;
   --secondary-light: #718096;
   --accent: #10b981;
+  --accent-hover: #0e9f6e;
   --danger: #ef4444;
   --danger-hover: #dc2626;
   
@@ -1038,7 +1039,7 @@ li:last-child {
 }
 
 .add-to-list-btn:hover {
-  background: #0e9f6e;
+  background: var(--accent-hover);
 }
 
 /* Add to List Dropdown */
