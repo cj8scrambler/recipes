@@ -822,3 +822,321 @@ li:last-child {
   font-size: 1.125rem;
   color: var(--gray-600);
 }
+
+/* Recipe Lists Page */
+.recipe-lists-container {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+@media (max-width: 968px) {
+  .recipe-lists-container {
+    grid-template-columns: 1fr;
+  }
+}
+
+.lists-sidebar {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: 100px;
+}
+
+.lists-sidebar h2 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+}
+
+.create-list-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.create-list-form input {
+  flex: 1;
+}
+
+.lists-list {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.lists-list li {
+  padding: 0.625rem;
+  border-bottom: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.lists-list li:hover {
+  background: var(--bg-tertiary);
+}
+
+.lists-list li.active {
+  background: var(--primary-light);
+}
+
+.lists-list .link-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.lists-list .item-count {
+  color: var(--gray-500);
+  font-size: 0.85em;
+}
+
+.list-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.lists-content {
+  min-height: 400px;
+}
+
+.lists-content article {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 2rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.list-detail h2 {
+  margin-top: 0;
+}
+
+.list-items {
+  margin-top: 1rem;
+}
+
+.list-items li {
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.list-items li:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--primary);
+}
+
+.list-items .item-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.list-items .recipe-name {
+  font-weight: 600;
+  color: var(--gray-900);
+}
+
+.list-items .recipe-meta {
+  font-size: 0.9em;
+  color: var(--gray-600);
+}
+
+.list-items .recipe-notes {
+  font-size: 0.85em;
+  color: var(--gray-500);
+  font-style: italic;
+}
+
+.list-items .item-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.edit-item-form {
+  width: 100%;
+}
+
+.edit-item-form .form-row {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.edit-item-form .form-group {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.edit-item-form .form-group label {
+  font-size: 0.8rem;
+  margin-bottom: 0.25rem;
+}
+
+.edit-item-form .button-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.back-button {
+  margin-bottom: 1rem;
+}
+
+.recipe-from-list h2 {
+  margin-top: 0;
+}
+
+/* Recipe Lists Section in UserView */
+.recipe-lists-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.list-membership {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.list-membership .label {
+  font-size: 0.9rem;
+  color: var(--gray-600);
+}
+
+.list-tag {
+  display: inline-block;
+  padding: 0.2em 0.6em;
+  background: var(--accent);
+  color: white;
+  border-radius: 1em;
+  font-size: 0.85em;
+  font-weight: 500;
+}
+
+.add-to-list-btn {
+  background: var(--accent);
+}
+
+.add-to-list-btn:hover {
+  background: #0e9f6e;
+}
+
+/* Add to List Dropdown */
+.add-to-list-dropdown {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 1rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow-md);
+}
+
+.dropdown-header {
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--gray-800);
+}
+
+.existing-lists {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.list-option {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+  font-size: 0.9rem;
+  color: var(--gray-700);
+}
+
+.list-option:hover {
+  background: var(--primary-light);
+  border-color: var(--primary);
+  color: var(--primary);
+  transform: none;
+  box-shadow: none;
+}
+
+.create-new-list {
+  display: flex;
+  gap: 0.5rem;
+  border-top: 1px solid var(--border-color);
+  padding-top: 0.75rem;
+}
+
+.create-new-list input {
+  flex: 1;
+}
+
+.add-note {
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+  font-size: 0.8rem;
+  color: var(--gray-500);
+}
+
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: var(--bg-primary);
+  border-radius: var(--border-radius);
+  padding: 2rem;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: var(--shadow-lg);
+}
+
+.modal h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+.modal p {
+  margin-bottom: 1.5rem;
+  color: var(--gray-600);
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
