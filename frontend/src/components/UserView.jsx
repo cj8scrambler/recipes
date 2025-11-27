@@ -305,6 +305,8 @@ export default function UserView({ user }) {
       setScaleInput(DEFAULT_SERVINGS_STR)
       loadRecipeCost(variant.recipe_id, DEFAULT_SERVINGS)
       loadRecipeWeight(variant.recipe_id, DEFAULT_SERVINGS)
+      // Update list membership for the variant recipe
+      loadListMembership(variant.recipe_id)
     } catch (err) {
       setError(err.message)
     }
