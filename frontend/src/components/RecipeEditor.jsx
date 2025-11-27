@@ -14,8 +14,9 @@ function formatQuantityForInput(quantity) {
   return parseFloat(num.toFixed(1)).toString();
 }
 
-export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
+export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecipes = [] }) {
   const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
   const [instructions, setInstructions] = useState('')
   const [servings, setServings] = useState(1)
   const [ingredients, setIngredients] = useState([])
@@ -27,6 +28,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
   const [selectedTags, setSelectedTags] = useState([])
   const [recipeCost, setRecipeCost] = useState(null)
   const [recipeWeight, setRecipeWeight] = useState(null)
+  const [parentRecipeId, setParentRecipeId] = useState(null)
 
   useEffect(() => {
     loadUnits()
@@ -39,8 +41,10 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
   useEffect(() => {
     if (recipe) {
       setName(recipe.name || '')
+      setDescription(recipe.description || '')
       setInstructions(recipe.instructions || '')
       setServings(recipe.base_servings || 1)
+      setParentRecipeId(recipe.parent_recipe_id || null)
       // Ingredients from backend already have ingredient_id, quantity (in base units), unit_id, notes, group_id
       setIngredients((recipe.ingredients || []).map(ing => ({
         ingredient_id: ing.ingredient_id || '',
@@ -58,12 +62,14 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
       }
     } else {
       setName('')
+      setDescription('')
       setInstructions('')
       setServings(1)
       setIngredients([])
       setSelectedTags([])
       setRecipeCost(null)
       setRecipeWeight(null)
+      setParentRecipeId(null)
     }
   }, [recipe])
 
@@ -132,6 +138,63 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
     }
   }
 
+  // Handle parent recipe selection change
+  async function handleParentRecipeChange(newParentId) {
+    const parsedParentId = newParentId ? parseInt(newParentId) : null
+    const previousParentId = parentRecipeId
+    
+    setParentRecipeId(parsedParentId)
+    
+    // If setting a parent recipe and current recipe has NO ingredients, copy from parent
+    if (parsedParentId && ingredients.length === 0) {
+      try {
+        const parentRecipe = await api.getRecipe(parsedParentId)
+        if (parentRecipe) {
+          // Copy ingredients from parent
+          if (parentRecipe.ingredients && parentRecipe.ingredients.length > 0) {
+            setIngredients(parentRecipe.ingredients.map(ing => ({
+              ingredient_id: ing.ingredient_id || '',
+              quantity: formatQuantityForInput(ing.quantity),
+              unit_id: ing.unit_id || '',
+              notes: ing.notes || '',
+              group_id: ing.group_id || ''
+            })))
+          }
+          // Copy description, instructions, and base_servings from parent
+          if (parentRecipe.description) {
+            setDescription(parentRecipe.description)
+          }
+          if (parentRecipe.instructions) {
+            setInstructions(parentRecipe.instructions)
+          }
+          if (parentRecipe.base_servings) {
+            setServings(parentRecipe.base_servings)
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load parent recipe:', err)
+      }
+    }
+    // If removing parent (newParentId is null), keep all current values - no changes needed
+  }
+
+  // Get available parent recipes (exclude self and any recipes that have this recipe as parent)
+  function getAvailableParentRecipes() {
+    if (!allRecipes || allRecipes.length === 0) return []
+    
+    // Filter out:
+    // 1. The current recipe itself
+    // 2. Any recipe that already has a parent (can't be a parent if it's already a variant)
+    // 3. Any recipe that is a variant of the current recipe (would create circular reference)
+    return allRecipes.filter(r => {
+      // Don't include self
+      if (recipe?.recipe_id && r.recipe_id === recipe.recipe_id) return false
+      // Don't include recipes that already have a parent (variants can't be parents)
+      if (r.parent_recipe_id) return false
+      return true
+    })
+  }
+
   function addIngredient() {
     setIngredients([
       ...ingredients,
@@ -198,20 +261,65 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave }) {
     onSave({
       ...recipe,
       name,
+      description,
       instructions,
       base_servings: Number(servings),
       ingredients: processedIngredients,
-      tags: selectedTags.map(tag_id => ({ tag_id }))
+      tags: selectedTags.map(tag_id => ({ tag_id })),
+      parent_recipe_id: parentRecipeId
     })
   }
+
+  // Check if this recipe is a variant (has a parent)
+  const isVariant = !!parentRecipeId
 
   return (
     <form className="editor" onSubmit={submit}>
       <h3>{recipe?.recipe_id ? 'Edit Recipe' : 'New Recipe'}</h3>
+      
+      {/* Parent Recipe Selection - for creating/editing variants */}
       <div className="form-group">
         <label>
-          Recipe Name
+          Parent Recipe (Optional - makes this a variant)
+          <select 
+            value={parentRecipeId || ''} 
+            onChange={(e) => handleParentRecipeChange(e.target.value)}
+          >
+            <option value="">None (standalone recipe)</option>
+            {getAvailableParentRecipes().map(r => (
+              <option key={r.recipe_id} value={r.recipe_id}>{r.name}</option>
+            ))}
+          </select>
+        </label>
+        {isVariant && (
+          <div style={{ 
+            marginTop: '0.5em', 
+            padding: '0.5em', 
+            backgroundColor: 'var(--primary-light)', 
+            borderRadius: '4px',
+            fontSize: '0.9em',
+            color: 'var(--primary-dark)'
+          }}>
+            ℹ️ This recipe is a variant and will not appear as a separate recipe in the browse list.
+          </div>
+        )}
+      </div>
+
+      <div className="form-group">
+        <label>
+          {isVariant ? 'Variant Name' : 'Recipe Name'}
           <input value={name} onChange={(e) => setName(e.target.value)} required placeholder="e.g., Chocolate Chip Cookies" />
+        </label>
+      </div>
+      <div className="form-group">
+        <label>
+          Description
+          <textarea 
+            value={description} 
+            onChange={(e) => setDescription(e.target.value)} 
+            placeholder="A brief description of this recipe..." 
+            rows="2"
+          />
         </label>
       </div>
       <div className="form-group">

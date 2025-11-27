@@ -240,10 +240,47 @@ export default function UserView({ user }) {
     }
   }
 
+  // Filter out child recipes (variants) - only show parent recipes
+  const parentRecipes = recipes.filter(r => !r.parent_recipe_id)
+
+  // Find variants for the currently selected recipe
+  const getVariantsForRecipe = (recipeId) => {
+    return recipes.filter(r => r.parent_recipe_id === recipeId)
+  }
+
+  // Get current variants (either from selected recipe's variants list or by filtering)
+  const currentVariants = selected ? (selected.variants || getVariantsForRecipe(selected.recipe_id)) : []
+
+  // Handle variant selection from dropdown
+  async function selectVariant(variantId) {
+    if (!variantId) {
+      // If empty selection, reload the original parent recipe
+      if (selected && selected.parent_recipe_id) {
+        // Currently viewing a variant, go back to parent
+        const parent = recipes.find(r => r.recipe_id === selected.parent_recipe_id)
+        if (parent) {
+          await selectRecipe(parent)
+        }
+      }
+      return
+    }
+    
+    try {
+      const variant = await api.getRecipe(parseInt(variantId))
+      setSelected(variant)
+      setScale(DEFAULT_SERVINGS)
+      setScaleInput(DEFAULT_SERVINGS_STR)
+      loadRecipeCost(variant.recipe_id, DEFAULT_SERVINGS)
+      loadRecipeWeight(variant.recipe_id, DEFAULT_SERVINGS)
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
   return (
     <div className="user-view">
       <div className="sidebar">
-        <RecipeList recipes={recipes} onSelect={selectRecipe} />
+        <RecipeList recipes={parentRecipes} onSelect={selectRecipe} />
       </div>
       <div className="content">
         {error && <div className="error">{error}</div>}
@@ -255,6 +292,64 @@ export default function UserView({ user }) {
         {selected && (
           <article>
             <h2>{selected.name}</h2>
+            {/* Recipe Variation dropdown - shown when recipe has variants or is a variant */}
+            {(currentVariants.length > 0 || selected.parent_recipe_id) && (
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.5rem', 
+                marginBottom: '1rem',
+                padding: '0.5rem 0.75rem',
+                backgroundColor: 'var(--bg-tertiary)',
+                borderRadius: 'var(--border-radius-sm)',
+                border: '1px solid var(--border-color)'
+              }}>
+                <label style={{ marginBottom: 0, fontWeight: 500 }}>Recipe Variation</label>
+                <select 
+                  style={{ width: 'auto', minWidth: '150px' }}
+                  value={selected.recipe_id}
+                  onChange={(e) => {
+                    const selectedId = e.target.value
+                    if (selectedId === String(selected.recipe_id)) return
+                    
+                    // Find the parent recipe id (could be current recipe if viewing parent, or parent_recipe_id if viewing variant)
+                    const parentId = selected.parent_recipe_id || selected.recipe_id
+                    const parent = recipes.find(r => r.recipe_id === parentId)
+                    
+                    if (selectedId === String(parentId) && parent) {
+                      // Selected the parent recipe
+                      selectRecipe(parent)
+                    } else {
+                      // Selected a variant
+                      selectVariant(selectedId)
+                    }
+                  }}
+                >
+                  {/* Show parent recipe as first option */}
+                  {selected.parent_recipe_id ? (
+                    // Currently viewing a variant - show parent first
+                    <>
+                      <option value={selected.parent_recipe_id}>
+                        {recipes.find(r => r.recipe_id === selected.parent_recipe_id)?.name || 'Original'}
+                      </option>
+                      {recipes
+                        .filter(r => r.parent_recipe_id === selected.parent_recipe_id)
+                        .map(v => (
+                          <option key={v.recipe_id} value={v.recipe_id}>{v.name}</option>
+                        ))}
+                    </>
+                  ) : (
+                    // Currently viewing parent - show self and variants
+                    <>
+                      <option value={selected.recipe_id}>{selected.name}</option>
+                      {currentVariants.map(v => (
+                        <option key={v.recipe_id} value={v.recipe_id}>{v.name}</option>
+                      ))}
+                    </>
+                  )}
+                </select>
+              </div>
+            )}
             <div className="meta">
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <label style={{ marginBottom: 0 }}>Servings</label>

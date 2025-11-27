@@ -208,7 +208,12 @@ def serialize_recipe(recipe, include_cost=False, units_list=None):
         'ingredients': [serialize_recipe_ingredient(ri, include_cost, units_dict) for ri in recipe.ingredients],
         'instructions': recipe.instructions,
         # Include tags
-        'tags': [{'tag_id': rt.tag.tag_id, 'name': rt.tag.name} for rt in recipe.tags if rt.tag]
+        'tags': [{'tag_id': rt.tag.tag_id, 'name': rt.tag.name} for rt in recipe.tags if rt.tag],
+        # Include variant information
+        'parent_recipe_id': recipe.parent_recipe_id,
+        'variant_notes': recipe.variant_notes,
+        # Include list of variants (child recipes) with basic info
+        'variants': [{'recipe_id': v.recipe_id, 'name': v.name} for v in recipe.variants] if recipe.variants else []
     }
     
     # Optionally include total cost
