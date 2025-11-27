@@ -287,22 +287,55 @@ export default function AdminDashboard() {
             </div>
           )}
           <ul>
-            {recipes.map(r => (
-              <li key={r.recipe_id}>
-                <div>
-                  <span>{r.name}</span>
-                  {r.ingredients && r.ingredients.length > 0 && (
-                    <div className="text-muted" style={{fontSize: '0.9em', marginTop: '0.25em'}}>
-                      Ingredients: {r.ingredients.map(ing => ing.name).join(', ')}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <button className="small secondary" onClick={() => setEditingRecipe(r)}>Edit</button>
-                  <button className="small danger" onClick={() => removeRecipe(r.recipe_id)}>Delete</button>
-                </div>
-              </li>
-            ))}
+            {/* Show parent recipes first, then show their variants indented underneath */}
+            {recipes
+              .filter(r => !r.parent_recipe_id) // Only parent/standalone recipes at top level
+              .map(r => {
+                const variants = recipes.filter(v => v.parent_recipe_id === r.recipe_id)
+                return (
+                  <React.Fragment key={r.recipe_id}>
+                    <li>
+                      <div>
+                        <span>{r.name}</span>
+                        {variants.length > 0 && (
+                          <span className="text-muted" style={{ marginLeft: '0.5em', fontSize: '0.85em' }}>
+                            ({variants.length} variant{variants.length !== 1 ? 's' : ''})
+                          </span>
+                        )}
+                        {r.ingredients && r.ingredients.length > 0 && (
+                          <div className="text-muted" style={{fontSize: '0.9em', marginTop: '0.25em'}}>
+                            Ingredients: {r.ingredients.map(ing => ing.name).join(', ')}
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <button className="small secondary" onClick={() => setEditingRecipe(r)}>Edit</button>
+                        <button className="small danger" onClick={() => removeRecipe(r.recipe_id)}>Delete</button>
+                      </div>
+                    </li>
+                    {/* Show variants indented */}
+                    {variants.map(v => (
+                      <li key={v.recipe_id} style={{ paddingLeft: '2rem', borderLeft: '3px solid var(--primary-light)' }}>
+                        <div>
+                          <span style={{ fontStyle: 'italic' }}>↳ {v.name}</span>
+                          <span className="text-muted" style={{ marginLeft: '0.5em', fontSize: '0.85em' }}>
+                            (variant)
+                          </span>
+                          {v.ingredients && v.ingredients.length > 0 && (
+                            <div className="text-muted" style={{fontSize: '0.9em', marginTop: '0.25em'}}>
+                              Ingredients: {v.ingredients.map(ing => ing.name).join(', ')}
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <button className="small secondary" onClick={() => setEditingRecipe(v)}>Edit</button>
+                          <button className="small danger" onClick={() => removeRecipe(v.recipe_id)}>Delete</button>
+                        </div>
+                      </li>
+                    ))}
+                  </React.Fragment>
+                )
+              })}
           </ul>
         </div>
       )}
@@ -562,6 +595,7 @@ export default function AdminDashboard() {
           recipe={editingRecipe}
           onCancel={() => setEditingRecipe(null)}
           onSave={saveRecipe}
+          allRecipes={recipes}
         />
       )}
 
