@@ -164,7 +164,7 @@ class RecipeTag(db.Model):
 
 
 class RecipeList(db.Model):
-    __tablename__ = 'recipe_lists'
+    __tablename__ = 'Recipe_Lists'
     list_id = Column(Integer, primary_key=True)
     user_id = Column(String(36), ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     name = Column(String(255), nullable=False)
@@ -176,9 +176,9 @@ class RecipeList(db.Model):
 
 
 class RecipeListItem(db.Model):
-    __tablename__ = 'recipe_list_items'
+    __tablename__ = 'Recipe_List_Items'
     item_id = Column(Integer, primary_key=True)
-    list_id = Column(Integer, ForeignKey('recipe_lists.list_id', ondelete='CASCADE'), nullable=False)
+    list_id = Column(Integer, ForeignKey('Recipe_Lists.list_id', ondelete='CASCADE'), nullable=False)
     recipe_id = Column(Integer, ForeignKey('Recipes.recipe_id', ondelete='CASCADE'), nullable=False)
     servings = Column(Integer, default=1, nullable=False)
     variant_id = Column(Integer, ForeignKey('Recipes.recipe_id', ondelete='SET NULL'))

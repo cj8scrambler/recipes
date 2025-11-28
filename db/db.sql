@@ -127,7 +127,7 @@ CREATE TABLE sessions (
 
 -- 12. Recipe Lists Table
 -- Stores user-created recipe lists (e.g., "Weeknight Dinners", "Holiday Meals")
-CREATE TABLE recipe_lists (
+CREATE TABLE Recipe_Lists (
     list_id INT PRIMARY KEY AUTO_INCREMENT,
     user_id CHAR(36) NOT NULL,
     name VARCHAR(255) NOT NULL,
@@ -139,7 +139,7 @@ CREATE TABLE recipe_lists (
 
 -- 13. Recipe List Items Table
 -- Stores recipes within a user's list with saved configuration (servings, variant)
-CREATE TABLE recipe_list_items (
+CREATE TABLE Recipe_List_Items (
     item_id INT PRIMARY KEY AUTO_INCREMENT,
     list_id INT NOT NULL,
     recipe_id INT NOT NULL,
@@ -148,7 +148,7 @@ CREATE TABLE recipe_list_items (
     notes VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (list_id) REFERENCES recipe_lists(list_id) ON DELETE CASCADE,
+    FOREIGN KEY (list_id) REFERENCES Recipe_Lists(list_id) ON DELETE CASCADE,
     FOREIGN KEY (recipe_id) REFERENCES Recipes(recipe_id) ON DELETE CASCADE,
     FOREIGN KEY (variant_id) REFERENCES Recipes(recipe_id) ON DELETE SET NULL,
     UNIQUE KEY unique_list_recipe (list_id, recipe_id),

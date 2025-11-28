@@ -40,19 +40,20 @@ INSERT INTO Ingredient_Types (name, description) VALUES
 -- Note: price_unit_id FKs refer to the IDs from the Units inserts
 -- (e.g., 2 = 'Kilogram', 7 = 'Liter', 14 = 'Each')
 -- weight is in grams per default unit
+-- default_unit_id is the unit that the weight is measured in (e.g., 1=Gram for solids, 6=Milliliter for liquids, 14=Each for items)
 -- type_id FKs refer to Ingredient_Types (1=Protein, 2=Dairy & Eggs, 3=Oils & Fats, 4=Grains & Flour, 5=Seasonings, 6=Produce)
 -- Note: Not all ingredients have a type_id assigned
-INSERT INTO Ingredients (name, price, price_unit_id, weight, contains_peanuts, gluten_status, type_id) VALUES
-('Chicken Breast', 15.49, 2, 200, FALSE, 'Gluten-Free', 1),
-('All-Purpose Flour', 3.99, 2, 125, FALSE, 'Contains', 4),
-('Gluten-Free AP Flour', 8.99, 2, 125, FALSE, 'GF_Available', 4),
-('Peanut Butter', 7.50, 2, 16, TRUE, 'Gluten-Free', NULL),
-('Olive Oil', 12.99, 7, 0.92, FALSE, 'Gluten-Free', 3),
-('Large Egg', 4.50, 14, 50, FALSE, 'Gluten-Free', 2),
-('Table Salt', 2.99, 2, 6, FALSE, 'Gluten-Free', 5),
-('Water', NULL, NULL, 1, FALSE, 'Gluten-Free', NULL),
-('Flour Tortilla', 3.49, 14, 45, FALSE, 'Contains', 4),
-('Corn Tortilla', 4.00, 14, 30, FALSE, 'Gluten-Free', 4);
+INSERT INTO Ingredients (name, price, price_unit_id, default_unit_id, weight, contains_peanuts, gluten_status, type_id) VALUES
+('Chicken Breast', 15.49, 2, 1, 200, FALSE, 'Gluten-Free', 1),
+('All-Purpose Flour', 3.99, 2, 1, 125, FALSE, 'Contains', 4),
+('Gluten-Free AP Flour', 8.99, 2, 1, 125, FALSE, 'GF_Available', 4),
+('Peanut Butter', 7.50, 2, 1, 16, TRUE, 'Gluten-Free', NULL),
+('Olive Oil', 12.99, 7, 6, 0.92, FALSE, 'Gluten-Free', 3),
+('Large Egg', 4.50, 14, 14, 50, FALSE, 'Gluten-Free', 2),
+('Table Salt', 2.99, 2, 1, 6, FALSE, 'Gluten-Free', 5),
+('Water', 0.00, 7, 6, 1, FALSE, 'Gluten-Free', NULL),
+('Flour Tortilla', 3.49, 14, 14, 45, FALSE, 'Contains', 4),
+('Corn Tortilla', 4.00, 14, 14, 30, FALSE, 'Gluten-Free', 4);
 
 -- 4. Ingredient_Groups
 -- Common group names for organizing ingredients within recipes
@@ -175,7 +176,7 @@ INSERT INTO users (id, email, password_hash, role, settings, created_at, updated
 -- 11. Recipe Lists (Example data for testing)
 -- Create a recipe list for the regular user
 -- Note: This uses a subquery to get the user_id for user@example.com
-INSERT INTO recipe_lists (user_id, name, created_at, updated_at) VALUES
+INSERT INTO Recipe_Lists (user_id, name, created_at, updated_at) VALUES
 (
     (SELECT id FROM users WHERE email = 'user@example.com'),
     'Weekend Meal Prep',
@@ -187,7 +188,7 @@ INSERT INTO recipe_lists (user_id, name, created_at, updated_at) VALUES
 -- Add recipes to the "Weekend Meal Prep" list
 -- Recipe 1: Lemon Herb Grilled Chicken (variant of Grilled Chicken) - 8 servings (base is 2)
 -- Recipe 2: Simple Scrambled Eggs - 4 servings (base is 1)
-INSERT INTO recipe_list_items (list_id, recipe_id, servings, variant_id, notes) VALUES
+INSERT INTO Recipe_List_Items (list_id, recipe_id, servings, variant_id, notes) VALUES
 (
     1,  -- Weekend Meal Prep list
     1,  -- Grilled Chicken (parent recipe)
