@@ -140,6 +140,7 @@ INSERT INTO Ingredient_Prices (ingredient_id, price, unit_id, price_note) VALUES
 (5, 12.99, 7, 'Extra virgin'),             -- Olive Oil: $12.99/L
 (6, 0.38, 14, 'Large eggs'),               -- Large Egg: $0.38 each
 (7, 2.99, 2, 'Morton'),                    -- Table Salt: $2.99/kg
+(8, 0.00, 7, 'Tap water'),                 -- Water: $0.00/L (essentially free)
 (9, 0.29, 14, 'Mission brand'),            -- Flour Tortilla: $0.29 each
 (10, 0.33, 14, 'Guerrero brand');          -- Corn Tortilla: $0.33 each
 
@@ -169,4 +170,35 @@ INSERT INTO users (id, email, password_hash, role, settings, created_at, updated
     '{"unit": "metric"}',
     CURRENT_TIMESTAMP,
     CURRENT_TIMESTAMP
+);
+
+-- 11. Recipe Lists (Example data for testing)
+-- Create a recipe list for the regular user
+-- Note: This uses a subquery to get the user_id for user@example.com
+INSERT INTO recipe_lists (user_id, name, created_at, updated_at) VALUES
+(
+    (SELECT id FROM users WHERE email = 'user@example.com'),
+    'Weekend Meal Prep',
+    CURRENT_TIMESTAMP,
+    CURRENT_TIMESTAMP
+);
+
+-- 12. Recipe List Items
+-- Add recipes to the "Weekend Meal Prep" list
+-- Recipe 1: Lemon Herb Grilled Chicken (variant of Grilled Chicken) - 8 servings (base is 2)
+-- Recipe 2: Simple Scrambled Eggs - 4 servings (base is 1)
+INSERT INTO recipe_list_items (list_id, recipe_id, servings, variant_id, notes) VALUES
+(
+    1,  -- Weekend Meal Prep list
+    1,  -- Grilled Chicken (parent recipe)
+    8,  -- 8 servings (4x the base of 2)
+    5,  -- Lemon Herb variant
+    'For Sunday dinner with guests'
+),
+(
+    1,  -- Weekend Meal Prep list
+    4,  -- Simple Scrambled Eggs
+    4,  -- 4 servings (4x the base of 1)
+    NULL,  -- No variant
+    'Monday breakfast'
 );
