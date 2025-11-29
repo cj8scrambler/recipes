@@ -301,6 +301,18 @@ export default function RecipeLists({ user }) {
     return recipes.filter(r => r.parent_recipe_id === recipeId)
   }
 
+  // Helper function to get cost for an item
+  function getItemCost(itemId) {
+    const cost = itemCosts[itemId]
+    return cost !== undefined && cost !== null ? cost : null
+  }
+
+  // Helper function to get weight for an item
+  function getItemWeight(itemId) {
+    const weight = itemWeights[itemId]
+    return weight !== undefined && weight !== null ? weight : null
+  }
+
   return (
     <div className="recipe-lists-container">
       <div className="lists-sidebar">
@@ -509,11 +521,11 @@ export default function RecipeLists({ user }) {
                         <span className="recipe-meta">
                           {item.servings} servings
                           {item.variant_name && ` • ${item.variant_name}`}
-                          {itemCosts[item.item_id] !== undefined && itemCosts[item.item_id] !== null && (
-                            ` • $${itemCosts[item.item_id].toFixed(2)}`
+                          {getItemCost(item.item_id) !== null && (
+                            ` • $${getItemCost(item.item_id).toFixed(2)}`
                           )}
-                          {itemWeights[item.item_id] !== undefined && itemWeights[item.item_id] !== null && (
-                            ` • ${itemWeights[item.item_id].toFixed(0)}g`
+                          {getItemWeight(item.item_id) !== null && (
+                            ` • ${getItemWeight(item.item_id).toFixed(0)}g`
                           )}
                         </span>
                         {item.notes && <span className="recipe-notes">{item.notes}</span>}
@@ -558,10 +570,10 @@ export default function RecipeLists({ user }) {
                 <label style={{ marginBottom: 0 }}>Servings (from list)</label>
                 <span style={{ fontWeight: 600 }}>{selectedRecipe.listServings}</span>
               </div>
-              {itemCosts[selectedRecipe.listItem?.item_id] !== undefined && itemCosts[selectedRecipe.listItem?.item_id] !== null ? (
+              {getItemCost(selectedRecipe.listItem?.item_id) !== null ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <label style={{ marginBottom: 0 }}>Estimated Cost</label>
-                  <span style={{ fontWeight: 600, fontSize: '1.1em' }}>${itemCosts[selectedRecipe.listItem?.item_id].toFixed(2)}</span>
+                  <span style={{ fontWeight: 600, fontSize: '1.1em' }}>${getItemCost(selectedRecipe.listItem?.item_id).toFixed(2)}</span>
                 </div>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--gray-500)' }}>
@@ -569,10 +581,10 @@ export default function RecipeLists({ user }) {
                   <span style={{ fontSize: '0.9em' }}>incomplete</span>
                 </div>
               )}
-              {itemWeights[selectedRecipe.listItem?.item_id] !== undefined && itemWeights[selectedRecipe.listItem?.item_id] !== null ? (
+              {getItemWeight(selectedRecipe.listItem?.item_id) !== null ? (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <label style={{ marginBottom: 0 }}>Total Weight</label>
-                  <span style={{ fontWeight: 600, fontSize: '1.1em' }}>{itemWeights[selectedRecipe.listItem?.item_id].toFixed(0)}g</span>
+                  <span style={{ fontWeight: 600, fontSize: '1.1em' }}>{getItemWeight(selectedRecipe.listItem?.item_id).toFixed(0)}g</span>
                 </div>
               ) : (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--gray-500)' }}>
