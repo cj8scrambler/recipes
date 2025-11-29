@@ -565,7 +565,7 @@ export default function RecipeLists({ user }) {
             
             <h2>{selectedRecipe.name}</h2>
             
-            <div className="meta">
+            <div className="meta" style={{ flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <label style={{ marginBottom: 0 }}>Servings (from list)</label>
                 <span style={{ fontWeight: 600 }}>{selectedRecipe.listServings}</span>
@@ -593,7 +593,7 @@ export default function RecipeLists({ user }) {
                 </div>
               )}
               {selectedRecipe.listItem?.notes && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexBasis: '100%', marginTop: '0.5rem' }}>
                   <label style={{ marginBottom: 0 }}>Notes</label>
                   <span>{selectedRecipe.listItem.notes}</span>
                 </div>
