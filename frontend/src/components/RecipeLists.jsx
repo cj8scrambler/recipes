@@ -15,6 +15,10 @@ export default function RecipeLists({ user }) {
   // List totals state
   const [listTotals, setListTotals] = useState({ cost: null, weight: null, loading: false })
   
+  // Per-item cost and weight state (keyed by item_id)
+  const [itemCosts, setItemCosts] = useState({})
+  const [itemWeights, setItemWeights] = useState({})
+  
   // Form states
   const [newListName, setNewListName] = useState('')
   const [editingListId, setEditingListId] = useState(null)
@@ -61,9 +65,12 @@ export default function RecipeLists({ user }) {
   }
 
   // Calculate total cost and weight for all items in the selected list
+  // Also stores per-item costs and weights for display
   async function loadListTotals(listItems) {
     if (!listItems || listItems.length === 0) {
       setListTotals({ cost: null, weight: null, loading: false })
+      setItemCosts({})
+      setItemWeights({})
       return
     }
 
@@ -79,9 +86,9 @@ export default function RecipeLists({ user }) {
           const recipe = await api.getRecipe(recipeId)
           const scale = item.servings / (recipe.base_servings || 1)
           const costData = await api.getRecipeCost(recipeId, scale)
-          return costData?.total_cost
+          return { itemId: item.item_id, cost: costData?.total_cost }
         } catch {
-          return null
+          return { itemId: item.item_id, cost: null }
         }
       })
 
@@ -91,16 +98,26 @@ export default function RecipeLists({ user }) {
           const recipe = await api.getRecipe(recipeId)
           const scale = item.servings / (recipe.base_servings || 1)
           const weightData = await api.getRecipeWeight(recipeId, scale)
-          return weightData?.total_weight
+          return { itemId: item.item_id, weight: weightData?.total_weight }
         } catch {
-          return null
+          return { itemId: item.item_id, weight: null }
         }
       })
 
-      const costs = await Promise.all(costPromises)
-      const weights = await Promise.all(weightPromises)
+      const costResults = await Promise.all(costPromises)
+      const weightResults = await Promise.all(weightPromises)
+
+      // Store per-item costs and weights
+      const newItemCosts = {}
+      const newItemWeights = {}
+      costResults.forEach(r => { newItemCosts[r.itemId] = r.cost })
+      weightResults.forEach(r => { newItemWeights[r.itemId] = r.weight })
+      setItemCosts(newItemCosts)
+      setItemWeights(newItemWeights)
 
       // Sum up the totals, ignoring null values
+      const costs = costResults.map(r => r.cost)
+      const weights = weightResults.map(r => r.weight)
       const validCosts = costs.filter(c => c !== null && c !== undefined)
       const validWeights = weights.filter(w => w !== null && w !== undefined)
 
@@ -122,6 +139,8 @@ export default function RecipeLists({ user }) {
     } catch (err) {
       console.error('Failed to load list totals:', err)
       setListTotals({ cost: null, weight: null, loading: false })
+      setItemCosts({})
+      setItemWeights({})
     }
   }
 
@@ -129,6 +148,8 @@ export default function RecipeLists({ user }) {
     setSelectedRecipe(null)
     setEditingItem(null)
     setListTotals({ cost: null, weight: null, loading: true })
+    setItemCosts({})
+    setItemWeights({})
     try {
       const full = await api.getRecipeList(list.list_id)
       setSelectedList(full)
@@ -488,6 +509,12 @@ export default function RecipeLists({ user }) {
                         <span className="recipe-meta">
                           {item.servings} servings
                           {item.variant_name && ` • ${item.variant_name}`}
+                          {itemCosts[item.item_id] !== undefined && itemCosts[item.item_id] !== null && (
+                            ` • $${itemCosts[item.item_id].toFixed(2)}`
+                          )}
+                          {itemWeights[item.item_id] !== undefined && itemWeights[item.item_id] !== null && (
+                            ` • ${itemWeights[item.item_id].toFixed(0)}g`
+                          )}
                         </span>
                         {item.notes && <span className="recipe-notes">{item.notes}</span>}
                       </div>
@@ -531,6 +558,28 @@ export default function RecipeLists({ user }) {
                 <label style={{ marginBottom: 0 }}>Servings (from list)</label>
                 <span style={{ fontWeight: 600 }}>{selectedRecipe.listServings}</span>
               </div>
+              {itemCosts[selectedRecipe.listItem?.item_id] !== undefined && itemCosts[selectedRecipe.listItem?.item_id] !== null ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <label style={{ marginBottom: 0 }}>Estimated Cost</label>
+                  <span style={{ fontWeight: 600, fontSize: '1.1em' }}>${itemCosts[selectedRecipe.listItem?.item_id].toFixed(2)}</span>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--gray-500)' }}>
+                  <label style={{ marginBottom: 0 }}>Cost</label>
+                  <span style={{ fontSize: '0.9em' }}>incomplete</span>
+                </div>
+              )}
+              {itemWeights[selectedRecipe.listItem?.item_id] !== undefined && itemWeights[selectedRecipe.listItem?.item_id] !== null ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <label style={{ marginBottom: 0 }}>Total Weight</label>
+                  <span style={{ fontWeight: 600, fontSize: '1.1em' }}>{itemWeights[selectedRecipe.listItem?.item_id].toFixed(0)}g</span>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--gray-500)' }}>
+                  <label style={{ marginBottom: 0 }}>Weight</label>
+                  <span style={{ fontSize: '0.9em' }}>incomplete</span>
+                </div>
+              )}
               {selectedRecipe.listItem?.notes && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <label style={{ marginBottom: 0 }}>Notes</label>
