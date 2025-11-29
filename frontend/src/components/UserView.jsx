@@ -3,6 +3,7 @@ import { api } from '../api'
 import { formatRecipeUnits } from '../utils'
 import { getDisplayUnit, toBaseUnit } from '../unitConversions'
 import RecipeList from './RecipeList'
+import { generateSingleRecipePDF } from '../pdfGenerator'
 
 // Constants for servings input
 const DEFAULT_SERVINGS = 1
@@ -375,7 +376,16 @@ export default function UserView({ user }) {
         )}
         {selected && (
           <article>
-            <h2>{selected.name}</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+              <h2 style={{ margin: 0 }}>{selected.name}</h2>
+              <button 
+                className="pdf-button"
+                onClick={() => generateSingleRecipePDF(selected, scaledIngredients(), scale)}
+                title="Download recipe as PDF"
+              >
+                📄 PDF
+              </button>
+            </div>
             {/* Recipe Variation dropdown - shown when recipe has variants or is a variant */}
             {(currentVariants.length > 0 || selected.parent_recipe_id) && (
               <div style={{ 
