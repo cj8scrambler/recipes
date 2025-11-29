@@ -12,6 +12,11 @@ const SECTION_FONT_SIZE = 14
 const BODY_FONT_SIZE = 11
 const LINE_HEIGHT_FACTOR = 1.4
 
+// Layout thresholds
+const ROTATED_LAYOUT_THRESHOLD = 0.55 // Use rotated layout if content fits in this fraction of page
+const MIN_REMAINING_HEIGHT = 100 // Minimum space needed to continue on current page
+const TEXT_WRAP_MARGIN = 40 // Extra margin for text wrapping in rotated layout
+
 /**
  * Estimate the height needed for a recipe's content
  * @param {Object} recipe - Recipe object
@@ -191,7 +196,7 @@ function drawRotatedSection(doc, title, content, x, y, width, height, isIngredie
         }
         
         // Wrap text if needed (height becomes max text width when rotated)
-        const lines = doc.splitTextToSize(text, height - 40)
+        const lines = doc.splitTextToSize(text, height - TEXT_WRAP_MARGIN)
         for (const line of lines) {
           doc.text(line, x, textY, { angle: 90 })
           textY += lineHeight
@@ -201,7 +206,7 @@ function drawRotatedSection(doc, title, content, x, y, width, height, isIngredie
     }
   } else {
     // Instructions - wrap text
-    const lines = doc.splitTextToSize(content, height - 40)
+    const lines = doc.splitTextToSize(content, height - TEXT_WRAP_MARGIN)
     for (const line of lines) {
       doc.text(line, x, textY, { angle: 90 })
       textY += lineHeight
@@ -288,7 +293,7 @@ function renderRecipeStandard(doc, recipe, scaledIngredients, servings) {
   const instructionsHeight = SECTION_FONT_SIZE * LINE_HEIGHT_FACTOR + 10 + 
     (instructionsLines.length * BODY_FONT_SIZE * LINE_HEIGHT_FACTOR)
   
-  if (instructionsHeight > remainingHeight && remainingHeight < 100) {
+  if (instructionsHeight > remainingHeight && remainingHeight < MIN_REMAINING_HEIGHT) {
     doc.addPage()
     y = MARGIN_PT
   }
@@ -327,7 +332,7 @@ export function generateRecipesPDF(recipes, filename = 'recipes.pdf') {
     
     // If content fits in about half the page height, use rotated side-by-side layout
     // Otherwise use standard vertical layout
-    const fitsOnHalfPage = heights.totalHeight < (availableHeight * 0.55)
+    const fitsOnHalfPage = heights.totalHeight < (availableHeight * ROTATED_LAYOUT_THRESHOLD)
     
     if (fitsOnHalfPage) {
       renderRecipeRotated(doc, recipe, scaledIngredients, servings)
