@@ -178,7 +178,7 @@ INSERT INTO users (id, email, password_hash, role, settings, created_at, updated
 -- Note: This uses a subquery to get the user_id for user@example.com
 INSERT INTO Recipe_Lists (user_id, name, created_at, updated_at) VALUES
 (
-    (SELECT id FROM users WHERE email = 'user@example.com'),
+    (SELECT id FROM users WHERE email = 'admin@example.com'),
     'Weekend Meal Prep',
     CURRENT_TIMESTAMP,
     CURRENT_TIMESTAMP
