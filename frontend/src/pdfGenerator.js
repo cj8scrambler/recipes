@@ -145,50 +145,117 @@ function drawSection(doc, title, content, x, y, width, isIngredients = false, sc
 }
 
 /**
- * Render a recipe on a single page with rotated side-by-side layout
- * Both sections are rotated 90° so each is portrait oriented, fitting on one portrait page
+ * Draw a rotated section (for the compact layout)
+ * Text is rotated 90° counter-clockwise
  */
-function renderRecipeRotated(doc, recipe, scaledIngredients, servings) {
-  // For rotated layout, we have two columns side by side
-  // Each column is half the page width, full height (minus margins)
-  const columnWidth = (PAGE_HEIGHT_PT - (3 * MARGIN_PT)) / 2 // Use height as width since rotated
-  const columnHeight = PAGE_WIDTH_PT - (2 * MARGIN_PT) // Use width as height since rotated
+function drawRotatedSection(doc, title, content, x, y, width, height, isIngredients = false, scaledIngredients = []) {
+  const lineHeight = BODY_FONT_SIZE * LINE_HEIGHT_FACTOR
   
-  // Left column (ingredients) - starts at bottom-left when rotated
-  doc.setPage(doc.getNumberOfPages())
+  // For rotated text, we draw from the starting position
+  // Text flows downward (which appears as left-to-right when rotated)
+  let textY = y + SECTION_FONT_SIZE
   
-  // Draw title at top center (rotated)
-  const centerY = PAGE_HEIGHT_PT / 2
-  doc.setFontSize(TITLE_FONT_SIZE)
+  // Section header
+  doc.setFontSize(SECTION_FONT_SIZE)
   doc.setFont('helvetica', 'bold')
+  doc.text(title, x, textY, { angle: 90 })
+  textY += SECTION_FONT_SIZE * LINE_HEIGHT_FACTOR + 5
   
-  // Save state and rotate for left column (ingredients)
-  // We're rotating content 90° clockwise, so text flows up the page
-  let currentY = MARGIN_PT + TITLE_FONT_SIZE
-  
-  // Title spanning across
-  doc.text(recipe.name, PAGE_WIDTH_PT / 2, currentY, { align: 'center' })
-  currentY += TITLE_FONT_SIZE + 5
-  
-  // Servings info
   doc.setFontSize(BODY_FONT_SIZE)
   doc.setFont('helvetica', 'normal')
-  doc.text(`Servings: ${servings}`, PAGE_WIDTH_PT / 2, currentY, { align: 'center' })
-  currentY += 20
+  
+  if (isIngredients) {
+    const grouped = groupIngredients(scaledIngredients)
+    const sortedGroups = Object.entries(grouped).sort(([keyA], [keyB]) => {
+      if (keyA === 'ungrouped') return -1
+      if (keyB === 'ungrouped') return 1
+      return 0
+    })
+    
+    for (const [groupKey, group] of sortedGroups) {
+      if (groupKey !== 'ungrouped' && group.name) {
+        doc.setFont('helvetica', 'bold')
+        doc.text(group.name, x, textY, { angle: 90 })
+        doc.setFont('helvetica', 'normal')
+        textY += lineHeight
+      }
+      
+      for (const ing of group.ingredients) {
+        let text = '• '
+        if (ing.quantity && ing.displayUnit) {
+          text += `${formatRecipeUnits(ing.quantity, 2)} ${ing.displayUnit.abbreviation} `
+        }
+        text += ing.name
+        if (ing.notes) {
+          text += ` — ${ing.notes}`
+        }
+        
+        // Wrap text if needed (height becomes max text width when rotated)
+        const lines = doc.splitTextToSize(text, height - 40)
+        for (const line of lines) {
+          doc.text(line, x, textY, { angle: 90 })
+          textY += lineHeight
+        }
+      }
+      textY += 3 // Spacing between groups
+    }
+  } else {
+    // Instructions - wrap text
+    const lines = doc.splitTextToSize(content, height - 40)
+    for (const line of lines) {
+      doc.text(line, x, textY, { angle: 90 })
+      textY += lineHeight
+    }
+  }
+  
+  return textY
+}
+
+/**
+ * Render a recipe on a single page with rotated sections
+ * Each section (ingredients, instructions) is rotated 90° so it appears portrait-oriented
+ * Both sections fit side-by-side on a single portrait 8.5x11 page
+ */
+function renderRecipeRotated(doc, recipe, scaledIngredients, servings) {
+  doc.setPage(doc.getNumberOfPages())
+  
+  // For rotated layout, the page is divided into two halves
+  // Each half has content rotated 90° counter-clockwise
+  // Left half: Ingredients (rotated)
+  // Right half: Instructions (rotated)
+  
+  const halfWidth = PAGE_WIDTH_PT / 2
+  const contentHeight = PAGE_HEIGHT_PT - (2 * MARGIN_PT)
+  
+  // Draw centered title at the top (not rotated)
+  doc.setFontSize(TITLE_FONT_SIZE)
+  doc.setFont('helvetica', 'bold')
+  let headerY = MARGIN_PT + TITLE_FONT_SIZE
+  doc.text(recipe.name, PAGE_WIDTH_PT / 2, headerY, { align: 'center' })
+  headerY += TITLE_FONT_SIZE + 5
+  
+  // Servings info (not rotated)
+  doc.setFontSize(BODY_FONT_SIZE)
+  doc.setFont('helvetica', 'normal')
+  doc.text(`Servings: ${servings}`, PAGE_WIDTH_PT / 2, headerY, { align: 'center' })
+  headerY += 15
   
   // Draw a dividing line down the middle
-  const dividerX = PAGE_WIDTH_PT / 2
   doc.setDrawColor(200, 200, 200)
-  doc.line(dividerX, currentY, dividerX, PAGE_HEIGHT_PT - MARGIN_PT)
+  doc.line(halfWidth, headerY, halfWidth, PAGE_HEIGHT_PT - MARGIN_PT)
   
-  // Left side - Ingredients
-  const leftColumnWidth = (PAGE_WIDTH_PT / 2) - MARGIN_PT - 10
-  drawSection(doc, 'Ingredients', '', MARGIN_PT, currentY + 10, leftColumnWidth, true, scaledIngredients)
+  // Left section - Ingredients (rotated 90° CCW)
+  // For 90° CCW rotation, we start from bottom-left of the section area and text goes upward
+  const leftSectionX = MARGIN_PT + BODY_FONT_SIZE + 5
+  const leftSectionY = headerY + 10
+  const leftSectionHeight = PAGE_HEIGHT_PT - headerY - MARGIN_PT - 10
+  const leftSectionWidth = halfWidth - MARGIN_PT - 15
   
-  // Right side - Instructions  
-  const rightColumnX = (PAGE_WIDTH_PT / 2) + 10
-  const rightColumnWidth = (PAGE_WIDTH_PT / 2) - MARGIN_PT - 10
-  drawSection(doc, 'Instructions', recipe.instructions || '', rightColumnX, currentY + 10, rightColumnWidth, false)
+  drawRotatedSection(doc, 'Ingredients', '', leftSectionX, leftSectionY, leftSectionWidth, leftSectionHeight, true, scaledIngredients)
+  
+  // Right section - Instructions (rotated 90° CCW)
+  const rightSectionX = halfWidth + MARGIN_PT + BODY_FONT_SIZE + 5
+  drawRotatedSection(doc, 'Instructions', recipe.instructions || '', rightSectionX, leftSectionY, leftSectionWidth, leftSectionHeight, false)
 }
 
 /**
@@ -258,7 +325,7 @@ export function generateRecipesPDF(recipes, filename = 'recipes.pdf') {
     const heights = estimateContentHeight(recipe, scaledIngredients, servings, doc)
     const availableHeight = PAGE_HEIGHT_PT - (2 * MARGIN_PT)
     
-    // If content fits in about half the page height, use side-by-side rotated layout
+    // If content fits in about half the page height, use rotated side-by-side layout
     // Otherwise use standard vertical layout
     const fitsOnHalfPage = heights.totalHeight < (availableHeight * 0.55)
     
