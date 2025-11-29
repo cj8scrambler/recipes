@@ -48,8 +48,53 @@ function getSortedGroups(scaledIngredients) {
 }
 
 /**
- * Draw recipe header info (name, servings, cost, weight, tags)
- * When rotated, x/y coordinates work differently
+ * Draw recipe header info for packing section (with "Packing Instructions" header)
+ */
+function drawRotatedPackingHeader(doc, recipe, servings, x, y, maxWidth, recipeCost, recipeWeight) {
+  const lineHeight = BODY_FONT_SIZE * LINE_HEIGHT_FACTOR
+  let currentX = x
+  
+  // "Packing Instructions" header
+  doc.setFontSize(SECTION_FONT_SIZE)
+  doc.setFont('helvetica', 'bold')
+  doc.text('PACKING INSTRUCTIONS', currentX, y, { angle: 90 })
+  currentX += SECTION_FONT_SIZE * LINE_HEIGHT_FACTOR + 6
+  
+  // Recipe name
+  doc.setFontSize(TITLE_FONT_SIZE)
+  doc.setFont('helvetica', 'bold')
+  doc.text(recipe.name, currentX, y, { angle: 90 })
+  currentX += TITLE_FONT_SIZE * LINE_HEIGHT_FACTOR + 4
+  
+  // Meta info line: Servings, Cost, Weight
+  doc.setFontSize(SMALL_FONT_SIZE)
+  doc.setFont('helvetica', 'normal')
+  let metaText = `Servings: ${servings}`
+  if (recipeCost && recipeCost.total_cost !== null) {
+    metaText += `  •  Cost: $${recipeCost.total_cost.toFixed(2)}`
+  }
+  if (recipeWeight && recipeWeight.total_weight !== null) {
+    metaText += `  •  Weight: ${recipeWeight.total_weight.toFixed(0)}g`
+  }
+  doc.text(metaText, currentX, y, { angle: 90 })
+  currentX += lineHeight
+  
+  // Tags
+  if (recipe.tags && recipe.tags.length > 0) {
+    const tagsText = 'Tags: ' + recipe.tags.map(t => t.name).join(', ')
+    const tagLines = doc.splitTextToSize(tagsText, maxWidth - 20)
+    for (const line of tagLines) {
+      doc.text(line, currentX, y, { angle: 90 })
+      currentX += lineHeight
+    }
+  }
+  
+  currentX += 6 // Extra spacing after header
+  return currentX
+}
+
+/**
+ * Draw recipe header info (name, servings, cost, weight, tags) - for cooking section
  */
 function drawRotatedHeader(doc, recipe, servings, x, y, maxWidth, recipeCost, recipeWeight) {
   const lineHeight = BODY_FONT_SIZE * LINE_HEIGHT_FACTOR
@@ -136,29 +181,43 @@ function drawRotatedIngredients(doc, scaledIngredients, x, y, maxWidth) {
 }
 
 /**
- * Draw ingredient groups only (names, no individual ingredients) for instructions section
+ * Draw ingredients/ingredient groups summary for the cooking section
+ * Lists ungrouped ingredients by name AND ingredient group names, each on its own line
  */
-function drawRotatedIngredientGroups(doc, scaledIngredients, x, y, maxWidth) {
+function drawRotatedIngredientsSummary(doc, scaledIngredients, x, y, maxWidth) {
   const lineHeight = BODY_FONT_SIZE * LINE_HEIGHT_FACTOR
+  const largerLineHeight = (BODY_FONT_SIZE + 1) * LINE_HEIGHT_FACTOR
   let currentX = x
   
-  const sortedGroups = getSortedGroups(scaledIngredients)
-  const groupNames = sortedGroups
-    .filter(([key, group]) => key !== 'ungrouped' && group.name)
-    .map(([, group]) => group.name)
+  // Section header
+  doc.setFontSize(SECTION_FONT_SIZE)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Ingredients / Groups', currentX, y, { angle: 90 })
+  currentX += SECTION_FONT_SIZE * LINE_HEIGHT_FACTOR + 6
   
-  if (groupNames.length > 0) {
-    doc.setFontSize(SMALL_FONT_SIZE)
-    doc.setFont('helvetica', 'normal')
-    const groupsText = 'Ingredient Groups: ' + groupNames.join(', ')
-    const lines = doc.splitTextToSize(groupsText, maxWidth - 20)
-    for (const line of lines) {
-      doc.text(line, currentX, y, { angle: 90 })
-      currentX += lineHeight
+  const sortedGroups = getSortedGroups(scaledIngredients)
+  
+  doc.setFontSize(BODY_FONT_SIZE + 1) // Slightly larger font
+  
+  for (const [groupKey, group] of sortedGroups) {
+    if (groupKey === 'ungrouped') {
+      // List each ungrouped ingredient by name on its own line
+      for (const ing of group.ingredients) {
+        doc.setFont('helvetica', 'normal')
+        const text = `□  ${ing.name}`
+        doc.text(text, currentX, y, { angle: 90 })
+        currentX += largerLineHeight
+      }
+    } else if (group.name) {
+      // List the group name on its own line
+      doc.setFont('helvetica', 'bold')
+      const text = `□  ${group.name}`
+      doc.text(text, currentX, y, { angle: 90 })
+      currentX += largerLineHeight
     }
-    currentX += 4
   }
   
+  currentX += 6 // Extra spacing after ingredients summary
   return currentX
 }
 
@@ -204,22 +263,22 @@ function renderRecipeTwoSection(doc, recipe, scaledIngredients, servings, recipe
   doc.setLineWidth(1)
   doc.line(MARGIN_PT, halfHeight, PAGE_WIDTH_PT - MARGIN_PT, halfHeight)
   
-  // === TOP HALF: INGREDIENTS SECTION ===
+  // === TOP HALF: PACKING/INGREDIENTS SECTION ===
   // Text is rotated 90° CCW, so it reads correctly when the top half is rotated
   // Start from left edge, text goes upward (toward top of page when rotated)
   let topX = MARGIN_PT + SMALL_MARGIN_PT
   const topY = halfHeight - SMALL_MARGIN_PT // Start near the divider line
   
-  topX = drawRotatedHeader(doc, recipe, servings, topX, topY, sectionWidth, recipeCost, recipeWeight)
+  topX = drawRotatedPackingHeader(doc, recipe, servings, topX, topY, sectionWidth, recipeCost, recipeWeight)
   topX = drawRotatedIngredients(doc, scaledIngredients, topX, topY, sectionWidth)
   
-  // === BOTTOM HALF: INSTRUCTIONS SECTION ===
+  // === BOTTOM HALF: COOKING/INSTRUCTIONS SECTION ===
   // Same rotation, positioned in bottom half
   let bottomX = MARGIN_PT + SMALL_MARGIN_PT
   const bottomY = PAGE_HEIGHT_PT - SMALL_MARGIN_PT // Start at bottom edge
   
   bottomX = drawRotatedHeader(doc, recipe, servings, bottomX, bottomY, sectionWidth, recipeCost, recipeWeight)
-  bottomX = drawRotatedIngredientGroups(doc, scaledIngredients, bottomX, bottomY, sectionWidth)
+  bottomX = drawRotatedIngredientsSummary(doc, scaledIngredients, bottomX, bottomY, sectionWidth)
   bottomX = drawRotatedInstructions(doc, recipe.instructions, bottomX, bottomY, sectionWidth)
 }
 
