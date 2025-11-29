@@ -301,6 +301,16 @@ export default function RecipeLists({ user }) {
         const servings = item.servings || 1
         const factor = servings / (recipe.base_servings || 1)
 
+        // Fetch cost and weight data
+        let recipeCost = null
+        let recipeWeight = null
+        try {
+          recipeCost = await api.getRecipeCost(recipeId, factor)
+        } catch (e) { /* ignore */ }
+        try {
+          recipeWeight = await api.getRecipeWeight(recipeId, factor)
+        } catch (e) { /* ignore */ }
+
         // Scale ingredients for this recipe
         const scaledIngredients = (recipe.ingredients || []).map(ing => {
           const originalUnit = units.find(u => u.unit_id === ing.unit_id)
@@ -336,7 +346,9 @@ export default function RecipeLists({ user }) {
         return {
           recipe,
           scaledIngredients,
-          servings
+          servings,
+          recipeCost,
+          recipeWeight
         }
       })
 

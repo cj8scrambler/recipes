@@ -380,7 +380,7 @@ export default function UserView({ user }) {
               <h2 style={{ margin: 0 }}>{selected.name}</h2>
               <button 
                 className="pdf-button"
-                onClick={() => generateSingleRecipePDF(selected, scaledIngredients(), scale)}
+                onClick={() => generateSingleRecipePDF(selected, scaledIngredients(), scale, null, recipeCost, recipeWeight)}
                 title="Download recipe as PDF"
               >
                 📄 PDF

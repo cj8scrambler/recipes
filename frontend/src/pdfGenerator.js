@@ -4,60 +4,19 @@ import { formatRecipeUnits } from './utils'
 // Page dimensions in points (72 points per inch)
 const PAGE_WIDTH_PT = 612 // 8.5"
 const PAGE_HEIGHT_PT = 792 // 11"
-const MARGIN_PT = 36 // 0.5" margin
+const MARGIN_PT = 24 // margin for rotated sections
+const SMALL_MARGIN_PT = 12
 
 // Font sizes
-const TITLE_FONT_SIZE = 18
-const SECTION_FONT_SIZE = 14
-const BODY_FONT_SIZE = 11
-const LINE_HEIGHT_FACTOR = 1.4
+const TITLE_FONT_SIZE = 14
+const SECTION_FONT_SIZE = 11
+const BODY_FONT_SIZE = 9
+const SMALL_FONT_SIZE = 8
+const LINE_HEIGHT_FACTOR = 1.3
 
 // Layout thresholds
-const TWO_COLUMN_LAYOUT_THRESHOLD = 0.55 // Use two-column layout if content fits in this fraction of page
-const MIN_REMAINING_HEIGHT = 100 // Minimum space needed to continue on current page
-
-/**
- * Estimate the height needed for a recipe's content
- * @param {Object} recipe - Recipe object
- * @param {Array} scaledIngredients - Pre-scaled ingredients
- * @param {number} servings - Number of servings
- * @param {jsPDF} doc - PDF document for text measurement
- * @returns {Object} - Heights for ingredients and instructions sections
- */
-function estimateContentHeight(recipe, scaledIngredients, servings, doc) {
-  const contentWidth = PAGE_WIDTH_PT - (2 * MARGIN_PT)
-  const lineHeight = BODY_FONT_SIZE * LINE_HEIGHT_FACTOR
-  
-  // Calculate ingredients height
-  let ingredientsHeight = SECTION_FONT_SIZE * LINE_HEIGHT_FACTOR + 10 // Section header + spacing
-  const grouped = groupIngredients(scaledIngredients)
-  
-  for (const [groupKey, group] of Object.entries(grouped)) {
-    if (groupKey !== 'ungrouped' && group.name) {
-      ingredientsHeight += lineHeight + 5 // Group header
-    }
-    // Each ingredient line
-    ingredientsHeight += group.ingredients.length * lineHeight
-    ingredientsHeight += 10 // Group spacing
-  }
-  
-  // Calculate instructions height
-  doc.setFontSize(BODY_FONT_SIZE)
-  const instructions = recipe.instructions || ''
-  const instructionsLines = doc.splitTextToSize(instructions, contentWidth)
-  const instructionsHeight = SECTION_FONT_SIZE * LINE_HEIGHT_FACTOR + 10 + // Section header
-    (instructionsLines.length * lineHeight)
-  
-  // Calculate header height (title + servings)
-  const headerHeight = TITLE_FONT_SIZE * LINE_HEIGHT_FACTOR + 30
-  
-  return {
-    headerHeight,
-    ingredientsHeight,
-    instructionsHeight,
-    totalHeight: headerHeight + ingredientsHeight + instructionsHeight
-  }
-}
+const TWO_SECTION_LAYOUT_THRESHOLD = 0.45 // Use two-section layout if content fits
+const MIN_REMAINING_HEIGHT = 100
 
 /**
  * Group ingredients by group_id
@@ -77,21 +36,199 @@ function groupIngredients(ingredients) {
 }
 
 /**
- * Draw a recipe section (ingredients or instructions) at the specified position
- * @param {jsPDF} doc - PDF document
- * @param {string} title - Section title
- * @param {string|Array} content - Content to render
- * @param {number} x - X position
- * @param {number} y - Y position
- * @param {number} width - Available width
- * @param {boolean} isIngredients - Whether this is the ingredients section
- * @param {Array} scaledIngredients - Pre-scaled ingredients (for ingredients section)
- * @returns {number} - Final Y position after rendering
+ * Get sorted ingredient groups
  */
-function drawSection(doc, title, content, x, y, width, isIngredients = false, scaledIngredients = []) {
+function getSortedGroups(scaledIngredients) {
+  const grouped = groupIngredients(scaledIngredients)
+  return Object.entries(grouped).sort(([keyA], [keyB]) => {
+    if (keyA === 'ungrouped') return -1
+    if (keyB === 'ungrouped') return 1
+    return 0
+  })
+}
+
+/**
+ * Draw recipe header info (name, servings, cost, weight, tags)
+ * When rotated, x/y coordinates work differently
+ */
+function drawRotatedHeader(doc, recipe, servings, x, y, maxWidth, recipeCost, recipeWeight) {
+  const lineHeight = BODY_FONT_SIZE * LINE_HEIGHT_FACTOR
+  let currentX = x
+  
+  // Recipe name
+  doc.setFontSize(TITLE_FONT_SIZE)
+  doc.setFont('helvetica', 'bold')
+  doc.text(recipe.name, currentX, y, { angle: 90 })
+  currentX += TITLE_FONT_SIZE * LINE_HEIGHT_FACTOR + 4
+  
+  // Meta info line: Servings, Cost, Weight
+  doc.setFontSize(SMALL_FONT_SIZE)
+  doc.setFont('helvetica', 'normal')
+  let metaText = `Servings: ${servings}`
+  if (recipeCost && recipeCost.total_cost !== null) {
+    metaText += `  •  Cost: $${recipeCost.total_cost.toFixed(2)}`
+  }
+  if (recipeWeight && recipeWeight.total_weight !== null) {
+    metaText += `  •  Weight: ${recipeWeight.total_weight.toFixed(0)}g`
+  }
+  doc.text(metaText, currentX, y, { angle: 90 })
+  currentX += lineHeight
+  
+  // Tags
+  if (recipe.tags && recipe.tags.length > 0) {
+    const tagsText = 'Tags: ' + recipe.tags.map(t => t.name).join(', ')
+    const tagLines = doc.splitTextToSize(tagsText, maxWidth - 20)
+    for (const line of tagLines) {
+      doc.text(line, currentX, y, { angle: 90 })
+      currentX += lineHeight
+    }
+  }
+  
+  currentX += 6 // Extra spacing after header
+  return currentX
+}
+
+/**
+ * Draw ingredient groups with full ingredients (for ingredients section)
+ */
+function drawRotatedIngredients(doc, scaledIngredients, x, y, maxWidth) {
+  const lineHeight = BODY_FONT_SIZE * LINE_HEIGHT_FACTOR
+  let currentX = x
+  
+  doc.setFontSize(SECTION_FONT_SIZE)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Ingredients', currentX, y, { angle: 90 })
+  currentX += SECTION_FONT_SIZE * LINE_HEIGHT_FACTOR + 4
+  
+  const sortedGroups = getSortedGroups(scaledIngredients)
+  
+  doc.setFontSize(BODY_FONT_SIZE)
+  for (const [groupKey, group] of sortedGroups) {
+    // Group name
+    if (groupKey !== 'ungrouped' && group.name) {
+      doc.setFont('helvetica', 'bold')
+      doc.text(group.name + ':', currentX, y, { angle: 90 })
+      doc.setFont('helvetica', 'normal')
+      currentX += lineHeight
+    }
+    
+    // Individual ingredients
+    for (const ing of group.ingredients) {
+      let text = '• '
+      if (ing.quantity && ing.displayUnit) {
+        text += `${formatRecipeUnits(ing.quantity, 2)} ${ing.displayUnit.abbreviation} `
+      }
+      text += ing.name
+      if (ing.notes) {
+        text += ` (${ing.notes})`
+      }
+      
+      const lines = doc.splitTextToSize(text, maxWidth - 20)
+      for (const line of lines) {
+        doc.text(line, currentX, y, { angle: 90 })
+        currentX += lineHeight
+      }
+    }
+    currentX += 2 // Small spacing between groups
+  }
+  
+  return currentX
+}
+
+/**
+ * Draw ingredient groups only (names, no individual ingredients) for instructions section
+ */
+function drawRotatedIngredientGroups(doc, scaledIngredients, x, y, maxWidth) {
+  const lineHeight = BODY_FONT_SIZE * LINE_HEIGHT_FACTOR
+  let currentX = x
+  
+  const sortedGroups = getSortedGroups(scaledIngredients)
+  const groupNames = sortedGroups
+    .filter(([key, group]) => key !== 'ungrouped' && group.name)
+    .map(([, group]) => group.name)
+  
+  if (groupNames.length > 0) {
+    doc.setFontSize(SMALL_FONT_SIZE)
+    doc.setFont('helvetica', 'normal')
+    const groupsText = 'Ingredient Groups: ' + groupNames.join(', ')
+    const lines = doc.splitTextToSize(groupsText, maxWidth - 20)
+    for (const line of lines) {
+      doc.text(line, currentX, y, { angle: 90 })
+      currentX += lineHeight
+    }
+    currentX += 4
+  }
+  
+  return currentX
+}
+
+/**
+ * Draw instructions section
+ */
+function drawRotatedInstructions(doc, instructions, x, y, maxWidth) {
+  const lineHeight = BODY_FONT_SIZE * LINE_HEIGHT_FACTOR
+  let currentX = x
+  
+  doc.setFontSize(SECTION_FONT_SIZE)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Instructions', currentX, y, { angle: 90 })
+  currentX += SECTION_FONT_SIZE * LINE_HEIGHT_FACTOR + 4
+  
+  doc.setFontSize(BODY_FONT_SIZE)
+  doc.setFont('helvetica', 'normal')
+  
+  const lines = doc.splitTextToSize(instructions || '', maxWidth - 20)
+  for (const line of lines) {
+    doc.text(line, currentX, y, { angle: 90 })
+    currentX += lineHeight
+  }
+  
+  return currentX
+}
+
+/**
+ * Render a recipe with two sections on a single page
+ * Top half: Ingredients section (rotated 90°)
+ * Bottom half: Instructions section (rotated 90°)
+ * Horizontal divider line across middle
+ * When cut in half, each section is portrait-oriented
+ */
+function renderRecipeTwoSection(doc, recipe, scaledIngredients, servings, recipeCost, recipeWeight) {
+  doc.setPage(doc.getNumberOfPages())
+  
+  const halfHeight = PAGE_HEIGHT_PT / 2
+  const sectionWidth = halfHeight - (2 * MARGIN_PT) // Width available for rotated text
+  
+  // Draw horizontal dividing line across middle
+  doc.setDrawColor(150, 150, 150)
+  doc.setLineWidth(1)
+  doc.line(MARGIN_PT, halfHeight, PAGE_WIDTH_PT - MARGIN_PT, halfHeight)
+  
+  // === TOP HALF: INGREDIENTS SECTION ===
+  // Text is rotated 90° CCW, so it reads correctly when the top half is rotated
+  // Start from left edge, text goes upward (toward top of page when rotated)
+  let topX = MARGIN_PT + SMALL_MARGIN_PT
+  const topY = halfHeight - SMALL_MARGIN_PT // Start near the divider line
+  
+  topX = drawRotatedHeader(doc, recipe, servings, topX, topY, sectionWidth, recipeCost, recipeWeight)
+  topX = drawRotatedIngredients(doc, scaledIngredients, topX, topY, sectionWidth)
+  
+  // === BOTTOM HALF: INSTRUCTIONS SECTION ===
+  // Same rotation, positioned in bottom half
+  let bottomX = MARGIN_PT + SMALL_MARGIN_PT
+  const bottomY = PAGE_HEIGHT_PT - SMALL_MARGIN_PT // Start at bottom edge
+  
+  bottomX = drawRotatedHeader(doc, recipe, servings, bottomX, bottomY, sectionWidth, recipeCost, recipeWeight)
+  bottomX = drawRotatedIngredientGroups(doc, scaledIngredients, bottomX, bottomY, sectionWidth)
+  bottomX = drawRotatedInstructions(doc, recipe.instructions, bottomX, bottomY, sectionWidth)
+}
+
+/**
+ * Draw standard (non-rotated) section for full-page layout
+ */
+function drawStandardSection(doc, title, content, x, y, width, isIngredients = false, scaledIngredients = []) {
   const lineHeight = BODY_FONT_SIZE * LINE_HEIGHT_FACTOR
   
-  // Section header
   doc.setFontSize(SECTION_FONT_SIZE)
   doc.setFont('helvetica', 'bold')
   doc.text(title, x, y)
@@ -101,43 +238,36 @@ function drawSection(doc, title, content, x, y, width, isIngredients = false, sc
   doc.setFont('helvetica', 'normal')
   
   if (isIngredients) {
-    const grouped = groupIngredients(scaledIngredients)
-    const sortedGroups = Object.entries(grouped).sort(([keyA], [keyB]) => {
-      if (keyA === 'ungrouped') return -1
-      if (keyB === 'ungrouped') return 1
-      return 0
-    })
+    const sortedGroups = getSortedGroups(scaledIngredients)
     
     for (const [groupKey, group] of sortedGroups) {
       if (groupKey !== 'ungrouped' && group.name) {
         doc.setFont('helvetica', 'bold')
-        doc.text(group.name, x, y)
+        doc.text(group.name + ':', x, y)
         doc.setFont('helvetica', 'normal')
         y += lineHeight
       }
       
       for (const ing of group.ingredients) {
-        const indent = groupKey !== 'ungrouped' ? 10 : 0
+        const indent = groupKey !== 'ungrouped' ? 15 : 0
         let text = '• '
         if (ing.quantity && ing.displayUnit) {
           text += `${formatRecipeUnits(ing.quantity, 2)} ${ing.displayUnit.abbreviation} `
         }
         text += ing.name
         if (ing.notes) {
-          text += ` — ${ing.notes}`
+          text += ` (${ing.notes})`
         }
         
-        // Wrap text if needed
         const lines = doc.splitTextToSize(text, width - indent)
         for (const line of lines) {
           doc.text(line, x + indent, y)
           y += lineHeight
         }
       }
-      y += 5 // Spacing between groups
+      y += 5
     }
   } else {
-    // Instructions - wrap text
     const lines = doc.splitTextToSize(content, width)
     for (const line of lines) {
       doc.text(line, x, y)
@@ -149,46 +279,9 @@ function drawSection(doc, title, content, x, y, width, isIngredients = false, sc
 }
 
 /**
- * Render a recipe on a single page with two-column layout
- * Ingredients on the left column, instructions on the right column
- * Both sections are displayed horizontally (not rotated) in portrait format
+ * Render a recipe in standard full-page layout (for longer recipes)
  */
-function renderRecipeTwoColumn(doc, recipe, scaledIngredients, servings) {
-  doc.setPage(doc.getNumberOfPages())
-  
-  const halfWidth = PAGE_WIDTH_PT / 2
-  const columnWidth = halfWidth - MARGIN_PT - 10 // Width for each column
-  
-  // Draw centered title at the top
-  doc.setFontSize(TITLE_FONT_SIZE)
-  doc.setFont('helvetica', 'bold')
-  let headerY = MARGIN_PT + TITLE_FONT_SIZE
-  doc.text(recipe.name, PAGE_WIDTH_PT / 2, headerY, { align: 'center' })
-  headerY += TITLE_FONT_SIZE + 5
-  
-  // Servings info
-  doc.setFontSize(BODY_FONT_SIZE)
-  doc.setFont('helvetica', 'normal')
-  doc.text(`Servings: ${servings}`, PAGE_WIDTH_PT / 2, headerY, { align: 'center' })
-  headerY += 20
-  
-  // Draw a dividing line down the middle
-  doc.setDrawColor(200, 200, 200)
-  doc.line(halfWidth, headerY, halfWidth, PAGE_HEIGHT_PT - MARGIN_PT)
-  
-  // Left column - Ingredients
-  const contentStartY = headerY + 5
-  drawSection(doc, 'Ingredients', '', MARGIN_PT, contentStartY, columnWidth, true, scaledIngredients)
-  
-  // Right column - Instructions
-  const rightColumnX = halfWidth + 10
-  drawSection(doc, 'Instructions', recipe.instructions || '', rightColumnX, contentStartY, columnWidth, false)
-}
-
-/**
- * Render a recipe across one or more pages in standard portrait layout
- */
-function renderRecipeStandard(doc, recipe, scaledIngredients, servings) {
+function renderRecipeStandard(doc, recipe, scaledIngredients, servings, recipeCost, recipeWeight) {
   const contentWidth = PAGE_WIDTH_PT - (2 * MARGIN_PT)
   let y = MARGIN_PT
   
@@ -196,38 +289,73 @@ function renderRecipeStandard(doc, recipe, scaledIngredients, servings) {
   doc.setFontSize(TITLE_FONT_SIZE)
   doc.setFont('helvetica', 'bold')
   doc.text(recipe.name, PAGE_WIDTH_PT / 2, y + TITLE_FONT_SIZE, { align: 'center' })
-  y += TITLE_FONT_SIZE * LINE_HEIGHT_FACTOR + 10
+  y += TITLE_FONT_SIZE * LINE_HEIGHT_FACTOR + 8
   
-  // Servings info
-  doc.setFontSize(BODY_FONT_SIZE)
+  // Meta info
+  doc.setFontSize(SMALL_FONT_SIZE)
   doc.setFont('helvetica', 'normal')
-  doc.text(`Servings: ${servings}`, PAGE_WIDTH_PT / 2, y, { align: 'center' })
-  y += 25
+  let metaText = `Servings: ${servings}`
+  if (recipeCost && recipeCost.total_cost !== null) {
+    metaText += `  •  Cost: $${recipeCost.total_cost.toFixed(2)}`
+  }
+  if (recipeWeight && recipeWeight.total_weight !== null) {
+    metaText += `  •  Weight: ${recipeWeight.total_weight.toFixed(0)}g`
+  }
+  doc.text(metaText, PAGE_WIDTH_PT / 2, y, { align: 'center' })
+  y += 12
+  
+  // Tags
+  if (recipe.tags && recipe.tags.length > 0) {
+    const tagsText = 'Tags: ' + recipe.tags.map(t => t.name).join(', ')
+    doc.text(tagsText, PAGE_WIDTH_PT / 2, y, { align: 'center' })
+    y += 15
+  } else {
+    y += 8
+  }
   
   // Ingredients section
-  y = drawSection(doc, 'Ingredients', '', MARGIN_PT, y, contentWidth, true, scaledIngredients)
+  y = drawStandardSection(doc, 'Ingredients', '', MARGIN_PT, y, contentWidth, true, scaledIngredients)
   y += 15
   
-  // Check if we need a new page for instructions
+  // Check if we need a new page
   const remainingHeight = PAGE_HEIGHT_PT - y - MARGIN_PT
-  doc.setFontSize(BODY_FONT_SIZE)
-  const instructionsLines = doc.splitTextToSize(recipe.instructions || '', contentWidth)
-  const instructionsHeight = SECTION_FONT_SIZE * LINE_HEIGHT_FACTOR + 10 + 
-    (instructionsLines.length * BODY_FONT_SIZE * LINE_HEIGHT_FACTOR)
-  
-  if (instructionsHeight > remainingHeight && remainingHeight < MIN_REMAINING_HEIGHT) {
+  if (remainingHeight < MIN_REMAINING_HEIGHT) {
     doc.addPage()
     y = MARGIN_PT
   }
   
   // Instructions section
-  drawSection(doc, 'Instructions', recipe.instructions || '', MARGIN_PT, y, contentWidth, false)
+  drawStandardSection(doc, 'Instructions', recipe.instructions || '', MARGIN_PT, y, contentWidth, false)
+}
+
+/**
+ * Estimate if content will fit in two-section layout
+ */
+function estimateFitsInTwoSections(recipe, scaledIngredients, doc) {
+  const lineHeight = BODY_FONT_SIZE * LINE_HEIGHT_FACTOR
+  const sectionHeight = (PAGE_HEIGHT_PT / 2) - (2 * MARGIN_PT)
+  const maxLines = Math.floor(sectionHeight / lineHeight)
+  
+  // Count ingredient lines
+  let ingredientLines = 5 // Header lines
+  const sortedGroups = getSortedGroups(scaledIngredients)
+  for (const [groupKey, group] of sortedGroups) {
+    if (groupKey !== 'ungrouped' && group.name) ingredientLines++
+    ingredientLines += group.ingredients.length
+  }
+  
+  // Count instruction lines
+  doc.setFontSize(BODY_FONT_SIZE)
+  const instructionLines = doc.splitTextToSize(recipe.instructions || '', PAGE_WIDTH_PT - 60).length + 8
+  
+  // Check if both sections fit
+  return ingredientLines < maxLines * 0.85 && instructionLines < maxLines * 0.85
 }
 
 /**
  * Generate a PDF containing one or more recipes
  * @param {Array} recipes - Array of recipe objects with their scaled ingredients
- *   Each item should have: { recipe, scaledIngredients, servings }
+ *   Each item should have: { recipe, scaledIngredients, servings, recipeCost, recipeWeight }
  * @param {string} filename - Output filename
  */
 export function generateRecipesPDF(recipes, filename = 'recipes.pdf') {
@@ -238,28 +366,22 @@ export function generateRecipesPDF(recipes, filename = 'recipes.pdf') {
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'pt',
-    format: 'letter' // 8.5" x 11"
+    format: 'letter'
   })
   
   for (let i = 0; i < recipes.length; i++) {
-    const { recipe, scaledIngredients, servings } = recipes[i]
+    const { recipe, scaledIngredients, servings, recipeCost, recipeWeight } = recipes[i]
     
     if (i > 0) {
       doc.addPage()
     }
     
-    // Estimate content height to determine layout
-    const heights = estimateContentHeight(recipe, scaledIngredients, servings, doc)
-    const availableHeight = PAGE_HEIGHT_PT - (2 * MARGIN_PT)
+    const fitsInTwoSections = estimateFitsInTwoSections(recipe, scaledIngredients, doc)
     
-    // If content fits in about half the page height, use two-column side-by-side layout
-    // Otherwise use standard vertical layout
-    const fitsOnHalfPage = heights.totalHeight < (availableHeight * TWO_COLUMN_LAYOUT_THRESHOLD)
-    
-    if (fitsOnHalfPage) {
-      renderRecipeTwoColumn(doc, recipe, scaledIngredients, servings)
+    if (fitsInTwoSections) {
+      renderRecipeTwoSection(doc, recipe, scaledIngredients, servings, recipeCost, recipeWeight)
     } else {
-      renderRecipeStandard(doc, recipe, scaledIngredients, servings)
+      renderRecipeStandard(doc, recipe, scaledIngredients, servings, recipeCost, recipeWeight)
     }
   }
   
@@ -269,10 +391,10 @@ export function generateRecipesPDF(recipes, filename = 'recipes.pdf') {
 /**
  * Generate a PDF for a single recipe
  */
-export function generateSingleRecipePDF(recipe, scaledIngredients, servings, filename) {
+export function generateSingleRecipePDF(recipe, scaledIngredients, servings, filename, recipeCost, recipeWeight) {
   const recipeName = recipe.name.replace(/[^a-zA-Z0-9]/g, '_')
   generateRecipesPDF(
-    [{ recipe, scaledIngredients, servings }],
+    [{ recipe, scaledIngredients, servings, recipeCost, recipeWeight }],
     filename || `${recipeName}.pdf`
   )
 }
