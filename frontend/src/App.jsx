@@ -5,6 +5,7 @@ import Login from './components/Login'
 import AdminDashboard from './components/AdminDashboard'
 import UserView from './components/UserView'
 import Settings from './components/Settings'
+import RecipeLists from './components/RecipeLists'
 
 // Test database warning banner component
 function TestDatabaseBanner() {
@@ -100,6 +101,7 @@ export default function App() {
           <h1>Recipes</h1>
           <nav>
             <NavLink to="/" end>Browse Recipes</NavLink>
+            <NavLink to="/my-lists">My Lists</NavLink>
             {user.role === 'admin' && (
               <NavLink to="/admin">Admin Dashboard</NavLink>
             )}
@@ -111,6 +113,7 @@ export default function App() {
       <main>
         <Routes>
           <Route path="/" element={<UserView user={user} />} />
+          <Route path="/my-lists" element={<RecipeLists user={user} />} />
           <Route path="/settings" element={<Settings user={user} />} />
           {user.role === 'admin' ? (
             <Route path="/admin" element={<AdminDashboard />} />

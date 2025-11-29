@@ -163,6 +163,35 @@ class RecipeTag(db.Model):
     tag = relationship("Tag", back_populates="recipes")
 
 
+class RecipeList(db.Model):
+    __tablename__ = 'Recipe_Lists'
+    list_id = Column(Integer, primary_key=True)
+    user_id = Column(String(36), ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    name = Column(String(255), nullable=False)
+    created_at = Column(DateTime, server_default=db.func.current_timestamp())
+    updated_at = Column(DateTime, server_default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+
+    # Relationships
+    items = relationship("RecipeListItem", back_populates="recipe_list", cascade="all, delete-orphan")
+
+
+class RecipeListItem(db.Model):
+    __tablename__ = 'Recipe_List_Items'
+    item_id = Column(Integer, primary_key=True)
+    list_id = Column(Integer, ForeignKey('Recipe_Lists.list_id', ondelete='CASCADE'), nullable=False)
+    recipe_id = Column(Integer, ForeignKey('Recipes.recipe_id', ondelete='CASCADE'), nullable=False)
+    servings = Column(Integer, default=1, nullable=False)
+    variant_id = Column(Integer, ForeignKey('Recipes.recipe_id', ondelete='SET NULL'))
+    notes = Column(String(255))
+    created_at = Column(DateTime, server_default=db.func.current_timestamp())
+    updated_at = Column(DateTime, server_default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
+
+    # Relationships
+    recipe_list = relationship("RecipeList", back_populates="items")
+    recipe = relationship("Recipe", foreign_keys=[recipe_id])
+    variant = relationship("Recipe", foreign_keys=[variant_id])
+
+
 # --- 3. Serialization Helpers (Converting SQLAlchemy objects to JSON) ---
 
 def serialize_recipe_ingredient(ri, include_cost=False, include_weight=False, units_dict=None):
@@ -307,6 +336,35 @@ def serialize_tag(tag):
         'tag_id': tag.tag_id,
         'name': tag.name,
         'description': tag.description
+    }
+
+def serialize_recipe_list(recipe_list, include_items=True):
+    """Converts a RecipeList ORM object to a dictionary."""
+    result = {
+        'list_id': recipe_list.list_id,
+        'user_id': recipe_list.user_id,
+        'name': recipe_list.name,
+        'created_at': recipe_list.created_at.isoformat() if recipe_list.created_at else None,
+        'updated_at': recipe_list.updated_at.isoformat() if recipe_list.updated_at else None,
+        'item_count': len(recipe_list.items) if recipe_list.items else 0
+    }
+    if include_items:
+        result['items'] = [serialize_recipe_list_item(item) for item in recipe_list.items]
+    return result
+
+def serialize_recipe_list_item(item):
+    """Converts a RecipeListItem ORM object to a dictionary."""
+    return {
+        'item_id': item.item_id,
+        'list_id': item.list_id,
+        'recipe_id': item.recipe_id,
+        'recipe_name': item.recipe.name if item.recipe else None,
+        'servings': item.servings,
+        'variant_id': item.variant_id,
+        'variant_name': item.variant.name if item.variant else None,
+        'notes': item.notes,
+        'created_at': item.created_at.isoformat() if item.created_at else None,
+        'updated_at': item.updated_at.isoformat() if item.updated_at else None
     }
 
 # --- Cost Calculation Helpers ---
@@ -1229,6 +1287,276 @@ def tag(tag_id):
             return jsonify({"error": "Failed to delete tag"}), 500
     else:
         return jsonify({"error": "Method not allowed."}), 405
+
+
+# --- Recipe Lists Endpoints ---
+
+@app.route("/api/recipe-lists", methods=['GET', 'POST'])
+@login_required
+def recipe_lists():
+    """Endpoint for listing user's recipe lists (GET) or creating new lists (POST)."""
+    from auth import get_current_user
+    user = get_current_user()
+    
+    if request.method == 'GET':
+        try:
+            lists = db.session.execute(
+                db.select(RecipeList).filter_by(user_id=user.id).order_by(RecipeList.name)
+            ).scalars().all()
+            return jsonify([serialize_recipe_list(lst, include_items=False) for lst in lists])
+        except Exception as e:
+            print(f"Database error in get_recipe_lists: {e}")
+            return jsonify({"error": "Failed to fetch recipe lists from database."}), 500
+    elif request.method == 'POST':
+        try:
+            data = request.get_json()
+            name = data.get('name')
+            
+            if not name or not name.strip():
+                return jsonify({"error": "List name is required"}), 400
+            
+            new_list = RecipeList(
+                user_id=user.id,
+                name=name.strip()
+            )
+            
+            db.session.add(new_list)
+            db.session.commit()
+            return jsonify(serialize_recipe_list(new_list)), 201
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error creating recipe list: {e}")
+            return jsonify({"error": "Failed to create recipe list"}), 500
+
+
+@app.route('/api/recipe-lists/<int:list_id>', methods=['GET', 'PUT', 'DELETE'])
+@login_required
+def recipe_list(list_id):
+    """Endpoint for getting, updating, or deleting a specific recipe list."""
+    from auth import get_current_user
+    user = get_current_user()
+    
+    try:
+        recipe_list = db.session.execute(
+            db.select(RecipeList).filter_by(list_id=list_id, user_id=user.id)
+        ).scalar_one_or_none()
+        if recipe_list is None:
+            return jsonify({"error": "Recipe list not found."}), 404
+    except Exception as e:
+        return jsonify({"error": "Failed to fetch recipe list from database."}), 500
+    
+    if request.method == 'GET':
+        return jsonify(serialize_recipe_list(recipe_list))
+    elif request.method == 'PUT':
+        try:
+            data = request.get_json()
+            
+            if 'name' in data:
+                name = data['name']
+                if not name or not name.strip():
+                    return jsonify({"error": "List name cannot be empty"}), 400
+                recipe_list.name = name.strip()
+            
+            db.session.commit()
+            return jsonify(serialize_recipe_list(recipe_list))
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error updating recipe list: {e}")
+            return jsonify({"error": "Failed to update recipe list"}), 500
+    elif request.method == 'DELETE':
+        try:
+            db.session.delete(recipe_list)
+            db.session.commit()
+            return jsonify({"message": "Recipe list deleted successfully"}), 200
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error deleting recipe list: {e}")
+            return jsonify({"error": "Failed to delete recipe list"}), 500
+    else:
+        return jsonify({"error": "Method not allowed."}), 405
+
+
+@app.route('/api/recipe-lists/<int:list_id>/items', methods=['GET', 'POST'])
+@login_required
+def recipe_list_items(list_id):
+    """Endpoint for listing items in a recipe list (GET) or adding a recipe to the list (POST)."""
+    from auth import get_current_user
+    user = get_current_user()
+    
+    # Verify list ownership
+    try:
+        recipe_list = db.session.execute(
+            db.select(RecipeList).filter_by(list_id=list_id, user_id=user.id)
+        ).scalar_one_or_none()
+        if recipe_list is None:
+            return jsonify({"error": "Recipe list not found."}), 404
+    except Exception as e:
+        return jsonify({"error": "Failed to fetch recipe list from database."}), 500
+    
+    if request.method == 'GET':
+        try:
+            items = db.session.execute(
+                db.select(RecipeListItem).filter_by(list_id=list_id)
+            ).scalars().all()
+            return jsonify([serialize_recipe_list_item(item) for item in items])
+        except Exception as e:
+            print(f"Database error in get_recipe_list_items: {e}")
+            return jsonify({"error": "Failed to fetch recipe list items from database."}), 500
+    elif request.method == 'POST':
+        try:
+            data = request.get_json()
+            recipe_id = data.get('recipe_id')
+            servings = data.get('servings', 1)
+            variant_id = data.get('variant_id')
+            notes = data.get('notes')
+            
+            if not recipe_id:
+                return jsonify({"error": "Recipe ID is required"}), 400
+            
+            # Verify recipe exists
+            recipe = db.session.execute(
+                db.select(Recipe).filter_by(recipe_id=recipe_id)
+            ).scalar_one_or_none()
+            if recipe is None:
+                return jsonify({"error": "Recipe not found."}), 404
+            
+            # Check if recipe is already in list
+            existing_item = db.session.execute(
+                db.select(RecipeListItem).filter_by(list_id=list_id, recipe_id=recipe_id)
+            ).scalar_one_or_none()
+            if existing_item:
+                return jsonify({"error": "Recipe is already in this list"}), 400
+            
+            # Verify variant exists and is a variant of this recipe (if provided)
+            if variant_id:
+                variant = db.session.execute(
+                    db.select(Recipe).filter_by(recipe_id=variant_id)
+                ).scalar_one_or_none()
+                if variant is None:
+                    return jsonify({"error": "Variant not found."}), 404
+                # Validate that variant is actually a variant of the specified recipe
+                if variant.parent_recipe_id != recipe_id:
+                    return jsonify({"error": "The specified variant is not a variant of this recipe."}), 400
+            
+            new_item = RecipeListItem(
+                list_id=list_id,
+                recipe_id=recipe_id,
+                servings=servings if servings and servings > 0 else 1,
+                variant_id=variant_id,
+                notes=notes
+            )
+            
+            db.session.add(new_item)
+            db.session.commit()
+            return jsonify(serialize_recipe_list_item(new_item)), 201
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error adding recipe to list: {e}")
+            return jsonify({"error": "Failed to add recipe to list"}), 500
+
+
+@app.route('/api/recipe-lists/<int:list_id>/items/<int:item_id>', methods=['GET', 'PUT', 'DELETE'])
+@login_required
+def recipe_list_item(list_id, item_id):
+    """Endpoint for getting, updating, or removing a specific recipe from a list."""
+    from auth import get_current_user
+    user = get_current_user()
+    
+    # Verify list ownership
+    try:
+        recipe_list = db.session.execute(
+            db.select(RecipeList).filter_by(list_id=list_id, user_id=user.id)
+        ).scalar_one_or_none()
+        if recipe_list is None:
+            return jsonify({"error": "Recipe list not found."}), 404
+    except Exception as e:
+        return jsonify({"error": "Failed to fetch recipe list from database."}), 500
+    
+    # Get the item
+    try:
+        item = db.session.execute(
+            db.select(RecipeListItem).filter_by(item_id=item_id, list_id=list_id)
+        ).scalar_one_or_none()
+        if item is None:
+            return jsonify({"error": "Item not found in list."}), 404
+    except Exception as e:
+        return jsonify({"error": "Failed to fetch item from database."}), 500
+    
+    if request.method == 'GET':
+        return jsonify(serialize_recipe_list_item(item))
+    elif request.method == 'PUT':
+        try:
+            data = request.get_json()
+            
+            if 'servings' in data:
+                servings = data['servings']
+                if servings and servings > 0:
+                    item.servings = servings
+            if 'variant_id' in data:
+                variant_id = data['variant_id']
+                if variant_id:
+                    # Verify variant exists
+                    variant = db.session.execute(
+                        db.select(Recipe).filter_by(recipe_id=variant_id)
+                    ).scalar_one_or_none()
+                    if variant is None:
+                        return jsonify({"error": "Variant not found."}), 404
+                    # Validate that variant is actually a variant of the item's recipe
+                    if variant.parent_recipe_id != item.recipe_id:
+                        return jsonify({"error": "The specified variant is not a variant of this recipe."}), 400
+                item.variant_id = variant_id
+            if 'notes' in data:
+                item.notes = data['notes']
+            
+            db.session.commit()
+            return jsonify(serialize_recipe_list_item(item))
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error updating recipe list item: {e}")
+            return jsonify({"error": "Failed to update recipe list item"}), 500
+    elif request.method == 'DELETE':
+        try:
+            db.session.delete(item)
+            db.session.commit()
+            return jsonify({"message": "Recipe removed from list successfully"}), 200
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error removing recipe from list: {e}")
+            return jsonify({"error": "Failed to remove recipe from list"}), 500
+    else:
+        return jsonify({"error": "Method not allowed."}), 405
+
+
+@app.route('/api/recipes/<int:recipe_id>/lists', methods=['GET'])
+@login_required
+def recipe_list_membership(recipe_id):
+    """Get all lists that contain a specific recipe for the current user."""
+    from auth import get_current_user
+    user = get_current_user()
+    
+    try:
+        # Get all list items for this recipe that belong to the user's lists
+        items = db.session.execute(
+            db.select(RecipeListItem)
+            .join(RecipeList)
+            .filter(RecipeListItem.recipe_id == recipe_id)
+            .filter(RecipeList.user_id == user.id)
+        ).scalars().all()
+        
+        result = []
+        for item in items:
+            result.append({
+                'list_id': item.recipe_list.list_id,
+                'list_name': item.recipe_list.name,
+                'item_id': item.item_id,
+                'servings': item.servings,
+                'variant_id': item.variant_id
+            })
+        
+        return jsonify(result)
+    except Exception as e:
+        print(f"Error fetching recipe list membership: {e}")
+        return jsonify({"error": "Failed to fetch recipe list membership"}), 500
 
 
 # --- 5. Register Authentication Blueprint ---

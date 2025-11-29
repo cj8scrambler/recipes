@@ -25,12 +25,20 @@ export default function UserView({ user }) {
   const [recipeCost, setRecipeCost] = useState(null)
   const [recipeWeight, setRecipeWeight] = useState(null)
   
+  // Recipe lists state
+  const [recipeLists, setRecipeLists] = useState([])
+  const [listMembership, setListMembership] = useState([])
+  const [showAddToList, setShowAddToList] = useState(false)
+  const [newListName, setNewListName] = useState('')
+  const [addToListLoading, setAddToListLoading] = useState(false)
+  
   // Use user's setting for preferred unit system, fallback to 'US Customary'
   const preferredSystem = user?.settings?.unit === 'metric' ? 'Metric' : 'US Customary'
 
   useEffect(() => {
     loadRecipes()
     loadUnits()
+    loadRecipeLists()
   }, [])
 
   async function loadRecipes() {
@@ -51,6 +59,25 @@ export default function UserView({ user }) {
     }
   }
 
+  async function loadRecipeLists() {
+    try {
+      const lists = await api.listRecipeLists()
+      setRecipeLists(lists || [])
+    } catch (err) {
+      console.error('Failed to load recipe lists:', err)
+    }
+  }
+
+  async function loadListMembership(recipeId) {
+    try {
+      const membership = await api.getRecipeListMembership(recipeId)
+      setListMembership(membership || [])
+    } catch (err) {
+      console.error('Failed to load list membership:', err)
+      setListMembership([])
+    }
+  }
+
   async function selectRecipe(recipe) {
     setSelected(null)
     setVersions([])
@@ -59,12 +86,16 @@ export default function UserView({ user }) {
     setScaleInput(DEFAULT_SERVINGS_STR)
     setRecipeCost(null)
     setRecipeWeight(null)
+    setListMembership([])
+    setShowAddToList(false)
     try {
       const full = await api.getRecipe(recipe.recipe_id)
       setSelected(full)
       // Load recipe cost and weight
       loadRecipeCost(recipe.recipe_id, DEFAULT_SERVINGS)
       loadRecipeWeight(recipe.recipe_id, DEFAULT_SERVINGS)
+      // Load list membership
+      loadListMembership(recipe.recipe_id)
       // Attempt to fetch versions; backend may not provide — handle gracefully
       try {
         const vs = await api.listRecipeVersions(recipe.recipe_id)
@@ -274,9 +305,60 @@ export default function UserView({ user }) {
       setScaleInput(DEFAULT_SERVINGS_STR)
       loadRecipeCost(variant.recipe_id, DEFAULT_SERVINGS)
       loadRecipeWeight(variant.recipe_id, DEFAULT_SERVINGS)
+      // Update list membership for the variant recipe
+      loadListMembership(variant.recipe_id)
     } catch (err) {
       setError(err.message)
     }
+  }
+
+  // Add recipe to existing list
+  async function addToExistingList(listId) {
+    if (!selected) return
+    setAddToListLoading(true)
+    try {
+      await api.addRecipeToList(listId, {
+        recipe_id: selected.recipe_id,
+        servings: Math.round(scale) || 1,
+        variant_id: selectedVersion?.recipe_id || null
+      })
+      await loadListMembership(selected.recipe_id)
+      await loadRecipeLists()
+      setShowAddToList(false)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setAddToListLoading(false)
+    }
+  }
+
+  // Create new list and add recipe to it
+  async function createListAndAdd(e) {
+    e.preventDefault()
+    if (!newListName.trim() || !selected) return
+    setAddToListLoading(true)
+    try {
+      const newList = await api.createRecipeList({ name: newListName.trim() })
+      await api.addRecipeToList(newList.list_id, {
+        recipe_id: selected.recipe_id,
+        servings: Math.round(scale) || 1,
+        variant_id: selectedVersion?.recipe_id || null
+      })
+      setNewListName('')
+      await loadListMembership(selected.recipe_id)
+      await loadRecipeLists()
+      setShowAddToList(false)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setAddToListLoading(false)
+    }
+  }
+
+  // Get lists that don't contain this recipe
+  function getAvailableLists() {
+    const memberListIds = listMembership.map(m => m.list_id)
+    return recipeLists.filter(list => !memberListIds.includes(list.list_id))
   }
 
   return (
@@ -352,6 +434,69 @@ export default function UserView({ user }) {
                 </select>
               </div>
             )}
+            
+            {/* Recipe Lists Section */}
+            <div className="recipe-lists-section">
+              {listMembership.length > 0 && (
+                <div className="list-membership">
+                  <span className="label">In lists:</span>
+                  {listMembership.map(m => (
+                    <span key={m.list_id} className="list-tag">
+                      {m.list_name}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <button 
+                className="add-to-list-btn small"
+                onClick={() => setShowAddToList(!showAddToList)}
+              >
+                {showAddToList ? '✕ Close' : '+ Save to List'}
+              </button>
+            </div>
+
+            {/* Add to List Dropdown */}
+            {showAddToList && (
+              <div className="add-to-list-dropdown">
+                <div className="dropdown-header">Save to Recipe List</div>
+                {getAvailableLists().length > 0 && (
+                  <div className="existing-lists">
+                    {getAvailableLists().map(list => (
+                      <button
+                        key={list.list_id}
+                        className="list-option"
+                        onClick={() => addToExistingList(list.list_id)}
+                        disabled={addToListLoading}
+                      >
+                        {list.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <form onSubmit={createListAndAdd} className="create-new-list">
+                  <input
+                    type="text"
+                    placeholder="Create new list..."
+                    value={newListName}
+                    onChange={(e) => setNewListName(e.target.value)}
+                  />
+                  <button type="submit" disabled={addToListLoading || !newListName.trim()}>
+                    Create & Add
+                  </button>
+                </form>
+                <p className="add-note" style={{ 
+                  marginTop: '0.75rem',
+                  padding: '0.5rem',
+                  backgroundColor: 'var(--bg-tertiary)',
+                  borderRadius: 'var(--border-radius-sm)',
+                  fontWeight: 500
+                }}>
+                  📋 Saving with <strong>{Math.round(scale)} servings</strong>
+                  {selectedVersion && ` • ${selectedVersion.variant_notes || selectedVersion.name}`}
+                </p>
+              </div>
+            )}
+
             <div className="meta">
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <label style={{ marginBottom: 0 }}>Servings</label>

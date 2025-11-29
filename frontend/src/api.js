@@ -89,5 +89,22 @@ export const api = {
   adminListIngredientTypes: () => request('/ingredient-types'),
   adminCreateIngredientType: (payload) => request('/ingredient-types', { method: 'POST', body: JSON.stringify(payload) }),
   adminUpdateIngredientType: (id, payload) => request(`/ingredient-types/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
-  adminDeleteIngredientType: (id) => request(`/ingredient-types/${id}`, { method: 'DELETE' })
+  adminDeleteIngredientType: (id) => request(`/ingredient-types/${id}`, { method: 'DELETE' }),
+
+  // Recipe Lists
+  listRecipeLists: () => request('/recipe-lists'),
+  createRecipeList: (payload) => request('/recipe-lists', { method: 'POST', body: JSON.stringify(payload) }),
+  getRecipeList: (listId) => request(`/recipe-lists/${listId}`),
+  updateRecipeList: (listId, payload) => request(`/recipe-lists/${listId}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  deleteRecipeList: (listId) => request(`/recipe-lists/${listId}`, { method: 'DELETE' }),
+  
+  // Recipe List Items
+  listRecipeListItems: (listId) => request(`/recipe-lists/${listId}/items`),
+  addRecipeToList: (listId, payload) => request(`/recipe-lists/${listId}/items`, { method: 'POST', body: JSON.stringify(payload) }),
+  getRecipeListItem: (listId, itemId) => request(`/recipe-lists/${listId}/items/${itemId}`),
+  updateRecipeListItem: (listId, itemId, payload) => request(`/recipe-lists/${listId}/items/${itemId}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  removeRecipeFromList: (listId, itemId) => request(`/recipe-lists/${listId}/items/${itemId}`, { method: 'DELETE' }),
+  
+  // Recipe List Membership (get which lists contain a recipe)
+  getRecipeListMembership: (recipeId) => request(`/recipes/${recipeId}/lists`)
 }
