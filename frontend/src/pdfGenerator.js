@@ -6,7 +6,8 @@ const PAGE_WIDTH_PT = 612 // 8.5"
 const PAGE_HEIGHT_PT = 792 // 11"
 const MARGIN_PT = 20 // margin for rotated sections
 const SMALL_MARGIN_PT = 10
-const LEFT_PADDING = 25 // Extra padding from left edge of each half-page section
+const LEFT_PADDING = 45 // Extra padding from left edge of each half-page section
+const SECTION_SPACING = 15 // Extra vertical space before major sections like Ingredients/Instructions
 
 // Font sizes - scaled up more for better readability
 const TITLE_FONT_SIZE = 20
@@ -141,12 +142,12 @@ function drawRotatedHeader(doc, recipe, servings, x, y, maxWidth, recipeCost, re
  */
 function drawRotatedIngredients(doc, scaledIngredients, x, y, maxWidth) {
   const lineHeight = BODY_FONT_SIZE * LINE_HEIGHT_FACTOR
-  let currentX = x
+  let currentX = x + SECTION_SPACING // Add extra space before Ingredients section
   
   doc.setFontSize(SECTION_FONT_SIZE)
   doc.setFont('helvetica', 'bold')
   doc.text('Ingredients', currentX, y, { angle: 90 })
-  currentX += SECTION_FONT_SIZE * LINE_HEIGHT_FACTOR + 4
+  currentX += SECTION_FONT_SIZE * LINE_HEIGHT_FACTOR + 8
   
   const sortedGroups = getSortedGroups(scaledIngredients)
   
@@ -191,13 +192,13 @@ function drawRotatedIngredients(doc, scaledIngredients, x, y, maxWidth) {
  */
 function drawRotatedIngredientsSummary(doc, scaledIngredients, x, y, maxWidth) {
   const lineHeight = BODY_FONT_SIZE * LINE_HEIGHT_FACTOR
-  let currentX = x
+  let currentX = x + SECTION_SPACING // Add extra space before Ingredients section
   
   // Section header - just "Ingredients"
   doc.setFontSize(SECTION_FONT_SIZE)
   doc.setFont('helvetica', 'bold')
   doc.text('Ingredients', currentX, y, { angle: 90 })
-  currentX += SECTION_FONT_SIZE * LINE_HEIGHT_FACTOR + 6
+  currentX += SECTION_FONT_SIZE * LINE_HEIGHT_FACTOR + 10
   
   const sortedGroups = getSortedGroups(scaledIngredients)
   
@@ -232,12 +233,12 @@ function drawRotatedIngredientsSummary(doc, scaledIngredients, x, y, maxWidth) {
  */
 function drawRotatedInstructions(doc, instructions, x, y, maxWidth) {
   const lineHeight = BODY_FONT_SIZE * LINE_HEIGHT_FACTOR
-  let currentX = x
+  let currentX = x + SECTION_SPACING // Add extra space before Instructions section
   
   doc.setFontSize(SECTION_FONT_SIZE)
   doc.setFont('helvetica', 'bold')
   doc.text('Instructions', currentX, y, { angle: 90 })
-  currentX += SECTION_FONT_SIZE * LINE_HEIGHT_FACTOR + 4
+  currentX += SECTION_FONT_SIZE * LINE_HEIGHT_FACTOR + 8
   
   doc.setFontSize(BODY_FONT_SIZE)
   doc.setFont('helvetica', 'normal')
@@ -273,7 +274,7 @@ function renderRecipeTwoSection(doc, recipe, scaledIngredients, servings, recipe
   // Text is rotated 90° CCW, so it reads correctly when the top half is rotated
   // Start from left edge with extra padding, text goes upward (toward top of page when rotated)
   let topX = MARGIN_PT + LEFT_PADDING
-  const topY = halfHeight - SMALL_MARGIN_PT // Start near the divider line
+  const topY = halfHeight - SMALL_MARGIN_PT - LEFT_PADDING // Offset from divider to add left margin when rotated
   
   topX = drawRotatedPackingHeader(doc, recipe, servings, topX, topY, sectionWidth, recipeCost, recipeWeight)
   topX = drawRotatedIngredients(doc, scaledIngredients, topX, topY, sectionWidth)
@@ -281,7 +282,7 @@ function renderRecipeTwoSection(doc, recipe, scaledIngredients, servings, recipe
   // === BOTTOM HALF: COOKING/INSTRUCTIONS SECTION ===
   // Same rotation, positioned in bottom half with extra padding
   let bottomX = MARGIN_PT + LEFT_PADDING
-  const bottomY = PAGE_HEIGHT_PT - SMALL_MARGIN_PT // Start at bottom edge
+  const bottomY = PAGE_HEIGHT_PT - SMALL_MARGIN_PT - LEFT_PADDING // Offset from edge to add left margin when rotated
   
   bottomX = drawRotatedHeader(doc, recipe, servings, bottomX, bottomY, sectionWidth, recipeCost, recipeWeight)
   bottomX = drawRotatedIngredientsSummary(doc, scaledIngredients, bottomX, bottomY, sectionWidth)
