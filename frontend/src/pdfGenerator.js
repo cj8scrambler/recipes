@@ -7,11 +7,11 @@ const PAGE_HEIGHT_PT = 792 // 11"
 const MARGIN_PT = 20 // margin for rotated sections
 const SMALL_MARGIN_PT = 10
 
-// Font sizes - scaled up for better readability
-const TITLE_FONT_SIZE = 16
-const SECTION_FONT_SIZE = 12
-const BODY_FONT_SIZE = 10
-const SMALL_FONT_SIZE = 9
+// Font sizes - scaled up more for better readability
+const TITLE_FONT_SIZE = 20
+const SECTION_FONT_SIZE = 14
+const BODY_FONT_SIZE = 12
+const SMALL_FONT_SIZE = 11
 const LINE_HEIGHT_FACTOR = 1.35
 
 // Layout thresholds
@@ -134,7 +134,8 @@ function drawRotatedHeader(doc, recipe, servings, x, y, maxWidth, recipeCost, re
 }
 
 /**
- * Draw ingredient groups with full ingredients (for ingredients section)
+ * Draw ingredient groups with full ingredients (for packing section)
+ * Ingredients under a group are indented
  */
 function drawRotatedIngredients(doc, scaledIngredients, x, y, maxWidth) {
   const lineHeight = BODY_FONT_SIZE * LINE_HEIGHT_FACTOR
@@ -157,7 +158,8 @@ function drawRotatedIngredients(doc, scaledIngredients, x, y, maxWidth) {
       currentX += lineHeight
     }
     
-    // Individual ingredients
+    // Individual ingredients - indented if part of a group
+    const indent = (groupKey !== 'ungrouped') ? 15 : 0
     for (const ing of group.ingredients) {
       let text = '• '
       if (ing.quantity && ing.displayUnit) {
@@ -168,9 +170,9 @@ function drawRotatedIngredients(doc, scaledIngredients, x, y, maxWidth) {
         text += ` (${ing.notes})`
       }
       
-      const lines = doc.splitTextToSize(text, maxWidth - 20)
+      const lines = doc.splitTextToSize(text, maxWidth - 20 - indent)
       for (const line of lines) {
-        doc.text(line, currentX, y, { angle: 90 })
+        doc.text(line, currentX, y - indent, { angle: 90 })
         currentX += lineHeight
       }
     }
@@ -181,8 +183,9 @@ function drawRotatedIngredients(doc, scaledIngredients, x, y, maxWidth) {
 }
 
 /**
- * Draw ingredients/ingredient groups summary for the cooking section
- * Lists all ingredients (ungrouped and groups) with quantities and units
+ * Draw ingredients summary for the cooking section
+ * Lists all ingredients (ungrouped and groups) without quantities
+ * Ingredient groups are NOT bold - treated same as individual ingredients
  */
 function drawRotatedIngredientsSummary(doc, scaledIngredients, x, y, maxWidth) {
   const lineHeight = BODY_FONT_SIZE * LINE_HEIGHT_FACTOR
@@ -202,14 +205,9 @@ function drawRotatedIngredientsSummary(doc, scaledIngredients, x, y, maxWidth) {
   
   for (const [groupKey, group] of sortedGroups) {
     if (groupKey === 'ungrouped') {
-      // List each ungrouped ingredient with quantity and units (treat same as groups)
+      // List each ungrouped ingredient by name only (no quantities - already pre-measured)
       for (const ing of group.ingredients) {
-        let text = ''
-        if (ing.quantity && ing.displayUnit) {
-          text = `${formatRecipeUnits(ing.quantity, 2)} ${ing.displayUnit.abbreviation} ${ing.name}`
-        } else {
-          text = ing.name
-        }
+        let text = ing.name
         if (ing.notes) {
           text += ` (${ing.notes})`
         }
@@ -217,10 +215,8 @@ function drawRotatedIngredientsSummary(doc, scaledIngredients, x, y, maxWidth) {
         currentX += lineHeight
       }
     } else if (group.name) {
-      // List the group name (no quantity needed for groups)
-      doc.setFont('helvetica', 'bold')
+      // List the group name - NOT bold, treated same as individual ingredients
       doc.text('- ' + group.name, currentX, y, { angle: 90 })
-      doc.setFont('helvetica', 'normal')
       currentX += lineHeight
     }
   }
