@@ -6,6 +6,7 @@ from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Enum, ForeignKey, Column, Integer, String, Float, Boolean, DateTime
 from sqlalchemy.orm import relationship
+from sqlalchemy.exc import IntegrityError
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -851,13 +852,13 @@ def ingredients_list():
             db.session.add(new_ingredient)
             db.session.commit()
             return jsonify(serialize_ingredient(new_ingredient)), 201
+        except IntegrityError as e:
+            db.session.rollback()
+            print(f"IntegrityError creating ingredient: {e}")
+            # IntegrityError typically means duplicate name (unique constraint violation)
+            return jsonify({"error": "An ingredient with this name already exists"}), 409
         except Exception as e:
             db.session.rollback()
-            error_str = str(e).lower()
-            # Check for duplicate name error
-            if 'duplicate' in error_str or 'unique' in error_str:
-                print(f"Duplicate ingredient name: {data.get('name')}")
-                return jsonify({"error": f"An ingredient with the name '{data.get('name')}' already exists"}), 409
             print(f"Error creating ingredient: {e}")
             return jsonify({"error": "Failed to create ingredient"}), 500
 
