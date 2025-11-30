@@ -290,71 +290,22 @@ function renderRecipeTwoSection(doc, recipe, scaledIngredients, servings, recipe
 }
 
 /**
- * Draw standard (non-rotated) section for full-page layout
+ * Draw standard page header with recipe info
  */
-function drawStandardSection(doc, title, content, x, y, width, isIngredients = false, scaledIngredients = []) {
-  const lineHeight = BODY_FONT_SIZE * LINE_HEIGHT_FACTOR
+function drawStandardHeader(doc, recipe, servings, recipeCost, recipeWeight, sectionTitle) {
+  const contentWidth = PAGE_WIDTH_PT - (2 * MARGIN_PT)
+  let y = MARGIN_PT + LEFT_PADDING
   
+  // Section title (PACKING INSTRUCTIONS or COOKING INSTRUCTIONS)
   doc.setFontSize(SECTION_FONT_SIZE)
   doc.setFont('helvetica', 'bold')
-  doc.text(title, x, y)
-  y += SECTION_FONT_SIZE * LINE_HEIGHT_FACTOR + 5
+  doc.text(sectionTitle, PAGE_WIDTH_PT / 2, y, { align: 'center' })
+  y += SECTION_FONT_SIZE * LINE_HEIGHT_FACTOR + 8
   
-  doc.setFontSize(BODY_FONT_SIZE)
-  doc.setFont('helvetica', 'normal')
-  
-  if (isIngredients) {
-    const sortedGroups = getSortedGroups(scaledIngredients)
-    
-    for (const [groupKey, group] of sortedGroups) {
-      if (groupKey !== 'ungrouped' && group.name) {
-        doc.setFont('helvetica', 'bold')
-        doc.text(group.name + ':', x, y)
-        doc.setFont('helvetica', 'normal')
-        y += lineHeight
-      }
-      
-      for (const ing of group.ingredients) {
-        const indent = groupKey !== 'ungrouped' ? 15 : 0
-        let text = '• '
-        if (ing.quantity && ing.displayUnit) {
-          text += `${formatRecipeUnits(ing.quantity, 2)} ${ing.displayUnit.abbreviation} `
-        }
-        text += ing.name
-        if (ing.notes) {
-          text += ` (${ing.notes})`
-        }
-        
-        const lines = doc.splitTextToSize(text, width - indent)
-        for (const line of lines) {
-          doc.text(line, x + indent, y)
-          y += lineHeight
-        }
-      }
-      y += 5
-    }
-  } else {
-    const lines = doc.splitTextToSize(content, width)
-    for (const line of lines) {
-      doc.text(line, x, y)
-      y += lineHeight
-    }
-  }
-  
-  return y
-}
-
-/**
- * Render a recipe in standard full-page layout (for longer recipes)
- */
-function renderRecipeStandard(doc, recipe, scaledIngredients, servings, recipeCost, recipeWeight) {
-  const contentWidth = PAGE_WIDTH_PT - (2 * MARGIN_PT)
-  let y = MARGIN_PT
-  
-  // Title
+  // Recipe Title
   doc.setFontSize(TITLE_FONT_SIZE)
   doc.setFont('helvetica', 'bold')
-  doc.text(recipe.name, PAGE_WIDTH_PT / 2, y + TITLE_FONT_SIZE, { align: 'center' })
+  doc.text(recipe.name, PAGE_WIDTH_PT / 2, y, { align: 'center' })
   y += TITLE_FONT_SIZE * LINE_HEIGHT_FACTOR + 8
   
   // Meta info
@@ -379,19 +330,147 @@ function renderRecipeStandard(doc, recipe, scaledIngredients, servings, recipeCo
     y += 8
   }
   
-  // Ingredients section
-  y = drawStandardSection(doc, 'Ingredients', '', MARGIN_PT, y, contentWidth, true, scaledIngredients)
-  y += 15
+  return y
+}
+
+/**
+ * Draw standard (non-rotated) section for full-page layout
+ */
+function drawStandardSection(doc, title, content, x, y, width, isIngredients = false, scaledIngredients = [], showQuantities = true) {
+  const lineHeight = BODY_FONT_SIZE * LINE_HEIGHT_FACTOR
   
-  // Check if we need a new page
-  const remainingHeight = PAGE_HEIGHT_PT - y - MARGIN_PT
-  if (remainingHeight < MIN_REMAINING_HEIGHT) {
-    doc.addPage()
-    y = MARGIN_PT
+  // Add extra space before section
+  y += SECTION_SPACING
+  
+  doc.setFontSize(SECTION_FONT_SIZE)
+  doc.setFont('helvetica', 'bold')
+  doc.text(title, x, y)
+  y += SECTION_FONT_SIZE * LINE_HEIGHT_FACTOR + 8
+  
+  doc.setFontSize(BODY_FONT_SIZE)
+  doc.setFont('helvetica', 'normal')
+  
+  if (isIngredients) {
+    const sortedGroups = getSortedGroups(scaledIngredients)
+    
+    for (const [groupKey, group] of sortedGroups) {
+      // Group name - BOLD (only for packing list with showQuantities=true)
+      if (groupKey !== 'ungrouped' && group.name) {
+        if (showQuantities) {
+          doc.setFont('helvetica', 'bold')
+        }
+        doc.text(group.name + ':', x, y)
+        doc.setFont('helvetica', 'normal')
+        y += lineHeight
+      }
+      
+      // Individual ingredients
+      const indent = (groupKey !== 'ungrouped' && showQuantities) ? 15 : 0
+      for (const ing of group.ingredients) {
+        let text = '• '
+        if (showQuantities && ing.quantity && ing.displayUnit) {
+          text += `${formatRecipeUnits(ing.quantity, 2)} ${ing.displayUnit.abbreviation} `
+        }
+        text += ing.name
+        if (ing.notes) {
+          text += ` (${ing.notes})`
+        }
+        
+        const lines = doc.splitTextToSize(text, width - indent)
+        for (const line of lines) {
+          doc.text(line, x + indent, y)
+          y += lineHeight
+          
+          // Check if we need a new page
+          if (y > PAGE_HEIGHT_PT - MARGIN_PT - 20) {
+            doc.addPage()
+            y = MARGIN_PT + LEFT_PADDING
+          }
+        }
+      }
+      y += 5
+    }
+  } else {
+    const lines = doc.splitTextToSize(content, width)
+    for (const line of lines) {
+      doc.text(line, x, y)
+      y += lineHeight
+      
+      // Check if we need a new page
+      if (y > PAGE_HEIGHT_PT - MARGIN_PT - 20) {
+        doc.addPage()
+        y = MARGIN_PT + LEFT_PADDING
+      }
+    }
   }
   
-  // Instructions section
-  drawStandardSection(doc, 'Instructions', recipe.instructions || '', MARGIN_PT, y, contentWidth, false)
+  return y
+}
+
+/**
+ * Draw ingredient summary for cooking section (names only, no quantities)
+ */
+function drawStandardIngredientsSummary(doc, scaledIngredients, x, y, width) {
+  const lineHeight = BODY_FONT_SIZE * LINE_HEIGHT_FACTOR
+  
+  // Add extra space before section
+  y += SECTION_SPACING
+  
+  doc.setFontSize(SECTION_FONT_SIZE)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Ingredients', x, y)
+  y += SECTION_FONT_SIZE * LINE_HEIGHT_FACTOR + 8
+  
+  doc.setFontSize(BODY_FONT_SIZE)
+  doc.setFont('helvetica', 'normal')
+  
+  const sortedGroups = getSortedGroups(scaledIngredients)
+  
+  for (const [groupKey, group] of sortedGroups) {
+    if (groupKey === 'ungrouped') {
+      // List each ungrouped ingredient by name only
+      for (const ing of group.ingredients) {
+        let text = '- ' + ing.name
+        if (ing.notes) {
+          text += ` (${ing.notes})`
+        }
+        doc.text(text, x, y)
+        y += lineHeight
+      }
+    } else if (group.name) {
+      // List the group name only
+      doc.text('- ' + group.name, x, y)
+      y += lineHeight
+    }
+  }
+  
+  return y
+}
+
+/**
+ * Render a recipe in standard full-page layout (for longer recipes)
+ * Creates TWO pages: one for packing instructions, one for cooking instructions
+ */
+function renderRecipeStandard(doc, recipe, scaledIngredients, servings, recipeCost, recipeWeight) {
+  const contentWidth = PAGE_WIDTH_PT - (2 * MARGIN_PT) - LEFT_PADDING
+  const leftMargin = MARGIN_PT + LEFT_PADDING
+  
+  // === PAGE 1: PACKING INSTRUCTIONS ===
+  let y = drawStandardHeader(doc, recipe, servings, recipeCost, recipeWeight, 'PACKING INSTRUCTIONS')
+  
+  // Full ingredients with quantities and groups
+  y = drawStandardSection(doc, 'Ingredients', '', leftMargin, y, contentWidth, true, scaledIngredients, true)
+  
+  // === PAGE 2: COOKING INSTRUCTIONS ===
+  doc.addPage()
+  y = drawStandardHeader(doc, recipe, servings, recipeCost, recipeWeight, 'COOKING INSTRUCTIONS')
+  
+  // Ingredient summary (names only, no quantities)
+  y = drawStandardIngredientsSummary(doc, scaledIngredients, leftMargin, y, contentWidth)
+  y += SECTION_SPACING
+  
+  // Full instructions
+  drawStandardSection(doc, 'Instructions', recipe.instructions || '', leftMargin, y, contentWidth, false)
 }
 
 /**
