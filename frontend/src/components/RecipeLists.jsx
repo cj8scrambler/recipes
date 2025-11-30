@@ -382,6 +382,8 @@ export default function RecipeLists({ user }) {
     } finally {
       setPdfLoading(false)
     }
+  }
+
   // Helper function to get cost for an item
   function getItemCost(itemId) {
     const cost = itemCosts[itemId]
