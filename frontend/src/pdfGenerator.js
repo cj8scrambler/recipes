@@ -4,15 +4,15 @@ import { formatRecipeUnits } from './utils'
 // Page dimensions in points (72 points per inch)
 const PAGE_WIDTH_PT = 612 // 8.5"
 const PAGE_HEIGHT_PT = 792 // 11"
-const MARGIN_PT = 24 // margin for rotated sections
-const SMALL_MARGIN_PT = 12
+const MARGIN_PT = 20 // margin for rotated sections
+const SMALL_MARGIN_PT = 10
 
-// Font sizes
-const TITLE_FONT_SIZE = 14
-const SECTION_FONT_SIZE = 11
-const BODY_FONT_SIZE = 9
-const SMALL_FONT_SIZE = 8
-const LINE_HEIGHT_FACTOR = 1.3
+// Font sizes - scaled up for better readability
+const TITLE_FONT_SIZE = 16
+const SECTION_FONT_SIZE = 12
+const BODY_FONT_SIZE = 10
+const SMALL_FONT_SIZE = 9
+const LINE_HEIGHT_FACTOR = 1.35
 
 // Layout thresholds
 const TWO_SECTION_LAYOUT_THRESHOLD = 0.45 // Use two-section layout if content fits
@@ -182,38 +182,46 @@ function drawRotatedIngredients(doc, scaledIngredients, x, y, maxWidth) {
 
 /**
  * Draw ingredients/ingredient groups summary for the cooking section
- * Lists ungrouped ingredients by name AND ingredient group names, each on its own line
+ * Lists all ingredients (ungrouped and groups) with quantities and units
  */
 function drawRotatedIngredientsSummary(doc, scaledIngredients, x, y, maxWidth) {
   const lineHeight = BODY_FONT_SIZE * LINE_HEIGHT_FACTOR
-  const largerLineHeight = (BODY_FONT_SIZE + 1) * LINE_HEIGHT_FACTOR
   let currentX = x
   
-  // Section header
+  // Section header - just "Ingredients"
   doc.setFontSize(SECTION_FONT_SIZE)
   doc.setFont('helvetica', 'bold')
-  doc.text('Ingredients / Groups', currentX, y, { angle: 90 })
+  doc.text('Ingredients', currentX, y, { angle: 90 })
   currentX += SECTION_FONT_SIZE * LINE_HEIGHT_FACTOR + 6
   
   const sortedGroups = getSortedGroups(scaledIngredients)
   
-  doc.setFontSize(BODY_FONT_SIZE + 1) // Slightly larger font
+  // Use consistent font size with rest of document
+  doc.setFontSize(BODY_FONT_SIZE)
+  doc.setFont('helvetica', 'normal')
   
   for (const [groupKey, group] of sortedGroups) {
     if (groupKey === 'ungrouped') {
-      // List each ungrouped ingredient by name on its own line
+      // List each ungrouped ingredient with quantity and units (treat same as groups)
       for (const ing of group.ingredients) {
-        doc.setFont('helvetica', 'normal')
-        const text = `□  ${ing.name}`
-        doc.text(text, currentX, y, { angle: 90 })
-        currentX += largerLineHeight
+        let text = ''
+        if (ing.quantity && ing.displayUnit) {
+          text = `${formatRecipeUnits(ing.quantity, 2)} ${ing.displayUnit.abbreviation} ${ing.name}`
+        } else {
+          text = ing.name
+        }
+        if (ing.notes) {
+          text += ` (${ing.notes})`
+        }
+        doc.text('- ' + text, currentX, y, { angle: 90 })
+        currentX += lineHeight
       }
     } else if (group.name) {
-      // List the group name on its own line
+      // List the group name (no quantity needed for groups)
       doc.setFont('helvetica', 'bold')
-      const text = `□  ${group.name}`
-      doc.text(text, currentX, y, { angle: 90 })
-      currentX += largerLineHeight
+      doc.text('- ' + group.name, currentX, y, { angle: 90 })
+      doc.setFont('helvetica', 'normal')
+      currentX += lineHeight
     }
   }
   
