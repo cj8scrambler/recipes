@@ -1175,3 +1175,42 @@ li:last-child {
   gap: 0.75rem;
   justify-content: flex-end;
 }
+
+/* List Header with PDF button */
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.list-header h2 {
+  margin-bottom: 0.25rem;
+}
+
+.list-header .text-muted {
+  margin: 0;
+}
+
+.pdf-button {
+  padding: 0.5rem 1rem;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+
+.pdf-button:hover:not(:disabled) {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+}
+
+.pdf-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { api } from '../api'
 import { formatRecipeUnits } from '../utils'
 import { getDisplayUnit, toBaseUnit } from '../unitConversions'
+import { generateRecipesPDF } from '../pdfGenerator'
 
 export default function RecipeLists({ user }) {
   const [lists, setLists] = useState([])
@@ -15,6 +16,8 @@ export default function RecipeLists({ user }) {
   // List totals state
   const [listTotals, setListTotals] = useState({ cost: null, weight: null, loading: false })
   
+  // PDF generation state
+  const [pdfLoading, setPdfLoading] = useState(false)
   // Per-item cost and weight state (keyed by item_id)
   const [itemCosts, setItemCosts] = useState({})
   const [itemWeights, setItemWeights] = useState({})
@@ -301,6 +304,84 @@ export default function RecipeLists({ user }) {
     return recipes.filter(r => r.parent_recipe_id === recipeId)
   }
 
+  // Generate PDF for all recipes in the selected list
+  async function generateListPDF() {
+    if (!selectedList || !selectedList.items || selectedList.items.length === 0) {
+      return
+    }
+
+    setPdfLoading(true)
+    setError(null)
+
+    try {
+      // Fetch full recipe data for each item in the list
+      const recipeDataPromises = selectedList.items.map(async (item) => {
+        const recipeId = item.variant_id || item.recipe_id
+        const recipe = await api.getRecipe(recipeId)
+        const servings = item.servings || 1
+        const factor = servings / (recipe.base_servings || 1)
+
+        // Fetch cost and weight data
+        let recipeCost = null
+        let recipeWeight = null
+        try {
+          recipeCost = await api.getRecipeCost(recipeId, factor)
+        } catch (e) { /* ignore */ }
+        try {
+          recipeWeight = await api.getRecipeWeight(recipeId, factor)
+        } catch (e) { /* ignore */ }
+
+        // Scale ingredients for this recipe
+        const scaledIngredients = (recipe.ingredients || []).map(ing => {
+          const originalUnit = units.find(u => u.unit_id === ing.unit_id)
+          if (!originalUnit) {
+            return { ...ing, quantity: ing.quantity ? (ing.quantity * factor) : ing.quantity }
+          }
+
+          const scaledQuantity = ing.quantity * factor
+
+          if (originalUnit.category === 'Item' || originalUnit.category === 'Temperature') {
+            return {
+              ...ing,
+              quantity: scaledQuantity,
+              displayUnit: originalUnit
+            }
+          }
+
+          const baseQuantity = toBaseUnit(scaledQuantity, originalUnit)
+          const { quantity: displayQuantity, unit: displayUnit } = getDisplayUnit(
+            baseQuantity,
+            originalUnit.category,
+            units,
+            preferredSystem
+          )
+
+          return {
+            ...ing,
+            quantity: displayQuantity,
+            displayUnit: displayUnit || originalUnit
+          }
+        })
+
+        return {
+          recipe,
+          scaledIngredients,
+          servings,
+          recipeCost,
+          recipeWeight
+        }
+      })
+
+      const recipeData = await Promise.all(recipeDataPromises)
+      
+      // Generate the PDF with all recipes
+      const filename = `${selectedList.name.replace(/[^a-zA-Z0-9]/g, '_')}_recipes.pdf`
+      generateRecipesPDF(recipeData, filename)
+    } catch (err) {
+      setError('Failed to generate PDF: ' + err.message)
+    } finally {
+      setPdfLoading(false)
+    }
   // Helper function to get cost for an item
   function getItemCost(itemId) {
     const cost = itemCosts[itemId]
@@ -402,8 +483,22 @@ export default function RecipeLists({ user }) {
 
         {selectedList && !selectedRecipe && (
           <div className="list-detail">
-            <h2>{selectedList.name}</h2>
-            <p className="text-muted">{selectedList.items?.length || 0} recipes</p>
+            <div className="list-header">
+              <div>
+                <h2>{selectedList.name}</h2>
+                <p className="text-muted">{selectedList.items?.length || 0} recipes</p>
+              </div>
+              {selectedList.items && selectedList.items.length > 0 && (
+                <button
+                  className="pdf-button"
+                  onClick={generateListPDF}
+                  disabled={pdfLoading}
+                  title="Generate PDF with all recipes"
+                >
+                  {pdfLoading ? '📄 Generating...' : '📄 Download PDF'}
+                </button>
+              )}
+            </div>
             
             {/* List Totals */}
             {selectedList.items && selectedList.items.length > 0 && (
