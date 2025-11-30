@@ -21,6 +21,7 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
   const [ingredientTypes, setIngredientTypes] = useState([])
   const [prices, setPrices] = useState([])
   const [error, setError] = useState(null)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     loadUnits()
@@ -50,6 +51,9 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
       setTypeId('')
       setPrices([])
     }
+    // Reset saving state when ingredient changes
+    setSaving(false)
+    setError(null)
   }, [ingredient])
 
   async function loadUnits() {
@@ -141,7 +145,9 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
 
   async function submit(e) {
     e.preventDefault()
+    if (saving) return  // Prevent double submission
     setError(null)
+    setSaving(true)
     
     try {
       // Determine the weight value to save
@@ -195,6 +201,8 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
     } catch (err) {
       setError(err.message)
       console.error('Error saving ingredient:', err)
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -389,8 +397,8 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
       </div>
       
       <div className="editor-actions">
-        <button type="submit">Save Ingredient</button>
-        <button type="button" className="secondary" onClick={onCancel}>Cancel</button>
+        <button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save Ingredient'}</button>
+        <button type="button" className="secondary" onClick={onCancel} disabled={saving}>Cancel</button>
       </div>
     </form>
   )

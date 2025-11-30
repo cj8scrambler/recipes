@@ -853,6 +853,11 @@ def ingredients_list():
             return jsonify(serialize_ingredient(new_ingredient)), 201
         except Exception as e:
             db.session.rollback()
+            error_str = str(e).lower()
+            # Check for duplicate name error
+            if 'duplicate' in error_str or 'unique' in error_str:
+                print(f"Duplicate ingredient name: {data.get('name')}")
+                return jsonify({"error": f"An ingredient with the name '{data.get('name')}' already exists"}), 409
             print(f"Error creating ingredient: {e}")
             return jsonify({"error": "Failed to create ingredient"}), 500
 
