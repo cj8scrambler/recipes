@@ -18,7 +18,7 @@ load_dotenv()
 DATABASE_URL = os.getenv('DATABASE_URL', 'mysql+pymysql://root:password@localhost:3306/recipe_db')
 
 # Migration directory
-MIGRATIONS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'migrations')
+MIGRATIONS_DIR = os.path.join(os.path.dirname(__file__), 'migrations')
 
 # ANSI color codes for terminal output
 class Colors:

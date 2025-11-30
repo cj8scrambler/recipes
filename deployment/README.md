@@ -2,7 +2,7 @@
 
 This document outlines the deployment strategy for the Recipes application, designed for self-hosting instances with separate production and development environments.
 
-## TLDR
+## Taggging a release
 ```bash
 OLD_TAG=v1.0.0
 NEW_TAG=v1.1.0
@@ -10,11 +10,29 @@ git fetch --prune --prune-tags
 git tag -a ${NEW_TAG} -m "Temporary ${NEW_TAG} tag"
 cd db/
 python3 generate_migration.py --from-tag ${OLD_TAG} --to-tag ${NEW_TAG}
-git add migrations/migrate_${OLD_TAG}_to_${NEW_TAG}.sql
+# Verify file is good; manually integrat any table alterations
+git add migrations/migrate_${OLD_TAG//./_}_to_${NEW_TAG//./_}.sql
 git commit -m "DB migrate ${OLD} -> ${NEW_TAG}"
 git tag -d ${NEW_TAG}
 git tag -a ${NEW_TAG} -m "Release ${NEW_TAG}"
 git push --tags origin HEAD:main
+```
+
+## Deploying a release
+```bash
+CURRENT_TAG=v1.0.0
+NEW_TAG=v1.1.0
+git checkout ${NEW_TAG}
+
+pushd db
+python3 manage_migrations.py apply migrate_${CURRENT_TAG//./_}_to_${NEW_TAG//./_}.sql
+popd
+
+pushd docker/
+./tag_docker.sh
+docker compose down
+docker compuse up -d
+popd
 ```
 
 ## Overview
