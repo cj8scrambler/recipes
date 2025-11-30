@@ -6,6 +6,7 @@ const PAGE_WIDTH_PT = 612 // 8.5"
 const PAGE_HEIGHT_PT = 792 // 11"
 const MARGIN_PT = 20 // margin for rotated sections
 const SMALL_MARGIN_PT = 10
+const LEFT_PADDING = 25 // Extra padding from left edge of each half-page section
 
 // Font sizes - scaled up more for better readability
 const TITLE_FONT_SIZE = 20
@@ -135,6 +136,7 @@ function drawRotatedHeader(doc, recipe, servings, x, y, maxWidth, recipeCost, re
 
 /**
  * Draw ingredient groups with full ingredients (for packing section)
+ * Only ingredient group names are bold, all ingredients are NOT bold
  * Ingredients under a group are indented
  */
 function drawRotatedIngredients(doc, scaledIngredients, x, y, maxWidth) {
@@ -150,15 +152,15 @@ function drawRotatedIngredients(doc, scaledIngredients, x, y, maxWidth) {
   
   doc.setFontSize(BODY_FONT_SIZE)
   for (const [groupKey, group] of sortedGroups) {
-    // Group name
+    // Group name - BOLD
     if (groupKey !== 'ungrouped' && group.name) {
       doc.setFont('helvetica', 'bold')
       doc.text(group.name + ':', currentX, y, { angle: 90 })
-      doc.setFont('helvetica', 'normal')
       currentX += lineHeight
     }
     
-    // Individual ingredients - indented if part of a group
+    // Individual ingredients - NOT bold, indented if part of a group
+    doc.setFont('helvetica', 'normal')
     const indent = (groupKey !== 'ungrouped') ? 15 : 0
     for (const ing of group.ingredients) {
       let text = '• '
@@ -269,16 +271,16 @@ function renderRecipeTwoSection(doc, recipe, scaledIngredients, servings, recipe
   
   // === TOP HALF: PACKING/INGREDIENTS SECTION ===
   // Text is rotated 90° CCW, so it reads correctly when the top half is rotated
-  // Start from left edge, text goes upward (toward top of page when rotated)
-  let topX = MARGIN_PT + SMALL_MARGIN_PT
+  // Start from left edge with extra padding, text goes upward (toward top of page when rotated)
+  let topX = MARGIN_PT + LEFT_PADDING
   const topY = halfHeight - SMALL_MARGIN_PT // Start near the divider line
   
   topX = drawRotatedPackingHeader(doc, recipe, servings, topX, topY, sectionWidth, recipeCost, recipeWeight)
   topX = drawRotatedIngredients(doc, scaledIngredients, topX, topY, sectionWidth)
   
   // === BOTTOM HALF: COOKING/INSTRUCTIONS SECTION ===
-  // Same rotation, positioned in bottom half
-  let bottomX = MARGIN_PT + SMALL_MARGIN_PT
+  // Same rotation, positioned in bottom half with extra padding
+  let bottomX = MARGIN_PT + LEFT_PADDING
   const bottomY = PAGE_HEIGHT_PT - SMALL_MARGIN_PT // Start at bottom edge
   
   bottomX = drawRotatedHeader(doc, recipe, servings, bottomX, bottomY, sectionWidth, recipeCost, recipeWeight)
