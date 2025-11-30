@@ -854,9 +854,13 @@ def ingredients_list():
             return jsonify(serialize_ingredient(new_ingredient)), 201
         except IntegrityError as e:
             db.session.rollback()
+            error_str = str(e.orig).lower() if e.orig else str(e).lower()
             print(f"IntegrityError creating ingredient: {e}")
-            # IntegrityError typically means duplicate name (unique constraint violation)
-            return jsonify({"error": "An ingredient with this name already exists"}), 409
+            # Check if this is a duplicate name error (unique constraint on name column)
+            if 'duplicate' in error_str and 'name' in error_str:
+                return jsonify({"error": "An ingredient with this name already exists"}), 409
+            # For other integrity errors (e.g., foreign key violations), return a generic message
+            return jsonify({"error": "Failed to create ingredient due to a data constraint violation"}), 400
         except Exception as e:
             db.session.rollback()
             print(f"Error creating ingredient: {e}")
