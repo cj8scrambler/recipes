@@ -387,7 +387,15 @@ def can_convert_units(from_unit, to_unit):
 
 def convert_unit_quantity(quantity, from_unit, to_unit):
     """Convert quantity from one unit to another."""
-    if not from_unit or not to_unit or not can_convert_units(from_unit, to_unit):
+    if not from_unit or not to_unit:
+        return None
+    
+    # Same unit - no conversion needed
+    if from_unit.unit_id == to_unit.unit_id:
+        return quantity
+    
+    # Check unit compatibility
+    if not can_convert_units(from_unit, to_unit):
         return None
     
     # Check for None conversion factors
