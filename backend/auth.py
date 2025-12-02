@@ -4,12 +4,17 @@
 import os
 import uuid
 import bcrypt
+import logging
+import traceback
 from datetime import datetime, timedelta
 from functools import wraps
 from flask import Blueprint, request, jsonify, make_response
 from sqlalchemy import Column, String, Enum as SQLEnum, DateTime, Text
 from sqlalchemy.dialects.mysql import CHAR
 from flask_sqlalchemy import SQLAlchemy
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 # Create auth blueprint - will be registered in app.py
 auth_bp = Blueprint('auth', __name__, url_prefix='/api')
@@ -357,9 +362,10 @@ def admin_list_recipes():
 @admin_required
 def admin_create_recipe():
     """Admin endpoint to create a new recipe"""
-    from app import Recipe, RecipeIngredient, serialize_recipe
+    from app import Recipe, RecipeIngredient, RecipeTag, serialize_recipe, extract_tag_id
     try:
         data = request.get_json()
+        logger.debug(f"Admin creating recipe with data: {data}")
         
         # Create recipe with basic fields
         new_recipe = Recipe(
@@ -373,6 +379,7 @@ def admin_create_recipe():
         
         db.session.add(new_recipe)
         db.session.flush()  # Get the recipe_id
+        logger.debug(f"Created recipe with ID: {new_recipe.recipe_id}")
         
         # Add ingredients if provided
         ingredients_data = data.get('ingredients', [])
@@ -386,16 +393,32 @@ def admin_create_recipe():
                 ingredient_id=ingredient_id,
                 quantity=ing_data.get('quantity'),
                 unit_id=ing_data.get('unit_id'),
-                notes=ing_data.get('notes')
+                notes=ing_data.get('notes'),
+                group_id=ing_data.get('group_id')
             )
             db.session.add(new_recipe_ingredient)
         
+        # Add tags if provided
+        tags_data = data.get('tags', [])
+        for tag_data in tags_data:
+            tag_id = extract_tag_id(tag_data)
+            if tag_id is None:
+                continue
+            new_recipe_tag = RecipeTag(
+                recipe_id=new_recipe.recipe_id,
+                tag_id=tag_id
+            )
+            db.session.add(new_recipe_tag)
+        
         db.session.commit()
+        logger.debug(f"Recipe {new_recipe.recipe_id} committed successfully")
         return jsonify(serialize_recipe(new_recipe)), 201
     except Exception as e:
         db.session.rollback()
-        print(f"Error creating recipe: {e}")
-        return jsonify({"error": "Failed to create recipe"}), 500
+        logger.error(f"Error creating recipe: {e}")
+        logger.error(f"Exception type: {type(e).__name__}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({"error": "Failed to create recipe", "details": str(e)}), 500
 
 
 @auth_bp.route('/admin/recipes/<int:recipe_id>', methods=['PUT'])
@@ -428,41 +451,45 @@ def admin_update_recipe(recipe_id):
     # Handle ingredients update if provided
     if ingredients_data is not None:
         try:
-            # Get current ingredient IDs for this recipe
-            current_ingredients = {ri.ingredient_id: ri for ri in recipe.ingredients}
+            # Get current recipe ingredients by their unique ID
+            current_ingredients = {ri.id: ri for ri in recipe.ingredients}
             
-            # Get incoming ingredient IDs
-            incoming_ingredient_ids = set()
+            # Track which IDs we've seen in the update
+            incoming_ids = set()
             
             for ing_data in ingredients_data:
                 ingredient_id = ing_data.get('ingredient_id')
                 if not ingredient_id:
                     continue
                 
-                incoming_ingredient_ids.add(ingredient_id)
+                # Check if this is an existing item (has an id) or a new one
+                item_id = ing_data.get('id')
                 
-                # Check if this ingredient already exists in the recipe
-                if ingredient_id in current_ingredients:
+                if item_id and item_id in current_ingredients:
                     # Update existing ingredient
-                    recipe_ingredient = current_ingredients[ingredient_id]
+                    incoming_ids.add(item_id)
+                    recipe_ingredient = current_ingredients[item_id]
+                    recipe_ingredient.ingredient_id = ingredient_id
                     recipe_ingredient.quantity = ing_data.get('quantity', recipe_ingredient.quantity)
                     recipe_ingredient.unit_id = ing_data.get('unit_id', recipe_ingredient.unit_id)
                     recipe_ingredient.notes = ing_data.get('notes', recipe_ingredient.notes)
+                    recipe_ingredient.group_id = ing_data.get('group_id', recipe_ingredient.group_id)
                 else:
-                    # Add new ingredient
+                    # Add new ingredient (even if same ingredient_id already exists)
                     new_recipe_ingredient = RecipeIngredient(
                         recipe_id=recipe.recipe_id,
                         ingredient_id=ingredient_id,
                         quantity=ing_data.get('quantity'),
                         unit_id=ing_data.get('unit_id'),
-                        notes=ing_data.get('notes')
+                        notes=ing_data.get('notes'),
+                        group_id=ing_data.get('group_id')
                     )
                     db.session.add(new_recipe_ingredient)
             
             # Remove ingredients that are no longer in the list
-            for ingredient_id in current_ingredients:
-                if ingredient_id not in incoming_ingredient_ids:
-                    db.session.delete(current_ingredients[ingredient_id])
+            for item_id in current_ingredients:
+                if item_id not in incoming_ids:
+                    db.session.delete(current_ingredients[item_id])
                     
         except Exception as e:
             print(f"Error updating ingredients: {e}")

@@ -45,8 +45,9 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
       setInstructions(recipe.instructions || '')
       setServings(recipe.base_servings || 1)
       setParentRecipeId(recipe.parent_recipe_id || null)
-      // Ingredients from backend already have ingredient_id, quantity (in base units), unit_id, notes, group_id
+      // Ingredients from backend have id, ingredient_id, quantity (in base units), unit_id, notes, group_id
       setIngredients((recipe.ingredients || []).map(ing => ({
+        id: ing.id,  // Unique ID for tracking existing items
         ingredient_id: ing.ingredient_id || '',
         quantity: formatQuantityForInput(ing.quantity),
         unit_id: ing.unit_id || '',
@@ -149,9 +150,10 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
       try {
         const parentRecipe = await api.getRecipe(parsedParentId)
         if (parentRecipe) {
-          // Copy ingredients from parent
+          // Copy ingredients from parent (with null id since these are new copies)
           if (parentRecipe.ingredients && parentRecipe.ingredients.length > 0) {
             setIngredients(parentRecipe.ingredients.map(ing => ({
+              id: null,  // New copies don't have IDs yet
               ingredient_id: ing.ingredient_id || '',
               quantity: formatQuantityForInput(ing.quantity),
               unit_id: ing.unit_id || '',
@@ -197,7 +199,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
   function addIngredient() {
     setIngredients([
       ...ingredients,
-      { ingredient_id: '', quantity: '', unit_id: '', notes: '', group_id: '' }
+      { id: null, ingredient_id: '', quantity: '', unit_id: '', notes: '', group_id: '' }
     ])
   }
 
@@ -249,6 +251,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
           : unit
         
         return {
+          id: ing.id || null,  // Include ID for existing items, null for new ones
           ingredient_id: parseInt(ing.ingredient_id),
           quantity: baseUnit ? baseQuantity : parseFloat(ing.quantity),
           unit_id: baseUnit ? baseUnit.unit_id : parseInt(ing.unit_id),
