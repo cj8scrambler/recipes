@@ -141,9 +141,10 @@ class IngredientGroup(db.Model):
 
 class RecipeIngredient(db.Model):
     __tablename__ = 'Recipe_Ingredients'
-    # Composite primary key
-    recipe_id = Column(Integer, ForeignKey('Recipes.recipe_id', ondelete='CASCADE'), primary_key=True)
-    ingredient_id = Column(Integer, ForeignKey('Ingredients.ingredient_id'), primary_key=True)
+    # Auto-increment primary key allows same ingredient multiple times in a recipe
+    id = Column(Integer, primary_key=True)
+    recipe_id = Column(Integer, ForeignKey('Recipes.recipe_id', ondelete='CASCADE'), nullable=False)
+    ingredient_id = Column(Integer, ForeignKey('Ingredients.ingredient_id'), nullable=False)
 
     quantity = Column(Float(10, 2), nullable=False)
     unit_id = Column(Integer, ForeignKey('Units.unit_id'), nullable=False)
@@ -208,6 +209,7 @@ class RecipeListItem(db.Model):
 def serialize_recipe_ingredient(ri, include_cost=False, include_weight=False, units_dict=None):
     """Converts a RecipeIngredient ORM object to a dictionary for JSON response."""
     result = {
+        'id': ri.id,  # Include the unique ID for updates
         'ingredient_id': ri.ingredient_id,
         'name': ri.ingredient.name if ri.ingredient is not None else None,
         'quantity': ri.quantity,
@@ -733,29 +735,31 @@ def recipe(recipe_id):
         # Handle ingredients update if provided
         if ingredients_data is not None:
             try:
-                # Get current ingredient IDs for this recipe
-                current_ingredients = {ri.ingredient_id: ri for ri in recipe.ingredients}
+                # Get current recipe ingredients by their unique ID
+                current_ingredients = {ri.id: ri for ri in recipe.ingredients}
                 
-                # Get incoming ingredient IDs
-                incoming_ingredient_ids = set()
+                # Track which IDs we've seen in the update
+                incoming_ids = set()
                 
                 for ing_data in ingredients_data:
                     ingredient_id = ing_data.get('ingredient_id')
                     if not ingredient_id:
                         continue
                     
-                    incoming_ingredient_ids.add(ingredient_id)
+                    # Check if this is an existing item (has an id) or a new one
+                    item_id = ing_data.get('id')
                     
-                    # Check if this ingredient already exists in the recipe
-                    if ingredient_id in current_ingredients:
+                    if item_id and item_id in current_ingredients:
                         # Update existing ingredient
-                        recipe_ingredient = current_ingredients[ingredient_id]
+                        incoming_ids.add(item_id)
+                        recipe_ingredient = current_ingredients[item_id]
+                        recipe_ingredient.ingredient_id = ingredient_id
                         recipe_ingredient.quantity = ing_data.get('quantity', recipe_ingredient.quantity)
                         recipe_ingredient.unit_id = ing_data.get('unit_id', recipe_ingredient.unit_id)
                         recipe_ingredient.notes = ing_data.get('notes', recipe_ingredient.notes)
                         recipe_ingredient.group_id = ing_data.get('group_id', recipe_ingredient.group_id)
                     else:
-                        # Add new ingredient
+                        # Add new ingredient (even if same ingredient_id already exists)
                         new_recipe_ingredient = RecipeIngredient(
                             recipe_id=recipe.recipe_id,
                             ingredient_id=ingredient_id,
@@ -767,13 +771,13 @@ def recipe(recipe_id):
                         db.session.add(new_recipe_ingredient)
                 
                 # Remove ingredients that are no longer in the list
-                for ingredient_id in current_ingredients:
-                    if ingredient_id not in incoming_ingredient_ids:
-                        db.session.delete(current_ingredients[ingredient_id])
+                for item_id in current_ingredients:
+                    if item_id not in incoming_ids:
+                        db.session.delete(current_ingredients[item_id])
                         
             except Exception as e:
                 print(f"Error updating ingredients: {e}")  # Log for debugging
-                return jsonify({"error": "Failed to update ingredients"}), 500
+                return jsonify({"error": "Failed to update ingredients", "details": str(e)}), 500
         
         # Handle tags update if provided
         tags_data = data.get('tags', None)

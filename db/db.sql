@@ -54,18 +54,21 @@ CREATE TABLE Ingredient_Groups (
 );
 
 -- 6. Recipe_Ingredients (Junction Table)
+-- Note: Uses auto-increment id to allow same ingredient multiple times in a recipe
 CREATE TABLE Recipe_Ingredients (
+    id INT PRIMARY KEY AUTO_INCREMENT,
     recipe_id INT NOT NULL,
     ingredient_id INT NOT NULL,
     quantity DECIMAL(10, 2) NOT NULL,
     unit_id INT NOT NULL,
     notes VARCHAR(255),
     group_id INT,
-    PRIMARY KEY (recipe_id, ingredient_id),
     FOREIGN KEY (recipe_id) REFERENCES Recipes(recipe_id) ON DELETE CASCADE,
     FOREIGN KEY (ingredient_id) REFERENCES Ingredients(ingredient_id),
     FOREIGN KEY (unit_id) REFERENCES Units(unit_id),
-    FOREIGN KEY (group_id) REFERENCES Ingredient_Groups(group_id) ON DELETE SET NULL
+    FOREIGN KEY (group_id) REFERENCES Ingredient_Groups(group_id) ON DELETE SET NULL,
+    INDEX idx_recipe_ingredients_recipe (recipe_id),
+    INDEX idx_recipe_ingredients_ingredient (ingredient_id)
 );
 
 -- 7. Tags Table
