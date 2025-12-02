@@ -350,7 +350,18 @@ def serialize_tag(tag):
     }
 
 def extract_tag_id(tag_data):
-    """Extract tag_id from tag data which can be either a dict or an integer."""
+    """
+    Extract tag_id from tag data which can be either a dict or an integer.
+    
+    Args:
+        tag_data: Either a dict with 'tag_id' key, an integer tag_id, or None
+        
+    Returns:
+        int or None: The tag_id value, or None if tag_data is None or 
+        if tag_data is a dict without a 'tag_id' key
+    """
+    if tag_data is None:
+        return None
     if isinstance(tag_data, dict):
         return tag_data.get('tag_id')
     return tag_data
@@ -669,7 +680,7 @@ def recipes_list():
             tags_data = data.get('tags', [])
             for tag_data in tags_data:
                 tag_id = extract_tag_id(tag_data)
-                if not tag_id:
+                if tag_id is None:
                     continue
                 new_recipe_tag = RecipeTag(
                     recipe_id=new_recipe.recipe_id,
@@ -776,7 +787,7 @@ def recipe(recipe_id):
                 
                 for tag_data in tags_data:
                     tag_id = extract_tag_id(tag_data)
-                    if not tag_id:
+                    if tag_id is None:
                         continue
                     
                     incoming_tag_ids.add(tag_id)

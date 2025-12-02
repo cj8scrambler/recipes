@@ -402,7 +402,7 @@ def admin_create_recipe():
         tags_data = data.get('tags', [])
         for tag_data in tags_data:
             tag_id = extract_tag_id(tag_data)
-            if not tag_id:
+            if tag_id is None:
                 continue
             new_recipe_tag = RecipeTag(
                 recipe_id=new_recipe.recipe_id,
