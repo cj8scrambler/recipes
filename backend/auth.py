@@ -362,7 +362,7 @@ def admin_list_recipes():
 @admin_required
 def admin_create_recipe():
     """Admin endpoint to create a new recipe"""
-    from app import Recipe, RecipeIngredient, RecipeTag, serialize_recipe
+    from app import Recipe, RecipeIngredient, RecipeTag, serialize_recipe, extract_tag_id
     try:
         data = request.get_json()
         logger.debug(f"Admin creating recipe with data: {data}")
@@ -401,7 +401,7 @@ def admin_create_recipe():
         # Add tags if provided
         tags_data = data.get('tags', [])
         for tag_data in tags_data:
-            tag_id = tag_data.get('tag_id') if isinstance(tag_data, dict) else tag_data
+            tag_id = extract_tag_id(tag_data)
             if not tag_id:
                 continue
             new_recipe_tag = RecipeTag(

@@ -10,14 +10,11 @@ from sqlalchemy import Enum, ForeignKey, Column, Integer, String, Float, Boolean
 from sqlalchemy.orm import relationship
 from dotenv import load_dotenv
 
-# Configure logging
-logging.basicConfig(
-    level=logging.DEBUG if os.getenv('FLASK_DEBUG', 'false').lower() == 'true' else logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+load_dotenv()
+
+# Create logger for this module
 logger = logging.getLogger(__name__)
 
-load_dotenv()
 # --- 1. Database Configuration (MySQL) ---
 # NOTE: The connection string is read from an environment variable for security.
 # For local development, set the DATABASE_URL environment variable:
@@ -28,6 +25,11 @@ DATABASE_URL = os.getenv('DATABASE_URL', 'mysql+pymysql://root:password@localhos
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL # Reading from the variable
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False # Recommended setting for modern Flask apps
+
+# Configure logging level based on environment
+if os.getenv('FLASK_DEBUG', 'false').lower() == 'true':
+    logging.getLogger().setLevel(logging.DEBUG)
+    logger.setLevel(logging.DEBUG)
 
 db = SQLAlchemy(app)
 
@@ -347,6 +349,12 @@ def serialize_tag(tag):
         'description': tag.description
     }
 
+def extract_tag_id(tag_data):
+    """Extract tag_id from tag data which can be either a dict or an integer."""
+    if isinstance(tag_data, dict):
+        return tag_data.get('tag_id')
+    return tag_data
+
 def serialize_recipe_list(recipe_list, include_items=True):
     """Converts a RecipeList ORM object to a dictionary."""
     result = {
@@ -660,7 +668,7 @@ def recipes_list():
             # Add tags if provided
             tags_data = data.get('tags', [])
             for tag_data in tags_data:
-                tag_id = tag_data.get('tag_id') if isinstance(tag_data, dict) else tag_data
+                tag_id = extract_tag_id(tag_data)
                 if not tag_id:
                     continue
                 new_recipe_tag = RecipeTag(
@@ -767,7 +775,7 @@ def recipe(recipe_id):
                 incoming_tag_ids = set()
                 
                 for tag_data in tags_data:
-                    tag_id = tag_data.get('tag_id') if isinstance(tag_data, dict) else tag_data
+                    tag_id = extract_tag_id(tag_data)
                     if not tag_id:
                         continue
                     
