@@ -1,12 +1,21 @@
 # backend_app.py
 
 import os # Import the os module to read environment variables
+import logging
+import traceback
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Enum, ForeignKey, Column, Integer, String, Float, Boolean, DateTime
 from sqlalchemy.orm import relationship
 from dotenv import load_dotenv
+
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG if os.getenv('FLASK_DEBUG', 'false').lower() == 'true' else logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 # --- 1. Database Configuration (MySQL) ---
@@ -615,6 +624,7 @@ def recipes_list():
         # Create new recipe
         try:
             data = request.get_json()
+            logger.debug(f"Creating recipe with data: {data}")
             
             # Create recipe with basic fields
             new_recipe = Recipe(
@@ -628,6 +638,7 @@ def recipes_list():
             
             db.session.add(new_recipe)
             db.session.flush()  # Get the recipe_id
+            logger.debug(f"Created recipe with ID: {new_recipe.recipe_id}")
             
             # Add ingredients if provided
             ingredients_data = data.get('ingredients', [])
@@ -646,12 +657,27 @@ def recipes_list():
                 )
                 db.session.add(new_recipe_ingredient)
             
+            # Add tags if provided
+            tags_data = data.get('tags', [])
+            for tag_data in tags_data:
+                tag_id = tag_data.get('tag_id') if isinstance(tag_data, dict) else tag_data
+                if not tag_id:
+                    continue
+                new_recipe_tag = RecipeTag(
+                    recipe_id=new_recipe.recipe_id,
+                    tag_id=tag_id
+                )
+                db.session.add(new_recipe_tag)
+            
             db.session.commit()
+            logger.debug(f"Recipe {new_recipe.recipe_id} committed successfully")
             return jsonify(serialize_recipe(new_recipe)), 201
         except Exception as e:
             db.session.rollback()
-            print(f"Error creating recipe: {e}")
-            return jsonify({"error": "Failed to create recipe"}), 500
+            logger.error(f"Error creating recipe: {e}")
+            logger.error(f"Exception type: {type(e).__name__}")
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            return jsonify({"error": "Failed to create recipe", "details": str(e)}), 500
 
 @app.route('/api/recipes/<int:recipe_id>', methods=['GET', 'PUT', 'DELETE'])
 @login_required

@@ -4,12 +4,17 @@
 import os
 import uuid
 import bcrypt
+import logging
+import traceback
 from datetime import datetime, timedelta
 from functools import wraps
 from flask import Blueprint, request, jsonify, make_response
 from sqlalchemy import Column, String, Enum as SQLEnum, DateTime, Text
 from sqlalchemy.dialects.mysql import CHAR
 from flask_sqlalchemy import SQLAlchemy
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 # Create auth blueprint - will be registered in app.py
 auth_bp = Blueprint('auth', __name__, url_prefix='/api')
@@ -357,9 +362,10 @@ def admin_list_recipes():
 @admin_required
 def admin_create_recipe():
     """Admin endpoint to create a new recipe"""
-    from app import Recipe, RecipeIngredient, serialize_recipe
+    from app import Recipe, RecipeIngredient, RecipeTag, serialize_recipe
     try:
         data = request.get_json()
+        logger.debug(f"Admin creating recipe with data: {data}")
         
         # Create recipe with basic fields
         new_recipe = Recipe(
@@ -373,6 +379,7 @@ def admin_create_recipe():
         
         db.session.add(new_recipe)
         db.session.flush()  # Get the recipe_id
+        logger.debug(f"Created recipe with ID: {new_recipe.recipe_id}")
         
         # Add ingredients if provided
         ingredients_data = data.get('ingredients', [])
@@ -386,16 +393,32 @@ def admin_create_recipe():
                 ingredient_id=ingredient_id,
                 quantity=ing_data.get('quantity'),
                 unit_id=ing_data.get('unit_id'),
-                notes=ing_data.get('notes')
+                notes=ing_data.get('notes'),
+                group_id=ing_data.get('group_id')
             )
             db.session.add(new_recipe_ingredient)
         
+        # Add tags if provided
+        tags_data = data.get('tags', [])
+        for tag_data in tags_data:
+            tag_id = tag_data.get('tag_id') if isinstance(tag_data, dict) else tag_data
+            if not tag_id:
+                continue
+            new_recipe_tag = RecipeTag(
+                recipe_id=new_recipe.recipe_id,
+                tag_id=tag_id
+            )
+            db.session.add(new_recipe_tag)
+        
         db.session.commit()
+        logger.debug(f"Recipe {new_recipe.recipe_id} committed successfully")
         return jsonify(serialize_recipe(new_recipe)), 201
     except Exception as e:
         db.session.rollback()
-        print(f"Error creating recipe: {e}")
-        return jsonify({"error": "Failed to create recipe"}), 500
+        logger.error(f"Error creating recipe: {e}")
+        logger.error(f"Exception type: {type(e).__name__}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        return jsonify({"error": "Failed to create recipe", "details": str(e)}), 500
 
 
 @auth_bp.route('/admin/recipes/<int:recipe_id>', methods=['PUT'])
