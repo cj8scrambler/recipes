@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { api } from '../api'
 import { formatRecipeUnits } from '../utils'
-import { toBaseUnit } from '../unitConversions'
+import { toBaseUnit, VOLUME_CATEGORIES } from '../unitConversions'
 
 /**
  * Format quantity for display in input field - removes trailing zeros
@@ -243,10 +243,9 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
         // Find the base unit for this category
         // For volume units (Volume, Dry Volume, Liquid Volume), use the base Volume unit
         // For other categories, use the base unit in the same category
-        let baseUnit = unit
+        let baseUnit = null
         if (unit && unit.category !== 'Item' && unit.category !== 'Temperature') {
-          const volumeCategories = ['Volume', 'Dry Volume', 'Liquid Volume']
-          const isVolumeUnit = volumeCategories.includes(unit.category)
+          const isVolumeUnit = VOLUME_CATEGORIES.includes(unit.category)
           
           if (isVolumeUnit) {
             // For any volume category, find the base unit in 'Volume' category
@@ -263,6 +262,8 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
           }
         }
         
+        // If we found a base unit, use converted quantity and base unit
+        // Otherwise, use original quantity and unit
         return {
           ingredient_id: parseInt(ing.ingredient_id),
           quantity: baseUnit ? baseQuantity : parseFloat(ing.quantity),

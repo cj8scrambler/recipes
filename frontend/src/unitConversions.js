@@ -4,6 +4,12 @@
  */
 
 /**
+ * Volume categories that can be converted between each other
+ * @constant
+ */
+export const VOLUME_CATEGORIES = ['Volume', 'Dry Volume', 'Liquid Volume'];
+
+/**
  * Convert a quantity from one unit to another within the same category
  * @param {number} quantity - The quantity to convert
  * @param {object} fromUnit - The unit object to convert from (must have base_conversion_factor)
@@ -14,7 +20,7 @@ export function convertUnit(quantity, fromUnit, toUnit) {
   if (!fromUnit || !toUnit) return quantity;
   
   // Volume categories (including Dry Volume and Liquid Volume) can convert between each other
-  const volumeCategories = ['Volume', 'Dry Volume', 'Liquid Volume'];
+  const volumeCategories = VOLUME_CATEGORIES;
   const fromIsVolume = volumeCategories.includes(fromUnit.category);
   const toIsVolume = volumeCategories.includes(toUnit.category);
   
@@ -53,7 +59,7 @@ export function getDisplayUnit(baseQuantity, category, units, preferredSystem = 
   }
   
   // Volume categories (including Dry Volume and Liquid Volume) can all display in any volume category
-  const volumeCategories = ['Volume', 'Dry Volume', 'Liquid Volume'];
+  const volumeCategories = VOLUME_CATEGORIES;
   const isVolumeCategory = volumeCategories.includes(category);
   
   // Filter units by category and system - for volumes, accept any volume category
