@@ -29,8 +29,11 @@ WHERE
     AND u.base_conversion_factor IS NOT NULL
     AND @milliliter_unit_id IS NOT NULL;
 
--- Display summary of changes (number of rows actually modified by the UPDATE)
-SELECT ROW_COUNT() as rows_normalized;
+-- Capture the number of rows affected by the UPDATE
+SET @rows_affected = ROW_COUNT();
+
+-- Display summary of changes
+SELECT @rows_affected as rows_normalized;
 
 
 -- ==== DOWNGRADE ====

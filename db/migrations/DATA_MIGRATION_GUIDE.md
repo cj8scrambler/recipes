@@ -149,11 +149,13 @@ This means either:
 
 ### Quantities look too large/small after migration
 
-Double-check the base_conversion_factor values in your Units table. They should be:
-- Milliliter (mL): 1.0
-- Cup (c): 236.588
-- Tablespoon (tbsp): 14.7868
-- Teaspoon (tsp): 4.9289
+Double-check the base_conversion_factor values in your Units table. For US Customary units, they should be:
+- Milliliter (mL): 1.0 (base unit)
+- Cup (c): 236.588 (US cup = ~236.588 mL)
+- Tablespoon (tbsp): 14.7868 (US tablespoon = ~14.79 mL)
+- Teaspoon (tsp): 4.9289 (US teaspoon = ~4.93 mL)
+
+Note: Metric cups (250 mL) have different conversion factors if used in your database.
 
 ### Cost calculations still not working
 
