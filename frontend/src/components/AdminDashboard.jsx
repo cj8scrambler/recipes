@@ -507,27 +507,118 @@ export default function AdminDashboard() {
       })()}
 
       {activeTab === 'types' && (
-        <div className="card">
-          <div className="card-header">
-            <h3 className="card-title">Manage Ingredient Types</h3>
-            <button onClick={() => setEditingType({})}>+ New Type</button>
-          </div>
-          {ingredientTypes.length === 0 && (
-            <div className="empty-state">
-              <p>No ingredient types yet. Add types to categorize your ingredients.</p>
-            </div>
+        <>
+          {editingType && (
+            <IngredientTypeEditor
+              ingredientType={editingType}
+              onCancel={() => setEditingType(null)}
+              onSave={saveType}
+            />
           )}
-          <ul>
-            {ingredientTypes.map(t => {
-              // Count how many ingredients use this type
-              const ingredientCount = ingredients.filter(i => i.type_id === t.type_id).length
-              return (
-                <li key={t.type_id}>
+          <div className="card">
+            <div className="card-header">
+              <h3 className="card-title">Manage Ingredient Types</h3>
+              <button onClick={() => setEditingType({})}>+ New Type</button>
+            </div>
+            {ingredientTypes.length === 0 && (
+              <div className="empty-state">
+                <p>No ingredient types yet. Add types to categorize your ingredients.</p>
+              </div>
+            )}
+            <ul>
+              {ingredientTypes.map(t => {
+                // Count how many ingredients use this type
+                const ingredientCount = ingredients.filter(i => i.type_id === t.type_id).length
+                return (
+                  <li key={t.type_id}>
+                    <div>
+                      <span>{t.name}</span>
+                      <span className="text-muted" style={{ marginLeft: '0.5em', fontSize: '0.9em' }}>
+                        ({ingredientCount} ingredient{ingredientCount !== 1 ? 's' : ''})
+                      </span>
+                      {t.description && (
+                        <div className="text-muted" style={{fontSize: '0.9em', marginTop: '0.25em'}}>
+                          {t.description}
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <button className="small secondary" onClick={() => setEditingType(t)}>Edit</button>
+                      <button className="small danger" onClick={() => removeType(t.type_id)}>Delete</button>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        </>
+      )}
+
+      {activeTab === 'groups' && (
+        <>
+          {editingGroup && (
+            <IngredientGroupEditor
+              group={editingGroup}
+              onCancel={() => setEditingGroup(null)}
+              onSave={saveGroup}
+            />
+          )}
+          <div className="card">
+            <div className="card-header">
+              <h3 className="card-title">Manage Ingredient Groups</h3>
+              <button onClick={() => setEditingGroup({})}>+ New Group</button>
+            </div>
+            {ingredientGroups.length === 0 && (
+              <div className="empty-state">
+                <p>No ingredient groups yet. Add groups to organize ingredients in recipes.</p>
+              </div>
+            )}
+            <ul>
+              {ingredientGroups.map(g => (
+                <li key={g.group_id}>
+                  <div>
+                    <span>{g.name}</span>
+                    {g.description && (
+                      <div className="text-muted" style={{fontSize: '0.9em', marginTop: '0.25em'}}>
+                        {g.description}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <button className="small secondary" onClick={() => setEditingGroup(g)}>Edit</button>
+                    <button className="small danger" onClick={() => removeGroup(g.group_id)}>Delete</button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </>
+      )}
+
+      {activeTab === 'tags' && (
+        <>
+          {editingTag && (
+            <TagEditor
+              tag={editingTag}
+              onCancel={() => setEditingTag(null)}
+              onSave={saveTag}
+            />
+          )}
+          <div className="card">
+            <div className="card-header">
+              <h3 className="card-title">Manage Tags</h3>
+              <button onClick={() => setEditingTag({})}>+ New Tag</button>
+            </div>
+            {tags.length === 0 && (
+              <div className="empty-state">
+                <p>No tags yet. Add tags to categorize your recipes.</p>
+              </div>
+            )}
+            <ul>
+              {tags.map(t => (
+                <li key={t.tag_id}>
                   <div>
                     <span>{t.name}</span>
-                    <span className="text-muted" style={{ marginLeft: '0.5em', fontSize: '0.9em' }}>
-                      ({ingredientCount} ingredient{ingredientCount !== 1 ? 's' : ''})
-                    </span>
                     {t.description && (
                       <div className="text-muted" style={{fontSize: '0.9em', marginTop: '0.25em'}}>
                         {t.description}
@@ -535,102 +626,14 @@ export default function AdminDashboard() {
                     )}
                   </div>
                   <div>
-                    <button className="small secondary" onClick={() => setEditingType(t)}>Edit</button>
-                    <button className="small danger" onClick={() => removeType(t.type_id)}>Delete</button>
+                    <button className="small secondary" onClick={() => setEditingTag(t)}>Edit</button>
+                    <button className="small danger" onClick={() => removeTag(t.tag_id)}>Delete</button>
                   </div>
                 </li>
-              )
-            })}
-          </ul>
-        </div>
-      )}
-
-      {activeTab === 'groups' && (
-        <div className="card">
-          <div className="card-header">
-            <h3 className="card-title">Manage Ingredient Groups</h3>
-            <button onClick={() => setEditingGroup({})}>+ New Group</button>
+              ))}
+            </ul>
           </div>
-          {ingredientGroups.length === 0 && (
-            <div className="empty-state">
-              <p>No ingredient groups yet. Add groups to organize ingredients in recipes.</p>
-            </div>
-          )}
-          <ul>
-            {ingredientGroups.map(g => (
-              <li key={g.group_id}>
-                <div>
-                  <span>{g.name}</span>
-                  {g.description && (
-                    <div className="text-muted" style={{fontSize: '0.9em', marginTop: '0.25em'}}>
-                      {g.description}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <button className="small secondary" onClick={() => setEditingGroup(g)}>Edit</button>
-                  <button className="small danger" onClick={() => removeGroup(g.group_id)}>Delete</button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {activeTab === 'tags' && (
-        <div className="card">
-          <div className="card-header">
-            <h3 className="card-title">Manage Tags</h3>
-            <button onClick={() => setEditingTag({})}>+ New Tag</button>
-          </div>
-          {tags.length === 0 && (
-            <div className="empty-state">
-              <p>No tags yet. Add tags to categorize your recipes.</p>
-            </div>
-          )}
-          <ul>
-            {tags.map(t => (
-              <li key={t.tag_id}>
-                <div>
-                  <span>{t.name}</span>
-                  {t.description && (
-                    <div className="text-muted" style={{fontSize: '0.9em', marginTop: '0.25em'}}>
-                      {t.description}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <button className="small secondary" onClick={() => setEditingTag(t)}>Edit</button>
-                  <button className="small danger" onClick={() => removeTag(t.tag_id)}>Delete</button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {activeTab === 'groups' && editingGroup && (
-        <IngredientGroupEditor
-          group={editingGroup}
-          onCancel={() => setEditingGroup(null)}
-          onSave={saveGroup}
-        />
-      )}
-
-      {activeTab === 'types' && editingType && (
-        <IngredientTypeEditor
-          ingredientType={editingType}
-          onCancel={() => setEditingType(null)}
-          onSave={saveType}
-        />
-      )}
-
-      {activeTab === 'tags' && editingTag && (
-        <TagEditor
-          tag={editingTag}
-          onCancel={() => setEditingTag(null)}
-          onSave={saveTag}
-        />
+        </>
       )}
 
       {activeTab === 'users' && (
