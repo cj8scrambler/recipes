@@ -17,7 +17,7 @@ set -e  # Exit on error
 
 # Configuration
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-BACKUP_DIR="${1:-/var/backups/recipes}"
+BACKUP_DIR="$(realpath ${1:-/var/backups/recipes})"
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 cd ${SCRIPT_DIR}
 GIT_ROOT=$(git rev-parse --show-toplevel)

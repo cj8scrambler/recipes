@@ -909,13 +909,27 @@ def ingredient(ingredient_id):
     elif request.method == 'DELETE':
         # Delete ingredient
         # First check if ingredient is used in any recipes
-        if ingredient.recipe_items:
-            # Get the list of recipes that use this ingredient
-            recipe_names = [ri.recipe.name for ri in ingredient.recipe_items]
-            recipes_str = ", ".join(recipe_names)
-            return jsonify({
-                "error": f"Cannot delete ingredient '{ingredient.name}' because it is used in the following recipe(s): {recipes_str}. Please remove it from these recipes first."
-            }), 400
+        # Explicitly query Recipe_Ingredients to avoid relationship loading issues
+        try:
+            recipe_usages = db.session.execute(
+                db.select(RecipeIngredient).filter_by(ingredient_id=ingredient_id)
+            ).scalars().all()
+            
+            if recipe_usages:
+                # Get the list of recipes that use this ingredient
+                recipe_names = []
+                for ri in recipe_usages:
+                    if ri.recipe:
+                        recipe_names.append(ri.recipe.name)
+                
+                if recipe_names:
+                    recipes_str = ", ".join(recipe_names)
+                    return jsonify({
+                        "error": f"Cannot delete ingredient '{ingredient.name}' because it is used in the following recipe(s): {recipes_str}. Please remove it from these recipes first."
+                    }), 400
+        except Exception as e:
+            print(f"Warning: Error checking recipe usages for ingredient {ingredient_id}: {e}")
+            # Continue with deletion attempt - database constraint will catch it if needed
         
         try:
             db.session.delete(ingredient)
@@ -924,6 +938,12 @@ def ingredient(ingredient_id):
         except Exception as e:
             db.session.rollback()
             print(f"Error deleting ingredient: {e}")
+            # Check if it's a foreign key constraint error
+            error_msg = str(e)
+            if 'foreign key constraint' in error_msg.lower() or '1451' in error_msg:
+                return jsonify({
+                    "error": f"Cannot delete ingredient '{ingredient.name}' because it is still referenced in the database. This may indicate orphaned records. Please contact an administrator."
+                }), 400
             return jsonify({"error": "Failed to delete ingredient"}), 500
     else:
         return jsonify({"error": "Method not allowed."}), 405
