@@ -15,9 +15,18 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+# Ensure logger has a console handler for debugging
+if not logger.handlers:
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(asctime)s [%(levelname)s] %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+    console_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+
 # Enable cost calculation debug logging via environment variable
 # Set ENABLE_COST_DEBUG=true to see detailed price calculation logs
-ENABLE_COST_DEBUG = os.getenv('ENABLE_COST_DEBUG', 'false').lower() == 'true'
+# TEMPORARY: Hardcoded to True for debugging - will be reverted after issue is resolved
+ENABLE_COST_DEBUG = os.getenv('ENABLE_COST_DEBUG', 'true').lower() == 'true'
 
 def log_cost_debug(message_fn):
     """Log cost calculation debug messages if debug mode is enabled.
