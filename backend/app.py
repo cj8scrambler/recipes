@@ -1,6 +1,7 @@
 # backend_app.py
 
 import os # Import the os module to read environment variables
+import logging
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
@@ -9,6 +10,24 @@ from sqlalchemy.orm import relationship
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Configure logging for price calculation debugging
+# Set to DEBUG level to see detailed cost calculation logs
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger(__name__)
+
+# Enable cost calculation debug logging via environment variable
+# Set ENABLE_COST_DEBUG=true to see detailed price calculation logs
+ENABLE_COST_DEBUG = os.getenv('ENABLE_COST_DEBUG', 'false').lower() == 'true'
+
+def log_cost_debug(message):
+    """Log cost calculation debug messages if debug mode is enabled."""
+    if ENABLE_COST_DEBUG:
+        logger.info(message)
 # --- 1. Database Configuration (MySQL) ---
 # NOTE: The connection string is read from an environment variable for security.
 # For local development, set the DATABASE_URL environment variable:
@@ -372,7 +391,7 @@ def serialize_recipe_list_item(item):
 def can_convert_units(from_unit, to_unit):
     """Check if two units can be converted between each other."""
     if not from_unit or not to_unit:
-        print(f"[CONVERT DEBUG] Cannot convert - from_unit: {from_unit is not None}, to_unit: {to_unit is not None}")
+        log_cost_debug(f"[CONVERT DEBUG] Cannot convert - from_unit: {from_unit is not None}, to_unit: {to_unit is not None}")
         return False
     
     # Volume categories can convert between each other
@@ -381,39 +400,39 @@ def can_convert_units(from_unit, to_unit):
     to_is_volume = to_unit.category in volume_categories
     
     if from_is_volume and to_is_volume:
-        print(f"[CONVERT DEBUG] Both are volume categories: {from_unit.category} <-> {to_unit.category} ✓")
+        log_cost_debug(f"[CONVERT DEBUG] Both are volume categories: {from_unit.category} <-> {to_unit.category} ✓")
         return True
     
     # Other categories must match exactly
     result = from_unit.category == to_unit.category
-    print(f"[CONVERT DEBUG] Category match check: {from_unit.category} == {to_unit.category}? {result}")
+    log_cost_debug(f"[CONVERT DEBUG] Category match check: {from_unit.category} == {to_unit.category}? {result}")
     return result
 
 def convert_unit_quantity(quantity, from_unit, to_unit):
     """Convert quantity from one unit to another."""
     if not from_unit or not to_unit:
-        print(f"[CONVERT DEBUG] Missing units - from_unit: {from_unit is not None}, to_unit: {to_unit is not None}")
+        log_cost_debug(f"[CONVERT DEBUG] Missing units - from_unit: {from_unit is not None}, to_unit: {to_unit is not None}")
         return None
     
     # Same unit - no conversion needed
     if from_unit.unit_id == to_unit.unit_id:
-        print(f"[CONVERT DEBUG] Same unit, no conversion needed: {quantity} {from_unit.name}")
+        log_cost_debug(f"[CONVERT DEBUG] Same unit, no conversion needed: {quantity} {from_unit.name}")
         return quantity
     
     # Check unit compatibility
     if not can_convert_units(from_unit, to_unit):
-        print(f"[CONVERT DEBUG] Units not compatible for conversion")
+        log_cost_debug(f"[CONVERT DEBUG] Units not compatible for conversion")
         return None
     
     # Check for None conversion factors
     if from_unit.base_conversion_factor is None or to_unit.base_conversion_factor is None:
-        print(f"[CONVERT DEBUG] Missing conversion factors - from: {from_unit.base_conversion_factor}, to: {to_unit.base_conversion_factor}")
+        log_cost_debug(f"[CONVERT DEBUG] Missing conversion factors - from: {from_unit.base_conversion_factor}, to: {to_unit.base_conversion_factor}")
         return None
     
     # Convert to base unit, then to target unit
     base_quantity = quantity * from_unit.base_conversion_factor
     converted_quantity = base_quantity / to_unit.base_conversion_factor
-    print(f"[CONVERT DEBUG] Conversion: {quantity} {from_unit.name} × {from_unit.base_conversion_factor} = {base_quantity} (base) ÷ {to_unit.base_conversion_factor} = {converted_quantity} {to_unit.name}")
+    log_cost_debug(f"[CONVERT DEBUG] Conversion: {quantity} {from_unit.name} × {from_unit.base_conversion_factor} = {base_quantity} (base) ÷ {to_unit.base_conversion_factor} = {converted_quantity} {to_unit.name}")
     return converted_quantity
 
 def calculate_ingredient_cost(recipe_ingredient, units_dict):
@@ -428,61 +447,61 @@ def calculate_ingredient_cost(recipe_ingredient, units_dict):
     recipe_unit = recipe_ingredient.unit
     recipe_quantity = recipe_ingredient.quantity
     
-    print(f"[COST DEBUG] Calculating cost for ingredient: {ingredient.name if ingredient else 'None'} (id={recipe_ingredient.ingredient_id})")
+    log_cost_debug(f"[COST DEBUG] Calculating cost for ingredient: {ingredient.name if ingredient else 'None'} (id={recipe_ingredient.ingredient_id})")
     
     if not ingredient or not recipe_unit or not recipe_quantity:
-        print(f"[COST DEBUG] Missing required data - ingredient: {ingredient is not None}, recipe_unit: {recipe_unit is not None}, recipe_quantity: {recipe_quantity is not None}")
+        log_cost_debug(f"[COST DEBUG] Missing required data - ingredient: {ingredient is not None}, recipe_unit: {recipe_unit is not None}, recipe_quantity: {recipe_quantity is not None}")
         return None, False, None
     
-    print(f"[COST DEBUG] Recipe uses: {recipe_quantity} {recipe_unit.name} ({recipe_unit.abbreviation}) [category={recipe_unit.category}, unit_id={recipe_unit.unit_id}]")
+    log_cost_debug(f"[COST DEBUG] Recipe uses: {recipe_quantity} {recipe_unit.name} ({recipe_unit.abbreviation}) [category={recipe_unit.category}, unit_id={recipe_unit.unit_id}]")
     
     # Find a price for this ingredient that matches a compatible unit
     matching_price = None
     try:
         # Access prices relationship safely in case table doesn't exist
         if hasattr(ingredient, 'prices'):
-            print(f"[COST DEBUG] Ingredient has {len(ingredient.prices) if ingredient.prices else 0} price(s) defined")
+            log_cost_debug(f"[COST DEBUG] Ingredient has {len(ingredient.prices) if ingredient.prices else 0} price(s) defined")
             for idx, price in enumerate(ingredient.prices):
                 price_unit = units_dict.get(price.unit_id)
-                print(f"[COST DEBUG] Price #{idx + 1}: ${price.price} per {price_unit.name if price_unit else 'UNKNOWN'} ({price_unit.abbreviation if price_unit else 'N/A'}) [category={price_unit.category if price_unit else 'N/A'}, unit_id={price.unit_id}]")
+                log_cost_debug(f"[COST DEBUG] Price #{idx + 1}: ${price.price} per {price_unit.name if price_unit else 'UNKNOWN'} ({price_unit.abbreviation if price_unit else 'N/A'}) [category={price_unit.category if price_unit else 'N/A'}, unit_id={price.unit_id}]")
                 
                 if price_unit:
                     compatible = can_convert_units(recipe_unit, price_unit)
-                    print(f"[COST DEBUG] Can convert {recipe_unit.category} -> {price_unit.category}? {compatible}")
+                    log_cost_debug(f"[COST DEBUG] Can convert {recipe_unit.category} -> {price_unit.category}? {compatible}")
                     if compatible:
                         matching_price = price
-                        print(f"[COST DEBUG] ✓ Found matching price: ${price.price} per {price_unit.name}")
+                        log_cost_debug(f"[COST DEBUG] ✓ Found matching price: ${price.price} per {price_unit.name}")
                         break
                 else:
-                    print(f"[COST DEBUG] ✗ Price unit not found in units_dict")
+                    log_cost_debug(f"[COST DEBUG] ✗ Price unit not found in units_dict")
         else:
-            print(f"[COST DEBUG] Ingredient has no 'prices' attribute")
+            log_cost_debug(f"[COST DEBUG] Ingredient has no 'prices' attribute")
     except Exception as e:
         # Table may not exist yet or other database error
-        print(f"[COST DEBUG] ERROR: Could not access prices for ingredient {ingredient.ingredient_id}: {e}")
+        log_cost_debug(f"[COST DEBUG] ERROR: Could not access prices for ingredient {ingredient.ingredient_id}: {e}")
         pass
     
     if not matching_price:
-        print(f"[COST DEBUG] ✗ No matching price found for ingredient {ingredient.name}")
+        log_cost_debug(f"[COST DEBUG] ✗ No matching price found for ingredient {ingredient.name}")
         return None, False, None
     
     # Convert recipe quantity to price unit
     price_unit = units_dict.get(matching_price.unit_id)
-    print(f"[COST DEBUG] Converting {recipe_quantity} {recipe_unit.name} to {price_unit.name}")
+    log_cost_debug(f"[COST DEBUG] Converting {recipe_quantity} {recipe_unit.name} to {price_unit.name}")
     converted_quantity = convert_unit_quantity(recipe_quantity, recipe_unit, price_unit)
     
     if converted_quantity is None:
-        print(f"[COST DEBUG] ✗ Unit conversion failed")
+        log_cost_debug(f"[COST DEBUG] ✗ Unit conversion failed")
         return None, False, None
     
-    print(f"[COST DEBUG] Converted quantity: {converted_quantity} {price_unit.name}")
+    log_cost_debug(f"[COST DEBUG] Converted quantity: {converted_quantity} {price_unit.name}")
     
     # Calculate cost (convert Decimal to float for calculation)
     original_price = float(matching_price.price)
     converted_qty = float(converted_quantity)
     cost = converted_qty * original_price
     
-    print(f"[COST DEBUG] Cost calculation: {converted_qty} × ${original_price} = ${cost}")
+    log_cost_debug(f"[COST DEBUG] Cost calculation: {converted_qty} × ${original_price} = ${cost}")
     
     # Calculate the price per recipe unit
     # This is the price after unit conversion
@@ -499,7 +518,7 @@ def calculate_ingredient_cost(recipe_ingredient, units_dict):
         'recipe_quantity': float(recipe_quantity),
     }
     
-    print(f"[COST DEBUG] ✓ Final cost: ${cost}")
+    log_cost_debug(f"[COST DEBUG] ✓ Final cost: ${cost}")
     return cost, True, details
 
 def calculate_recipe_cost(recipe, units_list, scale_factor=1.0):
@@ -507,13 +526,13 @@ def calculate_recipe_cost(recipe, units_list, scale_factor=1.0):
     Calculate total cost for a recipe and per-ingredient costs.
     Returns dict with total_cost, ingredients_cost, and missing_prices flag.
     """
-    print(f"[RECIPE COST DEBUG] ========================================")
-    print(f"[RECIPE COST DEBUG] Calculating cost for recipe: {recipe.name} (id={recipe.recipe_id})")
-    print(f"[RECIPE COST DEBUG] Scale factor: {scale_factor}")
-    print(f"[RECIPE COST DEBUG] Number of ingredients: {len(recipe.ingredients)}")
+    log_cost_debug(f"[RECIPE COST DEBUG] ========================================")
+    log_cost_debug(f"[RECIPE COST DEBUG] Calculating cost for recipe: {recipe.name} (id={recipe.recipe_id})")
+    log_cost_debug(f"[RECIPE COST DEBUG] Scale factor: {scale_factor}")
+    log_cost_debug(f"[RECIPE COST DEBUG] Number of ingredients: {len(recipe.ingredients)}")
     
     units_dict = {u.unit_id: u for u in units_list}
-    print(f"[RECIPE COST DEBUG] Available units: {len(units_dict)}")
+    log_cost_debug(f"[RECIPE COST DEBUG] Available units: {len(units_dict)}")
     
     total_cost = 0.0
     has_missing_prices = False
@@ -528,7 +547,7 @@ def calculate_recipe_cost(recipe, units_list, scale_factor=1.0):
             scaled_quantity = float(ri.quantity) * scale_factor
             total_cost += scaled_cost
             
-            print(f"[RECIPE COST DEBUG] ✓ Cost available: ${scaled_cost} (scaled from ${cost})")
+            log_cost_debug(f"[RECIPE COST DEBUG] ✓ Cost available: ${scaled_cost} (scaled from ${cost})")
             
             ingredient_info = {
                 'ingredient_id': ri.ingredient_id,
@@ -552,7 +571,7 @@ def calculate_recipe_cost(recipe, units_list, scale_factor=1.0):
             ingredients_cost.append(ingredient_info)
         else:
             has_missing_prices = True
-            print(f"[RECIPE COST DEBUG] ✗ No price data available for this ingredient")
+            log_cost_debug(f"[RECIPE COST DEBUG] ✗ No price data available for this ingredient")
             ingredients_cost.append({
                 'ingredient_id': ri.ingredient_id,
                 'name': ri.ingredient.name if ri.ingredient else None,
@@ -561,10 +580,10 @@ def calculate_recipe_cost(recipe, units_list, scale_factor=1.0):
             })
     
     print(f"\n[RECIPE COST DEBUG] ========================================")
-    print(f"[RECIPE COST DEBUG] Recipe cost summary:")
-    print(f"[RECIPE COST DEBUG] Total cost: ${round(total_cost, 2) if not has_missing_prices else 'N/A'}")
-    print(f"[RECIPE COST DEBUG] Has missing prices: {has_missing_prices}")
-    print(f"[RECIPE COST DEBUG] ========================================\n")
+    log_cost_debug(f"[RECIPE COST DEBUG] Recipe cost summary:")
+    log_cost_debug(f"[RECIPE COST DEBUG] Total cost: ${round(total_cost, 2) if not has_missing_prices else 'N/A'}")
+    log_cost_debug(f"[RECIPE COST DEBUG] Has missing prices: {has_missing_prices}")
+    log_cost_debug(f"[RECIPE COST DEBUG] ========================================\n")
     
     return {
         'total_cost': round(total_cost, 2) if not has_missing_prices else None,

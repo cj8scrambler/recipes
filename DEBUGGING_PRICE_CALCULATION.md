@@ -6,21 +6,39 @@ Detailed logging has been added to the backend to help diagnose recipe price cal
 
 ## How to Enable Logging
 
-The logging is automatically enabled when you access recipe cost endpoints. You'll see debug output in:
+Debug logging is **disabled by default** for performance. To enable it, set the environment variable:
+
+```bash
+export ENABLE_COST_DEBUG=true
+```
+
+Then restart your backend server. You'll see debug output in:
 
 1. **Development**: Terminal where `flask run` is running
 2. **Production**: Check gunicorn/application logs
 
+To disable logging again:
+```bash
+export ENABLE_COST_DEBUG=false
+# or unset ENABLE_COST_DEBUG
+```
+
 ## Log Patterns
+
+All debug logs will have timestamps and INFO level when enabled:
+
+```
+2025-12-16 02:45:30 [INFO] [RECIPE COST DEBUG] ...
+```
 
 ### 1. Recipe Cost Calculation Start
 
 ```
-[RECIPE COST DEBUG] ========================================
-[RECIPE COST DEBUG] Calculating cost for recipe: <recipe_name> (id=<recipe_id>)
-[RECIPE COST DEBUG] Scale factor: <factor>
-[RECIPE COST DEBUG] Number of ingredients: <count>
-[RECIPE COST DEBUG] Available units: <count>
+[INFO] [RECIPE COST DEBUG] ========================================
+[INFO] [RECIPE COST DEBUG] Calculating cost for recipe: <recipe_name> (id=<recipe_id>)
+[INFO] [RECIPE COST DEBUG] Scale factor: <factor>
+[INFO] [RECIPE COST DEBUG] Number of ingredients: <count>
+[INFO] [RECIPE COST DEBUG] Available units: <count>
 ```
 
 **What to check:**
