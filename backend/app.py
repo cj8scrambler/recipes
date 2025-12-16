@@ -976,7 +976,7 @@ def ingredient(ingredient_id):
             return jsonify(serialize_ingredient(ingredient))
         except Exception as e:
             db.session.rollback()
-            print(f"Error updating ingredient: {e}")
+            logger.error(f"Error updating ingredient: {e}")
             return jsonify({"error": "Failed to update ingredient"}), 500
     elif request.method == 'DELETE':
         # Delete ingredient
