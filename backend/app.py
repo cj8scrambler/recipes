@@ -11,13 +11,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Configure logging for price calculation debugging
-# Set to DEBUG level to see detailed cost calculation logs
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s [%(levelname)s] %(message)s',
-    datefmt='%Y-%m-%d %H:%M:%S'
-)
+# Configure logger for this module (won't interfere with Flask's logging)
 logger = logging.getLogger(__name__)
 
 # Enable cost calculation debug logging via environment variable
@@ -25,7 +19,8 @@ logger = logging.getLogger(__name__)
 ENABLE_COST_DEBUG = os.getenv('ENABLE_COST_DEBUG', 'false').lower() == 'true'
 
 def log_cost_debug(message):
-    """Log cost calculation debug messages if debug mode is enabled."""
+    """Log cost calculation debug messages if debug mode is enabled.
+    Uses INFO level to ensure visibility in production logs when enabled."""
     if ENABLE_COST_DEBUG:
         logger.info(message)
 # --- 1. Database Configuration (MySQL) ---
@@ -539,7 +534,7 @@ def calculate_recipe_cost(recipe, units_list, scale_factor=1.0):
     ingredients_cost = []
     
     for idx, ri in enumerate(recipe.ingredients):
-        log_cost_debug(f"\n[RECIPE COST DEBUG] --- Ingredient {idx + 1}/{len(recipe.ingredients)} ---")
+        log_cost_debug(f"[RECIPE COST DEBUG] --- Ingredient {idx + 1}/{len(recipe.ingredients)} ---")
         cost, has_price, details = calculate_ingredient_cost(ri, units_dict)
         
         if has_price and cost is not None:
@@ -579,11 +574,11 @@ def calculate_recipe_cost(recipe, units_list, scale_factor=1.0):
                 'has_price_data': False
             })
     
-    log_cost_debug(f"\n[RECIPE COST DEBUG] ========================================")
+    log_cost_debug(f"[RECIPE COST DEBUG] ========================================")
     log_cost_debug(f"[RECIPE COST DEBUG] Recipe cost summary:")
     log_cost_debug(f"[RECIPE COST DEBUG] Total cost: ${round(total_cost, 2) if not has_missing_prices else 'N/A'}")
     log_cost_debug(f"[RECIPE COST DEBUG] Has missing prices: {has_missing_prices}")
-    log_cost_debug(f"[RECIPE COST DEBUG] ========================================\n")
+    log_cost_debug(f"[RECIPE COST DEBUG] ========================================")
     
     return {
         'total_cost': round(total_cost, 2) if not has_missing_prices else None,
