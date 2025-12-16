@@ -149,19 +149,28 @@ This means either:
 
 ### Quantities look too large/small after migration
 
-Double-check the base_conversion_factor values in your Units table. The exact values from the sample data are:
+**Important:** The conversion factors shown below are from the sample data.sql file. Your database may have different values.
+
+**Sample conversion factors (US Customary):**
 - Milliliter (mL): 1.0 (base unit)
 - Cup (c): 236.588 (US cup)
 - Tablespoon (tbsp): 14.7868 (US tablespoon)
 - Teaspoon (tsp): 4.9289 (US teaspoon)
 - Fluid Ounce (fl oz): 29.5735 (US fluid ounce)
 
-**Important:** These are the exact conversion factors used in the migration. Your database may have slightly different values if metric or other unit systems are used. Verify with:
+**Verify your actual conversion factors before running the migration:**
 ```sql
 SELECT name, abbreviation, category, base_conversion_factor 
 FROM Units 
 WHERE category IN ('Volume', 'Dry Volume', 'Liquid Volume')
 ORDER BY category, base_conversion_factor;
+```
+
+**Check if you have the required base Volume unit:**
+```sql
+SELECT * FROM Units 
+WHERE category = 'Volume' AND base_conversion_factor = 1.0;
+-- This should return at least one row (typically Milliliter)
 ```
 
 ### Cost calculations still not working

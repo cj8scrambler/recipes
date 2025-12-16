@@ -18,8 +18,15 @@
 -- Use ORDER BY for deterministic results in case multiple base Volume units exist
 SET @milliliter_unit_id = (SELECT unit_id FROM Units WHERE category = 'Volume' AND base_conversion_factor = 1.0 ORDER BY unit_id LIMIT 1);
 
--- Step 2: Update Recipe_Ingredients using Dry Volume or Liquid Volume units
+-- Step 2: Validate that a base Volume unit was found
+SELECT CASE 
+    WHEN @milliliter_unit_id IS NULL THEN 'ERROR: No base Volume unit found (category=Volume, base_conversion_factor=1.0). Migration aborted.'
+    ELSE CONCAT('Base Volume unit found: unit_id = ', @milliliter_unit_id)
+END AS validation_status;
+
+-- Step 3: Update Recipe_Ingredients using Dry Volume or Liquid Volume units
 -- Convert quantity to base unit (milliliters) and update unit_id
+-- Only proceed if base unit was found
 UPDATE Recipe_Ingredients ri
 INNER JOIN Units u ON ri.unit_id = u.unit_id
 SET 
@@ -29,7 +36,6 @@ WHERE
     u.category IN ('Dry Volume', 'Liquid Volume')
     AND u.base_conversion_factor IS NOT NULL
     AND @milliliter_unit_id IS NOT NULL;
--- Capture row count immediately (must be next statement after UPDATE)
 SET @rows_affected = ROW_COUNT();
 
 -- Display summary of changes
