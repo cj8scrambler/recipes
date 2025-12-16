@@ -276,68 +276,78 @@ export default function AdminDashboard() {
       </div>
 
       {activeTab === 'recipes' && (
-        <div className="card">
-          <div className="card-header">
-            <h3 className="card-title">Manage Recipes</h3>
-            <button onClick={() => setEditingRecipe({})}>+ New Recipe</button>
-          </div>
-          {recipes.length === 0 && (
-            <div className="empty-state">
-              <p>No recipes yet. Create your first recipe to get started.</p>
-            </div>
+        <>
+          {editingRecipe && (
+            <RecipeEditor
+              recipe={editingRecipe}
+              onCancel={() => setEditingRecipe(null)}
+              onSave={saveRecipe}
+              allRecipes={recipes}
+            />
           )}
-          <ul>
-            {/* Show parent recipes first, then show their variants indented underneath */}
-            {recipes
-              .filter(r => !r.parent_recipe_id) // Only parent/standalone recipes at top level
-              .map(r => {
-                const variants = recipes.filter(v => v.parent_recipe_id === r.recipe_id)
-                return (
-                  <React.Fragment key={r.recipe_id}>
-                    <li>
-                      <div>
-                        <span>{r.name}</span>
-                        {variants.length > 0 && (
-                          <span className="text-muted" style={{ marginLeft: '0.5em', fontSize: '0.85em' }}>
-                            ({variants.length} variant{variants.length !== 1 ? 's' : ''})
-                          </span>
-                        )}
-                        {r.ingredients && r.ingredients.length > 0 && (
-                          <div className="text-muted" style={{fontSize: '0.9em', marginTop: '0.25em'}}>
-                            Ingredients: {r.ingredients.map(ing => ing.name).join(', ')}
-                          </div>
-                        )}
-                      </div>
-                      <div>
-                        <button className="small secondary" onClick={() => setEditingRecipe(r)}>Edit</button>
-                        <button className="small danger" onClick={() => removeRecipe(r.recipe_id)}>Delete</button>
-                      </div>
-                    </li>
-                    {/* Show variants indented */}
-                    {variants.map(v => (
-                      <li key={v.recipe_id} style={{ paddingLeft: '2rem', borderLeft: '3px solid var(--primary-light)' }}>
+          <div className="card">
+            <div className="card-header">
+              <h3 className="card-title">Manage Recipes</h3>
+              <button onClick={() => setEditingRecipe({})}>+ New Recipe</button>
+            </div>
+            {recipes.length === 0 && (
+              <div className="empty-state">
+                <p>No recipes yet. Create your first recipe to get started.</p>
+              </div>
+            )}
+            <ul>
+              {/* Show parent recipes first, then show their variants indented underneath */}
+              {recipes
+                .filter(r => !r.parent_recipe_id) // Only parent/standalone recipes at top level
+                .map(r => {
+                  const variants = recipes.filter(v => v.parent_recipe_id === r.recipe_id)
+                  return (
+                    <React.Fragment key={r.recipe_id}>
+                      <li>
                         <div>
-                          <span style={{ fontStyle: 'italic' }}>↳ {v.name}</span>
-                          <span className="text-muted" style={{ marginLeft: '0.5em', fontSize: '0.85em' }}>
-                            (variant)
-                          </span>
-                          {v.ingredients && v.ingredients.length > 0 && (
+                          <span>{r.name}</span>
+                          {variants.length > 0 && (
+                            <span className="text-muted" style={{ marginLeft: '0.5em', fontSize: '0.85em' }}>
+                              ({variants.length} variant{variants.length !== 1 ? 's' : ''})
+                            </span>
+                          )}
+                          {r.ingredients && r.ingredients.length > 0 && (
                             <div className="text-muted" style={{fontSize: '0.9em', marginTop: '0.25em'}}>
-                              Ingredients: {v.ingredients.map(ing => ing.name).join(', ')}
+                              Ingredients: {r.ingredients.map(ing => ing.name).join(', ')}
                             </div>
                           )}
                         </div>
                         <div>
-                          <button className="small secondary" onClick={() => setEditingRecipe(v)}>Edit</button>
-                          <button className="small danger" onClick={() => removeRecipe(v.recipe_id)}>Delete</button>
+                          <button className="small secondary" onClick={() => setEditingRecipe(r)}>Edit</button>
+                          <button className="small danger" onClick={() => removeRecipe(r.recipe_id)}>Delete</button>
                         </div>
                       </li>
-                    ))}
-                  </React.Fragment>
-                )
-              })}
-          </ul>
-        </div>
+                      {/* Show variants indented */}
+                      {variants.map(v => (
+                        <li key={v.recipe_id} style={{ paddingLeft: '2rem', borderLeft: '3px solid var(--primary-light)' }}>
+                          <div>
+                            <span style={{ fontStyle: 'italic' }}>↳ {v.name}</span>
+                            <span className="text-muted" style={{ marginLeft: '0.5em', fontSize: '0.85em' }}>
+                              (variant)
+                            </span>
+                            {v.ingredients && v.ingredients.length > 0 && (
+                              <div className="text-muted" style={{fontSize: '0.9em', marginTop: '0.25em'}}>
+                                Ingredients: {v.ingredients.map(ing => ing.name).join(', ')}
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <button className="small secondary" onClick={() => setEditingRecipe(v)}>Edit</button>
+                            <button className="small danger" onClick={() => removeRecipe(v.recipe_id)}>Delete</button>
+                          </div>
+                        </li>
+                      ))}
+                    </React.Fragment>
+                  )
+                })}
+            </ul>
+          </div>
+        </>
       )}
 
       {activeTab === 'ingredients' && (() => {
@@ -386,104 +396,113 @@ export default function AdminDashboard() {
         }
         
         return (
-          <div className="card">
-            <div className="card-header">
-              <h3 className="card-title">Manage Ingredients</h3>
-              <button onClick={() => setEditingIngredient({})}>+ New Ingredient</button>
-            </div>
-            {ingredients.length === 0 && (
-              <div className="empty-state">
-                <p>No ingredients yet. Add ingredients to use in your recipes.</p>
-              </div>
+          <>
+            {editingIngredient && (
+              <IngredientEditor
+                ingredient={editingIngredient}
+                onCancel={() => setEditingIngredient(null)}
+                onSave={saveIngredient}
+              />
             )}
-            
-            {/* Ingredients without a type - shown at top */}
-            {noTypeIngredients.length > 0 && (
-              <div style={{ marginBottom: '1em' }}>
-                <h4 style={{ 
-                  fontSize: '1em', 
-                  fontWeight: 600, 
-                  padding: '0.5em',
-                  color: 'var(--gray-600)',
-                  backgroundColor: 'var(--gray-100)',
-                  borderRadius: '4px'
-                }}>
-                  Uncategorized
-                </h4>
-                <ul>
-                  {noTypeIngredients.map(renderIngredientItem)}
-                </ul>
+            <div className="card">
+              <div className="card-header">
+                <h3 className="card-title">Manage Ingredients</h3>
+                <button onClick={() => setEditingIngredient({})}>+ New Ingredient</button>
               </div>
-            )}
-            
-            {/* Ingredients grouped by type - collapsible sections */}
-            {typeGroups.map(group => {
-              const isCollapsed = collapsedTypes[group.type_id] ?? true
-              // Check if any ingredient in this group needs config
-              const groupHasNoPrice = group.ingredients.some(i => ingredientNeedsConfig(i).hasNoPrice)
-              const groupHasNoWeight = group.ingredients.some(i => ingredientNeedsConfig(i).hasNoWeight)
-              
-              return (
-                <div key={group.type_id} style={{ marginBottom: '1em' }}>
-                  <h4 
-                    onClick={() => toggleTypeCollapsed(group.type_id)}
-                    style={{ 
-                      fontSize: '1em', 
-                      fontWeight: 600, 
-                      padding: '0.5em',
-                      color: 'var(--gray-700)',
-                      backgroundColor: 'var(--gray-100)',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      userSelect: 'none'
-                    }}
-                  >
-                    <span>
-                      <span style={{ marginRight: '0.5em' }}>
-                        {isCollapsed ? '▶' : '▼'}
-                      </span>
-                      {group.type_name}
-                      <span style={{ fontWeight: 'normal', color: 'var(--gray-500)', marginLeft: '0.5em' }}>
-                        ({group.ingredients.length})
-                      </span>
-                      {groupHasNoPrice && (
-                        <span 
-                          style={{ 
-                            marginLeft: '0.5em', 
-                            color: '#d9534f', 
-                            fontSize: '0.85em'
-                          }}
-                          title="Some ingredients in this group have no price defined"
-                        >
-                          💲
-                        </span>
-                      )}
-                      {groupHasNoWeight && (
-                        <span 
-                          style={{ 
-                            marginLeft: '0.5em', 
-                            color: '#f0ad4e', 
-                            fontSize: '0.85em'
-                          }}
-                          title="Some ingredients in this group have no weight defined"
-                        >
-                          ⚖️
-                        </span>
-                      )}
-                    </span>
-                  </h4>
-                  {!isCollapsed && (
-                    <ul style={{ marginTop: '0.25em' }}>
-                      {group.ingredients.map(renderIngredientItem)}
-                    </ul>
-                  )}
+              {ingredients.length === 0 && (
+                <div className="empty-state">
+                  <p>No ingredients yet. Add ingredients to use in your recipes.</p>
                 </div>
-              )
-            })}
-          </div>
+              )}
+              
+              {/* Ingredients without a type - shown at top */}
+              {noTypeIngredients.length > 0 && (
+                <div style={{ marginBottom: '1em' }}>
+                  <h4 style={{ 
+                    fontSize: '1em', 
+                    fontWeight: 600, 
+                    padding: '0.5em',
+                    color: 'var(--gray-600)',
+                    backgroundColor: 'var(--gray-100)',
+                    borderRadius: '4px'
+                  }}>
+                    Uncategorized
+                  </h4>
+                  <ul>
+                    {noTypeIngredients.map(renderIngredientItem)}
+                  </ul>
+                </div>
+              )}
+              
+              {/* Ingredients grouped by type - collapsible sections */}
+              {typeGroups.map(group => {
+                const isCollapsed = collapsedTypes[group.type_id] ?? true
+                // Check if any ingredient in this group needs config
+                const groupHasNoPrice = group.ingredients.some(i => ingredientNeedsConfig(i).hasNoPrice)
+                const groupHasNoWeight = group.ingredients.some(i => ingredientNeedsConfig(i).hasNoWeight)
+                
+                return (
+                  <div key={group.type_id} style={{ marginBottom: '1em' }}>
+                    <h4 
+                      onClick={() => toggleTypeCollapsed(group.type_id)}
+                      style={{ 
+                        fontSize: '1em', 
+                        fontWeight: 600, 
+                        padding: '0.5em',
+                        color: 'var(--gray-700)',
+                        backgroundColor: 'var(--gray-100)',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        userSelect: 'none'
+                      }}
+                    >
+                      <span>
+                        <span style={{ marginRight: '0.5em' }}>
+                          {isCollapsed ? '▶' : '▼'}
+                        </span>
+                        {group.type_name}
+                        <span style={{ fontWeight: 'normal', color: 'var(--gray-500)', marginLeft: '0.5em' }}>
+                          ({group.ingredients.length})
+                        </span>
+                        {groupHasNoPrice && (
+                          <span 
+                            style={{ 
+                              marginLeft: '0.5em', 
+                              color: '#d9534f', 
+                              fontSize: '0.85em'
+                            }}
+                            title="Some ingredients in this group have no price defined"
+                          >
+                            💲
+                          </span>
+                        )}
+                        {groupHasNoWeight && (
+                          <span 
+                            style={{ 
+                              marginLeft: '0.5em', 
+                              color: '#f0ad4e', 
+                              fontSize: '0.85em'
+                            }}
+                            title="Some ingredients in this group have no weight defined"
+                          >
+                            ⚖️
+                          </span>
+                        )}
+                      </span>
+                    </h4>
+                    {!isCollapsed && (
+                      <ul style={{ marginTop: '0.25em' }}>
+                        {group.ingredients.map(renderIngredientItem)}
+                      </ul>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </>
         )
       })()}
 
@@ -588,23 +607,6 @@ export default function AdminDashboard() {
             ))}
           </ul>
         </div>
-      )}
-
-      {activeTab === 'recipes' && editingRecipe && (
-        <RecipeEditor
-          recipe={editingRecipe}
-          onCancel={() => setEditingRecipe(null)}
-          onSave={saveRecipe}
-          allRecipes={recipes}
-        />
-      )}
-
-      {activeTab === 'ingredients' && editingIngredient && (
-        <IngredientEditor
-          ingredient={editingIngredient}
-          onCancel={() => setEditingIngredient(null)}
-          onSave={saveIngredient}
-        />
       )}
 
       {activeTab === 'groups' && editingGroup && (
