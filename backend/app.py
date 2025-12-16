@@ -281,7 +281,7 @@ def serialize_ingredient(ingredient):
             prices_list = [serialize_ingredient_price(p) for p in ingredient.prices]
     except Exception as e:
         # Table may not exist yet or other database error
-        print(f"Warning: Could not load prices for ingredient {ingredient.ingredient_id}: {e}")
+        logger.warning(f"Could not load prices for ingredient {ingredient.ingredient_id}: {e}")
         pass
     
     # Get ingredient type info if available
@@ -293,7 +293,7 @@ def serialize_ingredient(ingredient):
         if hasattr(ingredient, 'ingredient_type') and ingredient.ingredient_type:
             type_name = ingredient.ingredient_type.name
     except Exception as e:
-        print(f"Warning: Could not load type for ingredient {ingredient.ingredient_id}: {e}")
+        logger.warning(f"Could not load type for ingredient {ingredient.ingredient_id}: {e}")
         pass
     
     return {
@@ -539,7 +539,7 @@ def calculate_recipe_cost(recipe, units_list, scale_factor=1.0):
     ingredients_cost = []
     
     for idx, ri in enumerate(recipe.ingredients):
-        print(f"\n[RECIPE COST DEBUG] --- Ingredient {idx + 1}/{len(recipe.ingredients)} ---")
+        log_cost_debug(f"\n[RECIPE COST DEBUG] --- Ingredient {idx + 1}/{len(recipe.ingredients)} ---")
         cost, has_price, details = calculate_ingredient_cost(ri, units_dict)
         
         if has_price and cost is not None:
@@ -579,7 +579,7 @@ def calculate_recipe_cost(recipe, units_list, scale_factor=1.0):
                 'has_price_data': False
             })
     
-    print(f"\n[RECIPE COST DEBUG] ========================================")
+    log_cost_debug(f"\n[RECIPE COST DEBUG] ========================================")
     log_cost_debug(f"[RECIPE COST DEBUG] Recipe cost summary:")
     log_cost_debug(f"[RECIPE COST DEBUG] Total cost: ${round(total_cost, 2) if not has_missing_prices else 'N/A'}")
     log_cost_debug(f"[RECIPE COST DEBUG] Has missing prices: {has_missing_prices}")
