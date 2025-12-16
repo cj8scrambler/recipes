@@ -241,12 +241,27 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
           : parseFloat(ing.quantity)
         
         // Find the base unit for this category
-        const baseUnit = unit && unit.category !== 'Item' && unit.category !== 'Temperature'
-          ? units.find(u => 
+        // For volume units (Volume, Dry Volume, Liquid Volume), use the base Volume unit
+        // For other categories, use the base unit in the same category
+        let baseUnit = unit
+        if (unit && unit.category !== 'Item' && unit.category !== 'Temperature') {
+          const volumeCategories = ['Volume', 'Dry Volume', 'Liquid Volume']
+          const isVolumeUnit = volumeCategories.includes(unit.category)
+          
+          if (isVolumeUnit) {
+            // For any volume category, find the base unit in 'Volume' category
+            baseUnit = units.find(u => 
+              u.category === 'Volume' && 
+              u.base_conversion_factor === 1.0
+            )
+          } else {
+            // For non-volume categories, find base unit in same category
+            baseUnit = units.find(u => 
               u.category === unit.category && 
               u.base_conversion_factor === 1.0
             )
-          : unit
+          }
+        }
         
         return {
           ingredient_id: parseInt(ing.ingredient_id),
