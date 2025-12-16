@@ -8,7 +8,7 @@ This data migration normalizes existing `Recipe_Ingredients` records that use vo
 
 ### The Issue
 
-Prior to PR [Fix recipe cost calculation for volume subcategories], the frontend's RecipeEditor would sometimes store recipe ingredients using volume subcategory units (e.g., unit_id for "Cup" in Dry Volume category) instead of converting to the base Volume unit (Milliliter).
+Prior to the frontend fix (this PR), the RecipeEditor would sometimes store recipe ingredients using volume subcategory units (e.g., unit_id for "Cup" in Dry Volume category) instead of converting to the base Volume unit (Milliliter).
 
 This could cause issues when:
 1. An ingredient has a price in one volume subcategory (e.g., Cup in Liquid Volume)

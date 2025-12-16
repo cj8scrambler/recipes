@@ -29,11 +29,8 @@ WHERE
     AND u.base_conversion_factor IS NOT NULL
     AND @milliliter_unit_id IS NOT NULL;
 
--- Display summary of changes
-SELECT 
-    CONCAT('Normalized ', COUNT(*), ' recipe ingredients from volume subcategories to base Volume unit (Milliliter)') AS migration_summary
-FROM Recipe_Ingredients ri
-WHERE ri.unit_id = @milliliter_unit_id;
+-- Display summary of changes (number of rows actually modified by the UPDATE)
+SELECT ROW_COUNT() as rows_normalized;
 
 
 -- ==== DOWNGRADE ====
