@@ -15,7 +15,8 @@
 -- Normalize volume subcategory units to base Volume unit
 
 -- Step 1: Get the unit_id for Milliliter (base Volume unit)
-SET @milliliter_unit_id = (SELECT unit_id FROM Units WHERE category = 'Volume' AND base_conversion_factor = 1.0 LIMIT 1);
+-- Use ORDER BY for deterministic results in case multiple base Volume units exist
+SET @milliliter_unit_id = (SELECT unit_id FROM Units WHERE category = 'Volume' AND base_conversion_factor = 1.0 ORDER BY unit_id LIMIT 1);
 
 -- Step 2: Update Recipe_Ingredients using Dry Volume or Liquid Volume units
 -- Convert quantity to base unit (milliliters) and update unit_id
@@ -28,8 +29,7 @@ WHERE
     u.category IN ('Dry Volume', 'Liquid Volume')
     AND u.base_conversion_factor IS NOT NULL
     AND @milliliter_unit_id IS NOT NULL;
-
--- Capture the number of rows affected by the UPDATE
+-- Capture row count immediately (must be next statement after UPDATE)
 SET @rows_affected = ROW_COUNT();
 
 -- Display summary of changes
