@@ -92,9 +92,10 @@ export default function UserView({ user }) {
     try {
       const full = await api.getRecipe(recipe.recipe_id)
       setSelected(full)
-      // Load recipe cost and weight
-      loadRecipeCost(recipe.recipe_id, DEFAULT_SERVINGS)
-      loadRecipeWeight(recipe.recipe_id, DEFAULT_SERVINGS)
+      // Load recipe cost and weight - scale factor is servings / base_servings
+      const scaleFactor = DEFAULT_SERVINGS / (full.base_servings || 1)
+      loadRecipeCost(recipe.recipe_id, scaleFactor)
+      loadRecipeWeight(recipe.recipe_id, scaleFactor)
       // Load list membership
       loadListMembership(recipe.recipe_id)
       // Attempt to fetch versions; backend may not provide — handle gracefully
@@ -203,8 +204,10 @@ export default function UserView({ user }) {
     if (!isNaN(numValue) && numValue > 0) {
       setScale(numValue)
       if (selected?.recipe_id) {
-        loadRecipeCost(selected.recipe_id, numValue)
-        loadRecipeWeight(selected.recipe_id, numValue)
+        // Calculate scale factor as servings / base_servings
+        const scaleFactor = numValue / (selected.base_servings || 1)
+        loadRecipeCost(selected.recipe_id, scaleFactor)
+        loadRecipeWeight(selected.recipe_id, scaleFactor)
       }
     }
   }
@@ -221,8 +224,10 @@ export default function UserView({ user }) {
         setScale(newValue)
         setScaleInput(formatServingsDisplay(newValue))
         if (selected?.recipe_id) {
-          loadRecipeCost(selected.recipe_id, newValue)
-          loadRecipeWeight(selected.recipe_id, newValue)
+          // Calculate scale factor as servings / base_servings
+          const scaleFactor = newValue / (selected.base_servings || 1)
+          loadRecipeCost(selected.recipe_id, scaleFactor)
+          loadRecipeWeight(selected.recipe_id, scaleFactor)
         }
         return
       }
@@ -248,8 +253,10 @@ export default function UserView({ user }) {
       setScale(newValue)
       setScaleInput(formatServingsDisplay(newValue))
       if (selected?.recipe_id) {
-        loadRecipeCost(selected.recipe_id, newValue)
-        loadRecipeWeight(selected.recipe_id, newValue)
+        // Calculate scale factor as servings / base_servings
+        const scaleFactor = newValue / (selected.base_servings || 1)
+        loadRecipeCost(selected.recipe_id, scaleFactor)
+        loadRecipeWeight(selected.recipe_id, scaleFactor)
       }
     }
   }
@@ -267,8 +274,10 @@ export default function UserView({ user }) {
     setScale(rounded)
     setScaleInput(formatServingsDisplay(rounded))
     if (selected?.recipe_id) {
-      loadRecipeCost(selected.recipe_id, rounded)
-      loadRecipeWeight(selected.recipe_id, rounded)
+      // Calculate scale factor as servings / base_servings
+      const scaleFactor = rounded / (selected.base_servings || 1)
+      loadRecipeCost(selected.recipe_id, scaleFactor)
+      loadRecipeWeight(selected.recipe_id, scaleFactor)
     }
   }
 
@@ -304,8 +313,10 @@ export default function UserView({ user }) {
       setSelected(variant)
       setScale(DEFAULT_SERVINGS)
       setScaleInput(DEFAULT_SERVINGS_STR)
-      loadRecipeCost(variant.recipe_id, DEFAULT_SERVINGS)
-      loadRecipeWeight(variant.recipe_id, DEFAULT_SERVINGS)
+      // Calculate scale factor as servings / base_servings
+      const scaleFactor = DEFAULT_SERVINGS / (variant.base_servings || 1)
+      loadRecipeCost(variant.recipe_id, scaleFactor)
+      loadRecipeWeight(variant.recipe_id, scaleFactor)
       // Update list membership for the variant recipe
       loadListMembership(variant.recipe_id)
     } catch (err) {
