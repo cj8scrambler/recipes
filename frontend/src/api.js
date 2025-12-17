@@ -14,7 +14,17 @@ async function request(path, options = {}) {
     throw new Error(`API error ${res.status}: ${text}`)
   }
   const data = res.status === 204 ? null : await res.json()
-  console.log('[DEBUG API] Response from', path, ':', data)
+  // Log only essential fields for large responses (recipes endpoint)
+  if (path.includes('/recipes/') && data && data.recipe_id) {
+    console.log('[DEBUG API] Response from', path, '- Recipe:', {
+      recipe_id: data.recipe_id,
+      name: data.name,
+      base_servings: data.base_servings,
+      ingredient_count: data.ingredients?.length
+    })
+  } else {
+    console.log('[DEBUG API] Response from', path, ':', data)
+  }
   return data
 }
 

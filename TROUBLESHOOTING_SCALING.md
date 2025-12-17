@@ -5,8 +5,10 @@ This document helps diagnose why recipe cost and weight scaling might not work c
 ## Problem Description
 
 When viewing a recipe designed for 6 servings with the serving size set to 1:
-- **Expected**: API request should be `GET /api/recipes/12/weight?scale=0.16666666666666666` (1/6)
+- **Expected**: API request should be `GET /api/recipes/12/weight?scale=0.16666666666666666` 
+  - Calculation: scale = current_servings / base_servings = 1 / 6 = 0.1666...
 - **Observed in production**: API request is `GET /api/recipes/12/weight?scale=1`
+  - This suggests: scale = 1 / 1 = 1, meaning `base_servings` is either 1, undefined, null, or 0
 
 This indicates the `base_servings` value is not being used correctly in the scale factor calculation.
 

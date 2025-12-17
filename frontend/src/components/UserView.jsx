@@ -544,8 +544,8 @@ export default function UserView({ user }) {
               }}>
                 <strong>🐛 DEBUG INFO:</strong><br />
                 Recipe Base Servings: {selected.base_servings || 'undefined'}<br />
-                Current Servings: {scale}<br />
-                Scale Factor: {selected.base_servings ? (scale / selected.base_servings).toFixed(6) : 'N/A'}
+                Current Servings Display: {scale}<br />
+                Scale Factor (for API): {selected.base_servings ? (scale / selected.base_servings).toFixed(6) : 'N/A'} (= {scale} / {selected.base_servings || '?'})
               </div>
             )}
 
