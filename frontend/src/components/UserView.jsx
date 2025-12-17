@@ -531,6 +531,24 @@ export default function UserView({ user }) {
               </div>
             )}
 
+            {/* Debug info banner - temporary for debugging */}
+            {selected && (
+              <div style={{
+                padding: '0.75rem',
+                backgroundColor: '#fff3cd',
+                border: '1px solid #ffc107',
+                borderRadius: 'var(--border-radius-sm)',
+                marginBottom: '1rem',
+                fontSize: '0.9em',
+                fontFamily: 'monospace'
+              }}>
+                <strong>🐛 DEBUG INFO:</strong><br />
+                Recipe Base Servings: {selected.base_servings || 'undefined'}<br />
+                Current Servings: {scale}<br />
+                Scale Factor: {selected.base_servings ? (scale / selected.base_servings).toFixed(6) : 'N/A'}
+              </div>
+            )}
+
             <div className="meta">
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <label style={{ marginBottom: 0 }}>Servings</label>
