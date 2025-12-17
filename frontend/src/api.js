@@ -2,7 +2,9 @@
 const BASE = import.meta.env.VITE_API_BASE_URL || '/api'
 
 async function request(path, options = {}) {
-  const res = await fetch(`${BASE}${path}`, {
+  const fullUrl = `${BASE}${path}`
+  console.log('[DEBUG API] Request:', fullUrl)
+  const res = await fetch(fullUrl, {
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',  // Include cookies for session-based auth
     ...options
@@ -11,7 +13,9 @@ async function request(path, options = {}) {
     const text = await res.text()
     throw new Error(`API error ${res.status}: ${text}`)
   }
-  return res.status === 204 ? null : res.json()
+  const data = res.status === 204 ? null : await res.json()
+  console.log('[DEBUG API] Response from', path, ':', data)
+  return data
 }
 
 export const api = {
@@ -53,10 +57,16 @@ export const api = {
   listUnits: () => request('/units'),
 
   // Recipe Costs
-  getRecipeCost: (id, scale = 1.0) => request(`/recipes/${id}/cost?scale=${scale}`),
+  getRecipeCost: (id, scale = 1.0) => {
+    console.log('[DEBUG API] getRecipeCost called:', { id, scale, scale_type: typeof scale })
+    return request(`/recipes/${id}/cost?scale=${scale}`)
+  },
 
   // Recipe Weights
-  getRecipeWeight: (id, scale = 1.0) => request(`/recipes/${id}/weight?scale=${scale}`),
+  getRecipeWeight: (id, scale = 1.0) => {
+    console.log('[DEBUG API] getRecipeWeight called:', { id, scale, scale_type: typeof scale })
+    return request(`/recipes/${id}/weight?scale=${scale}`)
+  },
 
   // Admin - Ingredient Prices
   listIngredientPrices: (ingredientId) => request(`/ingredients/${ingredientId}/prices`),

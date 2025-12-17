@@ -91,9 +91,22 @@ export default function UserView({ user }) {
     setShowAddToList(false)
     try {
       const full = await api.getRecipe(recipe.recipe_id)
+      console.log('[DEBUG] Recipe data received:', {
+        recipe_id: full.recipe_id,
+        name: full.name,
+        base_servings: full.base_servings,
+        base_servings_type: typeof full.base_servings,
+        full_object_keys: Object.keys(full)
+      })
       setSelected(full)
       // Load recipe cost and weight - scale factor is servings / base_servings
       const scaleFactor = DEFAULT_SERVINGS / (full.base_servings || 1)
+      console.log('[DEBUG] Scale factor calculation:', {
+        DEFAULT_SERVINGS,
+        base_servings: full.base_servings,
+        scaleFactor,
+        calculation: `${DEFAULT_SERVINGS} / ${full.base_servings || 1} = ${scaleFactor}`
+      })
       loadRecipeCost(recipe.recipe_id, scaleFactor)
       loadRecipeWeight(recipe.recipe_id, scaleFactor)
       // Load list membership
