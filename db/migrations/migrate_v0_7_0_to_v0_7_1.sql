@@ -33,4 +33,14 @@ DEALLOCATE PREPARE stmt;
 
 -- Re-add the unique constraint on (list_id, recipe_id)
 -- WARNING: This will fail if there are duplicate (list_id, recipe_id) pairs in the table
+-- 
+-- If downgrade fails due to duplicate entries, you must first clean up duplicates:
+-- 1. Identify duplicates:
+--    SELECT list_id, recipe_id, COUNT(*) as count
+--    FROM Recipe_List_Items
+--    GROUP BY list_id, recipe_id
+--    HAVING count > 1;
+-- 2. Manually decide which duplicate items to keep and delete the others
+-- 3. Then re-run this downgrade migration
+
 ALTER TABLE Recipe_List_Items ADD UNIQUE KEY unique_list_recipe (list_id, recipe_id);
