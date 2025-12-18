@@ -31,7 +31,7 @@ const ML_PER_FL_OZ = 29.5735 // milliliters per fluid ounce
  * @returns {string} - Empty string if already in fl oz, otherwise " (X fl oz)" format
  */
 function getFluidOunceEquivalent(quantity, displayUnit) {
-  if (!displayUnit || !VOLUME_CATEGORIES.includes(displayUnit.category)) {
+  if (!displayUnit || !displayUnit.category || !VOLUME_CATEGORIES.includes(displayUnit.category)) {
     return ''
   }
   
@@ -54,6 +54,10 @@ function getFluidOunceEquivalent(quantity, displayUnit) {
  * @returns {string} - Formatted ingredient text
  */
 function formatIngredientForCooking(ing) {
+  if (!ing || !ing.name) {
+    return ''
+  }
+  
   const isWater = ing.name.toLowerCase() === 'water'
   
   let text = ''
