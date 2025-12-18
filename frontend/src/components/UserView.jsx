@@ -367,8 +367,8 @@ export default function UserView({ user }) {
     }
   }
 
-  // Get all lists (recipes can now be added multiple times)
-  function getAvailableLists() {
+  // Get all recipe lists (recipes can now be added multiple times to the same list)
+  function getAllRecipeLists() {
     return recipeLists
   }
 
@@ -479,9 +479,9 @@ export default function UserView({ user }) {
             {showAddToList && (
               <div className="add-to-list-dropdown">
                 <div className="dropdown-header">Save to Recipe List</div>
-                {getAvailableLists().length > 0 && (
+                {getAllRecipeLists().length > 0 && (
                   <div className="existing-lists">
-                    {getAvailableLists().map(list => (
+                    {getAllRecipeLists().map(list => (
                       <button
                         key={list.list_id}
                         className="list-option"
