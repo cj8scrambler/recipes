@@ -91,22 +91,9 @@ export default function UserView({ user }) {
     setShowAddToList(false)
     try {
       const full = await api.getRecipe(recipe.recipe_id)
-      console.log('[DEBUG] Recipe data received:', {
-        recipe_id: full.recipe_id,
-        name: full.name,
-        base_servings: full.base_servings,
-        base_servings_type: typeof full.base_servings,
-        full_object_keys: Object.keys(full)
-      })
       setSelected(full)
       // Load recipe cost and weight - scale factor is servings / base_servings
       const scaleFactor = DEFAULT_SERVINGS / (full.base_servings || 1)
-      console.log('[DEBUG] Scale factor calculation:', {
-        DEFAULT_SERVINGS,
-        base_servings: full.base_servings,
-        scaleFactor,
-        calculation: `${DEFAULT_SERVINGS} / ${full.base_servings || 1} = ${scaleFactor}`
-      })
       loadRecipeCost(recipe.recipe_id, scaleFactor)
       loadRecipeWeight(recipe.recipe_id, scaleFactor)
       // Load list membership
@@ -528,24 +515,6 @@ export default function UserView({ user }) {
                   📋 Saving with <strong>{Math.round(scale)} servings</strong>
                   {selectedVersion && ` • ${selectedVersion.variant_notes || selectedVersion.name}`}
                 </p>
-              </div>
-            )}
-
-            {/* Debug info banner - temporary for debugging */}
-            {selected && (
-              <div style={{
-                padding: '0.75rem',
-                backgroundColor: '#fff3cd',
-                border: '1px solid #ffc107',
-                borderRadius: 'var(--border-radius-sm)',
-                marginBottom: '1rem',
-                fontSize: '0.9em',
-                fontFamily: 'monospace'
-              }}>
-                <strong>🐛 DEBUG INFO:</strong><br />
-                Recipe Base Servings: {selected.base_servings || 'undefined'}<br />
-                Current Servings Display: {scale}<br />
-                Scale Factor (for API): {selected.base_servings ? (scale / selected.base_servings).toFixed(6) : 'N/A'} (= {scale} / {selected.base_servings || '?'})
               </div>
             )}
 
