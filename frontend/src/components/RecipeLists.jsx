@@ -22,6 +22,10 @@ export default function RecipeLists({ user }) {
   const [itemCosts, setItemCosts] = useState({})
   const [itemWeights, setItemWeights] = useState({})
   
+  // Shopping list state
+  const [shoppingList, setShoppingList] = useState([])
+  const [shoppingListLoading, setShoppingListLoading] = useState(false)
+  
   // Form states
   const [newListName, setNewListName] = useState('')
   const [editingListId, setEditingListId] = useState(null)
@@ -147,17 +151,33 @@ export default function RecipeLists({ user }) {
     }
   }
 
+  async function loadShoppingList(listId) {
+    setShoppingListLoading(true)
+    try {
+      const data = await api.getShoppingList(listId)
+      setShoppingList(data || [])
+    } catch (err) {
+      console.error('Failed to load shopping list:', err)
+      setShoppingList([])
+    } finally {
+      setShoppingListLoading(false)
+    }
+  }
+
   async function selectList(list) {
     setSelectedRecipe(null)
     setEditingItem(null)
     setListTotals({ cost: null, weight: null, loading: true })
     setItemCosts({})
     setItemWeights({})
+    setShoppingList([])
     try {
       const full = await api.getRecipeList(list.list_id)
       setSelectedList(full)
       // Load totals after getting the list
       loadListTotals(full.items)
+      // Load shopping list
+      loadShoppingList(full.list_id)
     } catch (err) {
       setError(err.message)
       setListTotals({ cost: null, weight: null, loading: false })
@@ -224,8 +244,9 @@ export default function RecipeLists({ user }) {
       const updated = await api.getRecipeList(selectedList.list_id)
       setSelectedList(updated)
       setEditingItem(null)
-      // Recalculate totals after updating item
+      // Recalculate totals and shopping list after updating item
       loadListTotals(updated.items)
+      loadShoppingList(updated.list_id)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -239,8 +260,9 @@ export default function RecipeLists({ user }) {
       await api.removeRecipeFromList(selectedList.list_id, itemId)
       const updated = await api.getRecipeList(selectedList.list_id)
       setSelectedList(updated)
-      // Recalculate totals after removing item
+      // Recalculate totals and shopping list after removing item
       loadListTotals(updated.items)
+      loadShoppingList(updated.list_id)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -648,6 +670,29 @@ export default function RecipeLists({ user }) {
                 </li>
               ))}
             </ul>
+            
+            {/* Shopping List */}
+            {selectedList.items && selectedList.items.length > 0 && (
+              <div className="shopping-list-section">
+                <h3>Shopping List</h3>
+                {shoppingListLoading ? (
+                  <div className="text-muted">Loading shopping list...</div>
+                ) : shoppingList.length === 0 ? (
+                  <div className="text-muted">No ingredients to display</div>
+                ) : (
+                  <ul className="shopping-list">
+                    {shoppingList.map((item, index) => (
+                      <li key={index}>
+                        <span className="ingredient-quantity">
+                          {formatRecipeUnits(item.quantity, 2)} {item.unit_abv}
+                        </span>
+                        <span className="ingredient-name">{item.ingredient_name}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
           </div>
         )}
 
