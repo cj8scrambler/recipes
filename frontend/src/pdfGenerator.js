@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf'
 import { formatRecipeUnits } from './utils'
+import { VOLUME_CATEGORIES } from './unitConversions'
 
 // Page dimensions in points (72 points per inch)
 const PAGE_WIDTH_PT = 612 // 8.5"
@@ -19,6 +20,65 @@ const LINE_HEIGHT_FACTOR = 1.35
 // Layout thresholds
 const TWO_SECTION_LAYOUT_THRESHOLD = 0.45 // Use two-section layout if content fits
 const MIN_REMAINING_HEIGHT = 100
+
+// Unit conversion constants
+const ML_PER_FL_OZ = 29.5735 // milliliters per fluid ounce
+
+/**
+ * Get fluid ounce equivalent text for a volume quantity
+ * @param {number} quantity - The quantity in the display unit
+ * @param {object} displayUnit - The unit object being displayed
+ * @returns {string} - Empty string if already in fl oz, otherwise " (X fl oz)" format
+ */
+function getFluidOunceEquivalent(quantity, displayUnit) {
+  if (!displayUnit || !displayUnit.category || !VOLUME_CATEGORIES.includes(displayUnit.category)) {
+    return ''
+  }
+  
+  // If already in fluid ounces, no conversion needed
+  if (displayUnit.abbreviation === 'fl oz') {
+    return ''
+  }
+  
+  // Convert to base unit (mL) then to fluid ounces
+  if (!displayUnit.base_conversion_factor) {
+    return ''
+  }
+  const baseQuantity = quantity * displayUnit.base_conversion_factor
+  const flOzQuantity = baseQuantity / ML_PER_FL_OZ
+  
+  return ` (${formatRecipeUnits(flOzQuantity, 2)} fl oz)`
+}
+
+/**
+ * Format ingredient text for cooking section
+ * Water shows quantity since it's not in the package; other ingredients show name only
+ * @param {object} ing - Ingredient object with name, quantity, displayUnit, notes
+ * @returns {string} - Formatted ingredient text
+ */
+function formatIngredientForCooking(ing) {
+  if (!ing || !ing.name) {
+    return ''
+  }
+  
+  const isWater = ing.name.toLowerCase() === 'water'
+  
+  let text = ''
+  if (isWater && ing.quantity && ing.displayUnit) {
+    // Show quantity for water
+    text = `${formatRecipeUnits(ing.quantity, 2)} ${ing.displayUnit.abbreviation}`
+    text += getFluidOunceEquivalent(ing.quantity, ing.displayUnit)
+    text += ' ' + ing.name
+  } else {
+    text = ing.name
+  }
+  
+  if (ing.notes) {
+    text += ` (${ing.notes})`
+  }
+  
+  return text
+}
 
 /**
  * Group ingredients by group_id
@@ -96,7 +156,8 @@ function drawRotatedPackingHeader(doc, recipe, servings, x, y, maxWidth, recipeC
 }
 
 /**
- * Draw recipe header info (name, servings, cost, weight, tags) - for cooking section
+ * Draw recipe header info (name, servings, weight, tags) - for cooking section
+ * Note: Cost is intentionally excluded from cooking instructions
  */
 function drawRotatedHeader(doc, recipe, servings, x, y, maxWidth, recipeCost, recipeWeight) {
   const lineHeight = BODY_FONT_SIZE * LINE_HEIGHT_FACTOR
@@ -108,13 +169,10 @@ function drawRotatedHeader(doc, recipe, servings, x, y, maxWidth, recipeCost, re
   doc.text(recipe.name, currentX, y, { angle: 90 })
   currentX += TITLE_FONT_SIZE * LINE_HEIGHT_FACTOR + 4
   
-  // Meta info line: Servings, Cost, Weight
+  // Meta info line: Servings, Weight (no cost)
   doc.setFontSize(SMALL_FONT_SIZE)
   doc.setFont('helvetica', 'normal')
   let metaText = `Servings: ${servings}`
-  if (recipeCost && recipeCost.total_cost !== null) {
-    metaText += `  •  Cost: $${recipeCost.total_cost.toFixed(2)}`
-  }
   if (recipeWeight && recipeWeight.total_weight !== null) {
     metaText += `  •  Weight: ${recipeWeight.total_weight.toFixed(0)}g`
   }
@@ -188,6 +246,7 @@ function drawRotatedIngredients(doc, scaledIngredients, x, y, maxWidth) {
 /**
  * Draw ingredients summary for the cooking section
  * Lists all ingredients (ungrouped and groups) without quantities
+ * Exception: 'water' shows quantity since it's not in the recipe package
  * Ingredient groups are NOT bold - treated same as individual ingredients
  */
 function drawRotatedIngredientsSummary(doc, scaledIngredients, x, y, maxWidth) {
@@ -209,11 +268,9 @@ function drawRotatedIngredientsSummary(doc, scaledIngredients, x, y, maxWidth) {
   for (const [groupKey, group] of sortedGroups) {
     if (groupKey === 'ungrouped') {
       // List each ungrouped ingredient by name only (no quantities - already pre-measured)
+      // Exception: water shows quantity since it's not in the package
       for (const ing of group.ingredients) {
-        let text = ing.name
-        if (ing.notes) {
-          text += ` (${ing.notes})`
-        }
+        const text = formatIngredientForCooking(ing)
         doc.text('- ' + text, currentX, y, { angle: 90 })
         currentX += lineHeight
       }
@@ -291,10 +348,12 @@ function renderRecipeTwoSection(doc, recipe, scaledIngredients, servings, recipe
 
 /**
  * Draw standard page header with recipe info
+ * Cost is shown for packing instructions but not for cooking instructions
  */
 function drawStandardHeader(doc, recipe, servings, recipeCost, recipeWeight, sectionTitle) {
   const contentWidth = PAGE_WIDTH_PT - (2 * MARGIN_PT)
   let y = MARGIN_PT + LEFT_PADDING
+  const isCookingSection = sectionTitle === 'COOKING INSTRUCTIONS'
   
   // Section title (PACKING INSTRUCTIONS or COOKING INSTRUCTIONS)
   doc.setFontSize(SECTION_FONT_SIZE)
@@ -308,11 +367,11 @@ function drawStandardHeader(doc, recipe, servings, recipeCost, recipeWeight, sec
   doc.text(recipe.name, PAGE_WIDTH_PT / 2, y, { align: 'center' })
   y += TITLE_FONT_SIZE * LINE_HEIGHT_FACTOR + 8
   
-  // Meta info
+  // Meta info - exclude cost for cooking section
   doc.setFontSize(SMALL_FONT_SIZE)
   doc.setFont('helvetica', 'normal')
   let metaText = `Servings: ${servings}`
-  if (recipeCost && recipeCost.total_cost !== null) {
+  if (!isCookingSection && recipeCost && recipeCost.total_cost !== null) {
     metaText += `  •  Cost: $${recipeCost.total_cost.toFixed(2)}`
   }
   if (recipeWeight && recipeWeight.total_weight !== null) {
@@ -409,6 +468,7 @@ function drawStandardSection(doc, title, content, x, y, width, isIngredients = f
 
 /**
  * Draw ingredient summary for cooking section (names only, no quantities)
+ * Exception: 'water' shows quantity since it's not in the recipe package
  */
 function drawStandardIngredientsSummary(doc, scaledIngredients, x, y, width) {
   const lineHeight = BODY_FONT_SIZE * LINE_HEIGHT_FACTOR
@@ -429,12 +489,10 @@ function drawStandardIngredientsSummary(doc, scaledIngredients, x, y, width) {
   for (const [groupKey, group] of sortedGroups) {
     if (groupKey === 'ungrouped') {
       // List each ungrouped ingredient by name only
+      // Exception: water shows quantity since it's not in the package
       for (const ing of group.ingredients) {
-        let text = '- ' + ing.name
-        if (ing.notes) {
-          text += ` (${ing.notes})`
-        }
-        doc.text(text, x, y)
+        const text = formatIngredientForCooking(ing)
+        doc.text('- ' + text, x, y)
         y += lineHeight
       }
     } else if (group.name) {
