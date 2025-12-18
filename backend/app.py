@@ -1665,6 +1665,7 @@ def recipe_list_shopping_list(list_id):
                     # If conversion failed, store in original unit
                     key = (ingredient_id, recipe_ingredient.unit_id)
                     baseline_unit_id = recipe_ingredient.unit_id
+                    baseline_unit = recipe_unit  # Use recipe unit instead
                     converted_quantity = scaled_quantity
                 else:
                     key = (ingredient_id, baseline_unit_id)
