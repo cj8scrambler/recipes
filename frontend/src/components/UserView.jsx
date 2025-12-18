@@ -367,10 +367,9 @@ export default function UserView({ user }) {
     }
   }
 
-  // Get lists that don't contain this recipe
+  // Get all lists (recipes can now be added multiple times)
   function getAvailableLists() {
-    const memberListIds = listMembership.map(m => m.list_id)
-    return recipeLists.filter(list => !memberListIds.includes(list.list_id))
+    return recipeLists
   }
 
   return (
