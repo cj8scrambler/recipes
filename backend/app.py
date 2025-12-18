@@ -1671,17 +1671,16 @@ def recipe_list_shopping_list(list_id):
                     key = (ingredient_id, baseline_unit_id)
                 
                 # Accumulate the quantity
-                if key in aggregated_ingredients:
-                    aggregated_ingredients[key]['quantity'] += converted_quantity
-                else:
+                if key not in aggregated_ingredients:
                     aggregated_ingredients[key] = {
                         'ingredient_id': ingredient_id,
                         'ingredient_name': ingredient.name,
-                        'quantity': converted_quantity,
+                        'quantity': 0,
                         'unit_id': baseline_unit_id,
                         'unit_abv': baseline_unit.abbreviation if baseline_unit else None,
                         'unit_name': baseline_unit.name if baseline_unit else None
                     }
+                aggregated_ingredients[key]['quantity'] += converted_quantity
         
         # Convert to list and sort by ingredient name
         shopping_list = list(aggregated_ingredients.values())

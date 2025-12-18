@@ -681,8 +681,8 @@ export default function RecipeLists({ user }) {
                   <div className="text-muted">No ingredients to display</div>
                 ) : (
                   <ul className="shopping-list">
-                    {shoppingList.map((item, index) => (
-                      <li key={index}>
+                    {shoppingList.map((item) => (
+                      <li key={`${item.ingredient_id}-${item.unit_id}`}>
                         <span className="ingredient-quantity">
                           {formatRecipeUnits(item.quantity, 2)} {item.unit_abv}
                         </span>
