@@ -46,7 +46,50 @@ SHOW INDEX FROM Recipe_List_Items WHERE Key_name = 'unique_list_recipe';
 
 This should return **no rows** if the migration was successful.
 
+## Verify Migration Was Applied
+
+After running the migration, verify it worked:
+
+```bash
+mysql -u USERNAME -p DATABASE_NAME < db/migrations/VERIFY_MIGRATION.sql
+```
+
+The output should **NOT** show any row with `index_name = 'unique_list_recipe'`. If you see that index, the migration didn't apply correctly.
+
 ## Troubleshooting
+
+### Still Getting "Duplicate entry" Error After Migration
+
+If you ran the migration but still get errors like:
+```
+(pymysql.err.IntegrityError) (1062, "Duplicate entry '1-12' for key 'Recipe_List_Items.unique_list_recipe'")
+```
+
+**Try the alternative direct migration:**
+```bash
+mysql -u USERNAME -p DATABASE_NAME < db/migrations/migrate_v0_7_0_to_v0_7_1_direct.sql
+```
+
+This uses a simpler approach. If you get an error "Can't DROP 'unique_list_recipe'", that's actually good - it means the constraint is already gone.
+
+**Check you're using the correct database:**
+```sql
+-- Connect to MySQL and run:
+SELECT DATABASE();
+```
+Make sure this matches the database your app is using (check `backend/.env` file).
+
+**Restart your backend application:**
+After applying the migration, restart the Flask backend:
+```bash
+# Stop the backend (Ctrl+C)
+# Then restart it:
+cd backend
+. .venv/bin/activate
+flask run
+```
+
+SQLAlchemy may cache table metadata, so restarting helps.
 
 ### Error: "Access denied"
 - Check your username and password
