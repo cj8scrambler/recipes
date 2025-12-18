@@ -65,12 +65,36 @@ If you ran the migration but still get errors like:
 (pymysql.err.IntegrityError) (1062, "Duplicate entry '1-12' for key 'Recipe_List_Items.unique_list_recipe'")
 ```
 
-**Try the alternative direct migration:**
+**First, verify the constraint still exists:**
+```bash
+mysql -u USERNAME -p DATABASE_NAME < db/migrations/VERIFY_MIGRATION.sql
+```
+
+If you see `unique_list_recipe` in the output, the constraint is still there. Try these solutions:
+
+#### Solution 1: Run SQL command directly in MySQL
+Connect to MySQL and run the command manually:
+
+```bash
+mysql -u USERNAME -p DATABASE_NAME
+```
+
+Then in the MySQL prompt:
+```sql
+ALTER TABLE Recipe_List_Items DROP INDEX unique_list_recipe;
+```
+
+You should see "Query OK, 0 rows affected". Then type `exit` to quit MySQL.
+
+#### Solution 2: Use the force drop script
+```bash
+mysql -u USERNAME -p DATABASE_NAME < db/migrations/FORCE_DROP_CONSTRAINT.sql
+```
+
+#### Solution 3: Try the alternative direct migration
 ```bash
 mysql -u USERNAME -p DATABASE_NAME < db/migrations/migrate_v0_7_0_to_v0_7_1_direct.sql
 ```
-
-This uses a simpler approach. If you get an error "Can't DROP 'unique_list_recipe'", that's actually good - it means the constraint is already gone.
 
 **Check you're using the correct database:**
 ```sql
@@ -79,8 +103,15 @@ SELECT DATABASE();
 ```
 Make sure this matches the database your app is using (check `backend/.env` file).
 
-**Restart your backend application:**
-After applying the migration, restart the Flask backend:
+**After successful constraint removal:**
+
+1. Verify the constraint is gone:
+```bash
+mysql -u USERNAME -p DATABASE_NAME < db/migrations/VERIFY_MIGRATION.sql
+```
+The output should NOT show `unique_list_recipe`.
+
+2. Restart your backend application:
 ```bash
 # Stop the backend (Ctrl+C)
 # Then restart it:
@@ -89,7 +120,7 @@ cd backend
 flask run
 ```
 
-SQLAlchemy may cache table metadata, so restarting helps.
+SQLAlchemy may cache table metadata, so restarting is required.
 
 ### Error: "Access denied"
 - Check your username and password
