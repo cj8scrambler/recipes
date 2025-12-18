@@ -41,6 +41,9 @@ function getFluidOunceEquivalent(quantity, displayUnit) {
   }
   
   // Convert to base unit (mL) then to fluid ounces
+  if (!displayUnit.base_conversion_factor) {
+    return ''
+  }
   const baseQuantity = quantity * displayUnit.base_conversion_factor
   const flOzQuantity = baseQuantity / ML_PER_FL_OZ
   
