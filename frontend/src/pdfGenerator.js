@@ -21,6 +21,9 @@ const LINE_HEIGHT_FACTOR = 1.35
 const TWO_SECTION_LAYOUT_THRESHOLD = 0.45 // Use two-section layout if content fits
 const MIN_REMAINING_HEIGHT = 100
 
+// Unit conversion constants
+const ML_PER_FL_OZ = 29.5735 // milliliters per fluid ounce
+
 /**
  * Get fluid ounce equivalent text for a volume quantity
  * @param {number} quantity - The quantity in the display unit
@@ -38,12 +41,36 @@ function getFluidOunceEquivalent(quantity, displayUnit) {
   }
   
   // Convert to base unit (mL) then to fluid ounces
-  // 1 fl oz = 29.5735 mL (standard conversion factor)
   const baseQuantity = quantity * displayUnit.base_conversion_factor
-  const flOzConversionFactor = 29.5735 // mL per fl oz
-  const flOzQuantity = baseQuantity / flOzConversionFactor
+  const flOzQuantity = baseQuantity / ML_PER_FL_OZ
   
   return ` (${formatRecipeUnits(flOzQuantity, 2)} fl oz)`
+}
+
+/**
+ * Format ingredient text for cooking section
+ * Water shows quantity since it's not in the package; other ingredients show name only
+ * @param {object} ing - Ingredient object with name, quantity, displayUnit, notes
+ * @returns {string} - Formatted ingredient text
+ */
+function formatIngredientForCooking(ing) {
+  const isWater = ing.name.toLowerCase() === 'water'
+  
+  let text = ''
+  if (isWater && ing.quantity && ing.displayUnit) {
+    // Show quantity for water
+    text = `${formatRecipeUnits(ing.quantity, 2)} ${ing.displayUnit.abbreviation}`
+    text += getFluidOunceEquivalent(ing.quantity, ing.displayUnit)
+    text += ' ' + ing.name
+  } else {
+    text = ing.name
+  }
+  
+  if (ing.notes) {
+    text += ` (${ing.notes})`
+  }
+  
+  return text
 }
 
 /**
@@ -236,21 +263,7 @@ function drawRotatedIngredientsSummary(doc, scaledIngredients, x, y, maxWidth) {
       // List each ungrouped ingredient by name only (no quantities - already pre-measured)
       // Exception: water shows quantity since it's not in the package
       for (const ing of group.ingredients) {
-        let text = ''
-        const isWater = ing.name.toLowerCase() === 'water'
-        
-        if (isWater && ing.quantity && ing.displayUnit) {
-          // Show quantity for water
-          text = `${formatRecipeUnits(ing.quantity, 2)} ${ing.displayUnit.abbreviation} `
-          text += getFluidOunceEquivalent(ing.quantity, ing.displayUnit)
-          text += ' ' + ing.name
-        } else {
-          text = ing.name
-        }
-        
-        if (ing.notes) {
-          text += ` (${ing.notes})`
-        }
+        const text = formatIngredientForCooking(ing)
         doc.text('- ' + text, currentX, y, { angle: 90 })
         currentX += lineHeight
       }
@@ -471,22 +484,8 @@ function drawStandardIngredientsSummary(doc, scaledIngredients, x, y, width) {
       // List each ungrouped ingredient by name only
       // Exception: water shows quantity since it's not in the package
       for (const ing of group.ingredients) {
-        let text = '- '
-        const isWater = ing.name.toLowerCase() === 'water'
-        
-        if (isWater && ing.quantity && ing.displayUnit) {
-          // Show quantity for water
-          text += `${formatRecipeUnits(ing.quantity, 2)} ${ing.displayUnit.abbreviation}`
-          text += getFluidOunceEquivalent(ing.quantity, ing.displayUnit)
-          text += ' ' + ing.name
-        } else {
-          text += ing.name
-        }
-        
-        if (ing.notes) {
-          text += ` (${ing.notes})`
-        }
-        doc.text(text, x, y)
+        const text = formatIngredientForCooking(ing)
+        doc.text('- ' + text, x, y)
         y += lineHeight
       }
     } else if (group.name) {
