@@ -1448,13 +1448,6 @@ def recipe_list_items(list_id):
             if recipe is None:
                 return jsonify({"error": "Recipe not found."}), 404
             
-            # Check if recipe is already in list
-            existing_item = db.session.execute(
-                db.select(RecipeListItem).filter_by(list_id=list_id, recipe_id=recipe_id)
-            ).scalar_one_or_none()
-            if existing_item:
-                return jsonify({"error": "Recipe is already in this list"}), 400
-            
             # Verify variant exists and is a variant of this recipe (if provided)
             if variant_id:
                 variant = db.session.execute(

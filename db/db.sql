@@ -139,6 +139,7 @@ CREATE TABLE Recipe_Lists (
 
 -- 13. Recipe List Items Table
 -- Stores recipes within a user's list with saved configuration (servings, variant)
+-- Note: No unique constraint on (list_id, recipe_id) to allow adding the same recipe multiple times
 CREATE TABLE Recipe_List_Items (
     item_id INT PRIMARY KEY AUTO_INCREMENT,
     list_id INT NOT NULL,
@@ -151,7 +152,6 @@ CREATE TABLE Recipe_List_Items (
     FOREIGN KEY (list_id) REFERENCES Recipe_Lists(list_id) ON DELETE CASCADE,
     FOREIGN KEY (recipe_id) REFERENCES Recipes(recipe_id) ON DELETE CASCADE,
     FOREIGN KEY (variant_id) REFERENCES Recipes(recipe_id) ON DELETE SET NULL,
-    UNIQUE KEY unique_list_recipe (list_id, recipe_id),
     INDEX idx_list_id (list_id),
     INDEX idx_recipe_id (recipe_id)
 );
