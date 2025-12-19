@@ -1671,7 +1671,9 @@ def recipe_list_shopping_list(list_id):
                         'quantity': 0,
                         'unit_id': baseline_unit_id,
                         'unit_abv': baseline_unit.abbreviation if baseline_unit else None,
-                        'unit_name': baseline_unit.name if baseline_unit else None
+                        'unit_name': baseline_unit.name if baseline_unit else None,
+                        'unit_category': baseline_unit.category if baseline_unit else None,
+                        'base_conversion_factor': float(baseline_unit.base_conversion_factor) if baseline_unit and baseline_unit.base_conversion_factor else None
                     }
                 aggregated_ingredients[key]['quantity'] += converted_quantity
         

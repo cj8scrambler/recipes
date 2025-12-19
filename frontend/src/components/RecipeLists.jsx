@@ -418,6 +418,41 @@ export default function RecipeLists({ user }) {
     return weight !== undefined && weight !== null ? weight : null
   }
 
+  // Helper function to convert shopping list item to display unit
+  function getShoppingListDisplayItem(item) {
+    if (!item || !units.length) {
+      return { quantity: item.quantity, unit_abv: item.unit_abv }
+    }
+
+    const category = item.unit_category
+    const baseConversionFactor = item.base_conversion_factor
+
+    // Skip conversion for Item and Temperature categories
+    if (category === 'Item' || category === 'Temperature') {
+      return { quantity: item.quantity, unit_abv: item.unit_abv }
+    }
+
+    // Convert to base units (e.g., mL for volume, g for weight)
+    if (!baseConversionFactor) {
+      return { quantity: item.quantity, unit_abv: item.unit_abv }
+    }
+
+    const baseQuantity = item.quantity * baseConversionFactor
+
+    // Get the optimal display unit
+    const { quantity: displayQuantity, unit: displayUnit } = getDisplayUnit(
+      baseQuantity,
+      category,
+      units,
+      preferredSystem
+    )
+
+    return {
+      quantity: displayQuantity,
+      unit_abv: displayUnit ? displayUnit.abbreviation : item.unit_abv
+    }
+  }
+
   return (
     <div className="recipe-lists-container">
       <div className="lists-sidebar">
@@ -681,14 +716,17 @@ export default function RecipeLists({ user }) {
                   <div className="text-muted">No ingredients to display</div>
                 ) : (
                   <ul className="shopping-list">
-                    {shoppingList.map((item) => (
-                      <li key={`${item.ingredient_id}-${item.unit_id}`}>
-                        <span className="ingredient-quantity">
-                          {formatRecipeUnits(item.quantity, 2)} {item.unit_abv}
-                        </span>
-                        <span className="ingredient-name">{item.ingredient_name}</span>
-                      </li>
-                    ))}
+                    {shoppingList.map((item) => {
+                      const displayItem = getShoppingListDisplayItem(item)
+                      return (
+                        <li key={`${item.ingredient_id}-${item.unit_id}`}>
+                          <span className="ingredient-quantity">
+                            {formatRecipeUnits(displayItem.quantity, 2)} {displayItem.unit_abv}
+                          </span>
+                          <span className="ingredient-name">{item.ingredient_name}</span>
+                        </li>
+                      )
+                    })}
                   </ul>
                 )}
               </div>
