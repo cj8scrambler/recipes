@@ -402,9 +402,9 @@ def convert_unit_quantity(quantity, from_unit, to_unit):
     if from_unit.base_conversion_factor is None or to_unit.base_conversion_factor is None:
         return None
     
-    # Convert to base unit, then to target unit
-    base_quantity = quantity * from_unit.base_conversion_factor
-    converted_quantity = base_quantity / to_unit.base_conversion_factor
+    # Convert to base unit, then to target unit (convert Decimal to float for arithmetic)
+    base_quantity = float(quantity) * float(from_unit.base_conversion_factor)
+    converted_quantity = base_quantity / float(to_unit.base_conversion_factor)
     return converted_quantity
 
 def calculate_ingredient_cost(recipe_ingredient, units_dict):
