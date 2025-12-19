@@ -1648,8 +1648,8 @@ def recipe_list_shopping_list(list_id):
                 if not recipe_unit or not baseline_unit:
                     continue
                 
-                # Scale the quantity
-                scaled_quantity = recipe_ingredient.quantity * scale_factor
+                # Scale the quantity (convert Decimal to float for arithmetic)
+                scaled_quantity = float(recipe_ingredient.quantity) * scale_factor
                 
                 # Convert to baseline unit
                 converted_quantity = convert_unit_quantity(scaled_quantity, recipe_unit, baseline_unit)
