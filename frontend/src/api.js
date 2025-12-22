@@ -106,5 +106,8 @@ export const api = {
   removeRecipeFromList: (listId, itemId) => request(`/recipe-lists/${listId}/items/${itemId}`, { method: 'DELETE' }),
   
   // Recipe List Membership (get which lists contain a recipe)
-  getRecipeListMembership: (recipeId) => request(`/recipes/${recipeId}/lists`)
+  getRecipeListMembership: (recipeId) => request(`/recipes/${recipeId}/lists`),
+  
+  // Shopping List
+  getShoppingList: (listId) => request(`/recipe-lists/${listId}/shopping-list`)
 }

@@ -402,9 +402,9 @@ def convert_unit_quantity(quantity, from_unit, to_unit):
     if from_unit.base_conversion_factor is None or to_unit.base_conversion_factor is None:
         return None
     
-    # Convert to base unit, then to target unit
-    base_quantity = quantity * from_unit.base_conversion_factor
-    converted_quantity = base_quantity / to_unit.base_conversion_factor
+    # Convert to base unit, then to target unit (convert Decimal to float for arithmetic)
+    base_quantity = float(quantity) * float(from_unit.base_conversion_factor)
+    converted_quantity = base_quantity / float(to_unit.base_conversion_factor)
     return converted_quantity
 
 def calculate_ingredient_cost(recipe_ingredient, units_dict):
@@ -1578,6 +1578,115 @@ def recipe_list_membership(recipe_id):
     except Exception as e:
         print(f"Error fetching recipe list membership: {e}")
         return jsonify({"error": "Failed to fetch recipe list membership"}), 500
+
+
+@app.route('/api/recipe-lists/<int:list_id>/shopping-list', methods=['GET'])
+@login_required
+def recipe_list_shopping_list(list_id):
+    """Generate shopping list from all recipes in a recipe list."""
+    from auth import get_current_user
+    user = get_current_user()
+    
+    # Verify list ownership
+    try:
+        recipe_list = db.session.execute(
+            db.select(RecipeList).filter_by(list_id=list_id, user_id=user.id)
+        ).scalar_one_or_none()
+        if recipe_list is None:
+            return jsonify({"error": "Recipe list not found."}), 404
+    except Exception as e:
+        return jsonify({"error": "Failed to fetch recipe list from database."}), 500
+    
+    try:
+        # Get all items in the list
+        items = db.session.execute(
+            db.select(RecipeListItem).filter_by(list_id=list_id)
+        ).scalars().all()
+        
+        if not items:
+            return jsonify([])
+        
+        # Get all units for conversion
+        units = db.session.execute(db.select(Unit)).scalars().all()
+        units_dict = {u.unit_id: u for u in units}
+        
+        # Dictionary to accumulate ingredients: key is (ingredient_id, baseline_unit_id)
+        # value is total quantity in baseline units
+        aggregated_ingredients = {}
+        
+        for item in items:
+            # Get the recipe (or variant if specified)
+            recipe_id = item.variant_id or item.recipe_id
+            recipe = db.session.execute(
+                db.select(Recipe).filter_by(recipe_id=recipe_id)
+            ).scalar_one_or_none()
+            
+            if not recipe:
+                continue
+            
+            # Calculate scale factor based on servings
+            scale_factor = item.servings / (recipe.base_servings or 1)
+            
+            # Process each ingredient in the recipe
+            for recipe_ingredient in recipe.ingredients:
+                ingredient_id = recipe_ingredient.ingredient_id
+                ingredient = recipe_ingredient.ingredient
+                
+                if not ingredient:
+                    continue
+                
+                # Get the baseline unit for this ingredient (from default_unit_id)
+                baseline_unit_id = ingredient.default_unit_id
+                if not baseline_unit_id:
+                    # If no baseline unit, use the recipe's unit
+                    baseline_unit_id = recipe_ingredient.unit_id
+                
+                # Get the unit objects
+                recipe_unit = units_dict.get(recipe_ingredient.unit_id)
+                baseline_unit = units_dict.get(baseline_unit_id)
+                
+                if not recipe_unit or not baseline_unit:
+                    continue
+                
+                # Scale the quantity (convert Decimal to float for arithmetic)
+                scaled_quantity = float(recipe_ingredient.quantity) * scale_factor
+                
+                # Convert to baseline unit
+                converted_quantity = convert_unit_quantity(scaled_quantity, recipe_unit, baseline_unit)
+                
+                if converted_quantity is None:
+                    # If conversion failed, store in original unit
+                    key = (ingredient_id, recipe_ingredient.unit_id)
+                    baseline_unit_id = recipe_ingredient.unit_id
+                    baseline_unit = recipe_unit  # Use recipe unit instead
+                    converted_quantity = scaled_quantity
+                else:
+                    key = (ingredient_id, baseline_unit_id)
+                
+                # Accumulate the quantity
+                if key not in aggregated_ingredients:
+                    aggregated_ingredients[key] = {
+                        'ingredient_id': ingredient_id,
+                        'ingredient_name': ingredient.name,
+                        'quantity': 0,
+                        'unit_id': baseline_unit_id,
+                        'unit_abv': baseline_unit.abbreviation if baseline_unit else None,
+                        'unit_name': baseline_unit.name if baseline_unit else None,
+                        'unit_category': baseline_unit.category if baseline_unit else None,
+                        'base_conversion_factor': float(baseline_unit.base_conversion_factor) if baseline_unit and baseline_unit.base_conversion_factor else None
+                    }
+                aggregated_ingredients[key]['quantity'] += converted_quantity
+        
+        # Convert to list and sort by ingredient name
+        shopping_list = list(aggregated_ingredients.values())
+        shopping_list.sort(key=lambda x: x['ingredient_name'].lower())
+        
+        return jsonify(shopping_list)
+    except Exception as e:
+        print(f"Error generating shopping list: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "Failed to generate shopping list"}), 500
 
 
 # --- 5. Register Authentication Blueprint ---

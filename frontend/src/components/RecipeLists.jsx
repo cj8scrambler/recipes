@@ -22,6 +22,10 @@ export default function RecipeLists({ user }) {
   const [itemCosts, setItemCosts] = useState({})
   const [itemWeights, setItemWeights] = useState({})
   
+  // Shopping list state
+  const [shoppingList, setShoppingList] = useState([])
+  const [shoppingListLoading, setShoppingListLoading] = useState(false)
+  
   // Form states
   const [newListName, setNewListName] = useState('')
   const [editingListId, setEditingListId] = useState(null)
@@ -147,17 +151,33 @@ export default function RecipeLists({ user }) {
     }
   }
 
+  async function loadShoppingList(listId) {
+    setShoppingListLoading(true)
+    try {
+      const data = await api.getShoppingList(listId)
+      setShoppingList(data || [])
+    } catch (err) {
+      console.error('Failed to load shopping list:', err)
+      setShoppingList([])
+    } finally {
+      setShoppingListLoading(false)
+    }
+  }
+
   async function selectList(list) {
     setSelectedRecipe(null)
     setEditingItem(null)
     setListTotals({ cost: null, weight: null, loading: true })
     setItemCosts({})
     setItemWeights({})
+    setShoppingList([])
     try {
       const full = await api.getRecipeList(list.list_id)
       setSelectedList(full)
       // Load totals after getting the list
       loadListTotals(full.items)
+      // Load shopping list
+      loadShoppingList(full.list_id)
     } catch (err) {
       setError(err.message)
       setListTotals({ cost: null, weight: null, loading: false })
@@ -224,8 +244,9 @@ export default function RecipeLists({ user }) {
       const updated = await api.getRecipeList(selectedList.list_id)
       setSelectedList(updated)
       setEditingItem(null)
-      // Recalculate totals after updating item
+      // Recalculate totals and shopping list after updating item
       loadListTotals(updated.items)
+      loadShoppingList(updated.list_id)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -239,8 +260,9 @@ export default function RecipeLists({ user }) {
       await api.removeRecipeFromList(selectedList.list_id, itemId)
       const updated = await api.getRecipeList(selectedList.list_id)
       setSelectedList(updated)
-      // Recalculate totals after removing item
+      // Recalculate totals and shopping list after removing item
       loadListTotals(updated.items)
+      loadShoppingList(updated.list_id)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -394,6 +416,41 @@ export default function RecipeLists({ user }) {
   function getItemWeight(itemId) {
     const weight = itemWeights[itemId]
     return weight !== undefined && weight !== null ? weight : null
+  }
+
+  // Helper function to convert shopping list item to display unit
+  function getShoppingListDisplayItem(item) {
+    if (!item || !units.length) {
+      return { quantity: item.quantity, unit_abv: item.unit_abv }
+    }
+
+    const category = item.unit_category
+    const baseConversionFactor = item.base_conversion_factor
+
+    // Skip conversion for Item and Temperature categories
+    if (category === 'Item' || category === 'Temperature') {
+      return { quantity: item.quantity, unit_abv: item.unit_abv }
+    }
+
+    // Convert to base units (e.g., mL for volume, g for weight)
+    if (!baseConversionFactor) {
+      return { quantity: item.quantity, unit_abv: item.unit_abv }
+    }
+
+    const baseQuantity = item.quantity * baseConversionFactor
+
+    // Get the optimal display unit
+    const { quantity: displayQuantity, unit: displayUnit } = getDisplayUnit(
+      baseQuantity,
+      category,
+      units,
+      preferredSystem
+    )
+
+    return {
+      quantity: displayQuantity,
+      unit_abv: displayUnit ? displayUnit.abbreviation : item.unit_abv
+    }
   }
 
   return (
@@ -648,6 +705,32 @@ export default function RecipeLists({ user }) {
                 </li>
               ))}
             </ul>
+            
+            {/* Shopping List */}
+            {selectedList.items && selectedList.items.length > 0 && (
+              <div className="shopping-list-section">
+                <h3>Shopping List</h3>
+                {shoppingListLoading ? (
+                  <div className="text-muted">Loading shopping list...</div>
+                ) : shoppingList.length === 0 ? (
+                  <div className="text-muted">No ingredients to display</div>
+                ) : (
+                  <ul className="shopping-list">
+                    {shoppingList.map((item) => {
+                      const displayItem = getShoppingListDisplayItem(item)
+                      return (
+                        <li key={`${item.ingredient_id}-${item.unit_id}`}>
+                          <span className="ingredient-quantity">
+                            {formatRecipeUnits(displayItem.quantity, 2)} {displayItem.unit_abv}
+                          </span>
+                          <span className="ingredient-name">{item.ingredient_name}</span>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                )}
+              </div>
+            )}
           </div>
         )}
 
