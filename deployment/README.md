@@ -31,6 +31,7 @@ popd
 pushd docker/
 ./tag_docker.sh
 docker compose down
+docker compose build
 docker compuse up -d
 popd
 ```
