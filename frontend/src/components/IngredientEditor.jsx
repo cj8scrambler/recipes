@@ -15,6 +15,7 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
   const [defaultUnitId, setDefaultUnitId] = useState('')
   const [previousDefaultUnitId, setPreviousDefaultUnitId] = useState('')
   const [weight, setWeight] = useState('')
+  const [density, setDensity] = useState('')
   const [notes, setNotes] = useState('')
   const [typeId, setTypeId] = useState('')
   const [units, setUnits] = useState([])
@@ -33,6 +34,7 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
       setDefaultUnitId(ingredient.default_unit_id || '')
       setPreviousDefaultUnitId(ingredient.default_unit_id || '')
       setWeight(formatWeightValue(ingredient.weight))
+      setDensity(formatWeightValue(ingredient.density))
       setNotes(ingredient.notes || '')
       setTypeId(ingredient.type_id || '')
       // Load prices if editing existing ingredient
@@ -46,6 +48,7 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
       setDefaultUnitId('')
       setPreviousDefaultUnitId('')
       setWeight('')
+      setDensity('')
       setNotes('')
       setTypeId('')
       setPrices([])
@@ -167,6 +170,7 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
         name,
         default_unit_id: defaultUnitId ? parseInt(defaultUnitId) : null,
         weight: weightToSave,
+        density: density ? parseFloat(density) : null,
         notes,
         type_id: typeId ? parseInt(typeId) : null
       })
@@ -210,8 +214,12 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
   // Get the selected default unit object
   const selectedUnit = defaultUnitId ? units.find(u => u.unit_id === parseInt(defaultUnitId)) : null
   
-  // Determine if the selected unit is weight-based
+  // Determine if the selected unit is weight-based or volume-based
   const isWeightBasedUnit = selectedUnit?.category === 'Weight'
+  const isVolumeBasedUnit = ['Volume', 'Dry Volume', 'Liquid Volume'].includes(selectedUnit?.category)
+  // Density is useful for any non-Item unit: bridges volume<->weight when a recipe uses a different
+  // measurement category than the ingredient's default unit
+  const showDensity = selectedUnit && selectedUnit.category !== 'Item' && selectedUnit.category !== 'Temperature'
   
   // Calculate the weight in grams for weight-based units
   // base_conversion_factor is how many grams per unit (e.g., 453.592 for pounds)
@@ -271,6 +279,24 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
           </select>
         </label>
       </div>
+      {showDensity && (
+        <div className="form-group">
+          <label>
+            Density (g/mL) — Optional
+            <input
+              type="number"
+              step="0.0001"
+              value={density}
+              onChange={(e) => setDensity(e.target.value)}
+              placeholder="e.g., 0.5 for garlic powder, 1.2 for salt"
+            />
+          </label>
+          <p style={{ fontSize: '0.9em', color: '#666', marginTop: '0.25em' }}>
+            Enables weight calculation when a recipe measures this ingredient by volume.
+            Leave blank if not needed.
+          </p>
+        </div>
+      )}
       <div className="form-group">
         <label>
           Notes (Optional)

@@ -196,8 +196,28 @@ export default function AdminDashboard() {
   // Helper function to check if an ingredient needs price or weight configuration
   function ingredientNeedsConfig(ingredient) {
     const hasNoPrice = !ingredient.prices || ingredient.prices.length === 0
-    const hasNoWeight = ingredient.weight === null || ingredient.weight === undefined || ingredient.weight === 0 || ingredient.weight === '' || !ingredient.default_unit_id
-    return { hasNoPrice, hasNoWeight }
+
+    const cat = ingredient.default_unit_category
+    const isVolumeUnit = ['Volume', 'Dry Volume', 'Liquid Volume'].includes(cat)
+    const isItemUnit = cat === 'Item'
+
+    // No weight unit assigned at all
+    const hasNoUnit = !ingredient.default_unit_id
+
+    // Volume/item ingredients need weight (g/unit) explicitly set.
+    // weight=0 is valid (e.g. Water), so only flag null/undefined.
+    // Also OK if density is set — that can bridge the gap for cross-category recipes.
+    const hasMissingWeight = (isVolumeUnit || isItemUnit) &&
+      (ingredient.weight === null || ingredient.weight === undefined) &&
+      !ingredient.density
+
+    const hasNoWeight = hasNoUnit || hasMissingWeight
+
+    // Backend tells us if this ingredient is actually used with a cross-category unit
+    // in any recipe and is missing density — the only case it's truly needed.
+    const needsDensity = !!ingredient.needs_density
+
+    return { hasNoPrice, hasNoWeight, needsDensity }
   }
 
   // Group ingredients by type for display
@@ -353,39 +373,35 @@ export default function AdminDashboard() {
       {activeTab === 'ingredients' && (() => {
         const { noTypeIngredients, typeGroups } = getGroupedIngredients()
         
+        const badge = (text, color, title) => (
+          <span
+            title={title}
+            style={{
+              marginLeft: '0.4em',
+              padding: '0.1em 0.4em',
+              borderRadius: '3px',
+              fontSize: '0.72em',
+              fontWeight: 'bold',
+              backgroundColor: color,
+              color: '#fff',
+              verticalAlign: 'middle',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {text}
+          </span>
+        )
+
         // Helper to render an ingredient item
         const renderIngredientItem = (i) => {
-          const { hasNoPrice, hasNoWeight } = ingredientNeedsConfig(i)
+          const { hasNoPrice, hasNoWeight, needsDensity } = ingredientNeedsConfig(i)
           return (
             <li key={i.ingredient_id}>
               <span>
                 {i.name} {i.unit ? <span className="text-muted">({i.unit})</span> : ''}
-                {hasNoPrice && (
-                  <span 
-                    style={{ 
-                      marginLeft: '0.5em', 
-                      color: '#d9534f', 
-                      fontSize: '0.85em',
-                      fontWeight: 'bold'
-                    }}
-                    title="No price defined"
-                  >
-                    💲
-                  </span>
-                )}
-                {hasNoWeight && (
-                  <span 
-                    style={{ 
-                      marginLeft: '0.5em', 
-                      color: '#f0ad4e', 
-                      fontSize: '0.85em',
-                      fontWeight: 'bold'
-                    }}
-                    title="No weight defined"
-                  >
-                    ⚖️
-                  </span>
-                )}
+                {hasNoPrice    && badge('no price',   '#d9534f', 'No price defined')}
+                {hasNoWeight   && badge('no weight',  '#f0ad4e', 'No weight configured — add a weight (g/unit) or density to enable recipe weight calculation')}
+                {needsDensity  && badge('no density', '#8a6bb1', 'No density (g/mL) set — weight calculation will fail if this ingredient is measured by volume in a recipe')}
               </span>
               <div>
                 <button className="small secondary" onClick={() => setEditingIngredient(i)}>Edit</button>
@@ -418,15 +434,18 @@ export default function AdminDashboard() {
               {/* Ingredients without a type - shown at top */}
               {noTypeIngredients.length > 0 && (
                 <div style={{ marginBottom: '1em' }}>
-                  <h4 style={{ 
-                    fontSize: '1em', 
-                    fontWeight: 600, 
+                  <h4 style={{
+                    fontSize: '1em',
+                    fontWeight: 600,
                     padding: '0.5em',
                     color: 'var(--gray-600)',
                     backgroundColor: 'var(--gray-100)',
                     borderRadius: '4px'
                   }}>
                     Uncategorized
+                    {noTypeIngredients.some(i => ingredientNeedsConfig(i).hasNoPrice)   && badge('no price',   '#d9534f', 'Some ingredients have no price defined')}
+                    {noTypeIngredients.some(i => ingredientNeedsConfig(i).hasNoWeight)  && badge('no weight',  '#f0ad4e', 'Some ingredients have no weight defined')}
+                    {noTypeIngredients.some(i => ingredientNeedsConfig(i).needsDensity) && badge('no density', '#8a6bb1', 'Some ingredients have no density set')}
                   </h4>
                   <ul>
                     {noTypeIngredients.map(renderIngredientItem)}
@@ -440,6 +459,7 @@ export default function AdminDashboard() {
                 // Check if any ingredient in this group needs config
                 const groupHasNoPrice = group.ingredients.some(i => ingredientNeedsConfig(i).hasNoPrice)
                 const groupHasNoWeight = group.ingredients.some(i => ingredientNeedsConfig(i).hasNoWeight)
+                const groupNeedsDensity = group.ingredients.some(i => ingredientNeedsConfig(i).needsDensity)
                 
                 return (
                   <div key={group.type_id} style={{ marginBottom: '1em' }}>
@@ -467,30 +487,9 @@ export default function AdminDashboard() {
                         <span style={{ fontWeight: 'normal', color: 'var(--gray-500)', marginLeft: '0.5em' }}>
                           ({group.ingredients.length})
                         </span>
-                        {groupHasNoPrice && (
-                          <span 
-                            style={{ 
-                              marginLeft: '0.5em', 
-                              color: '#d9534f', 
-                              fontSize: '0.85em'
-                            }}
-                            title="Some ingredients in this group have no price defined"
-                          >
-                            💲
-                          </span>
-                        )}
-                        {groupHasNoWeight && (
-                          <span 
-                            style={{ 
-                              marginLeft: '0.5em', 
-                              color: '#f0ad4e', 
-                              fontSize: '0.85em'
-                            }}
-                            title="Some ingredients in this group have no weight defined"
-                          >
-                            ⚖️
-                          </span>
-                        )}
+                        {groupHasNoPrice   && badge('no price',   '#d9534f', 'Some ingredients in this group have no price defined')}
+                        {groupHasNoWeight  && badge('no weight',  '#f0ad4e', 'Some ingredients in this group have no weight defined')}
+                        {groupNeedsDensity && badge('no density', '#8a6bb1', 'Some ingredients in this group have no density set — weight calculation may fail if measured by volume in a recipe')}
                       </span>
                     </h4>
                     {!isCollapsed && (

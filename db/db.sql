@@ -25,6 +25,7 @@ CREATE TABLE Ingredients (
     price_unit_id INT,
     default_unit_id INT,
     weight DECIMAL(10, 2),
+    density DECIMAL(8, 4),
     contains_peanuts BOOLEAN NOT NULL DEFAULT FALSE,
     gluten_status ENUM('Contains', 'Gluten-Free', 'GF_Available') NOT NULL DEFAULT 'Gluten-Free',
     type_id INT,

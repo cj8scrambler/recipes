@@ -78,6 +78,7 @@ class Ingredient(db.Model):
     price_unit_id = Column(Integer, ForeignKey('Units.unit_id'))
     default_unit_id = Column(Integer, ForeignKey('Units.unit_id'))
     weight = Column(Float(10, 2))
+    density = Column(Float(8, 4))
     contains_peanuts = Column(Boolean, default=False, nullable=False)
     gluten_status = Column(Enum('Contains', 'Gluten-Free', 'GF_Available'), default='Gluten-Free', nullable=False)
     type_id = Column(Integer, ForeignKey('Ingredient_Types.type_id', ondelete='SET NULL'))
@@ -254,6 +255,25 @@ def serialize_recipe(recipe, include_cost=False, units_list=None):
     
     return result
 
+def ingredient_needs_density(ingredient):
+    """
+    Returns True if this ingredient is used in at least one recipe with a unit category
+    that differs from its default unit category (volume vs weight), and density is not set.
+    This is the only case where density is actually required for weight calculation.
+    """
+    if ingredient.density or not ingredient.default_unit:
+        return False
+    volume_cats = {'Volume', 'Dry Volume', 'Liquid Volume'}
+    default_cat = ingredient.default_unit.category
+    # Density is only needed when the recipe unit is Volume but the default unit is Weight.
+    # The reverse (recipe=Weight, default=Volume) is handled by Path 1 in
+    # calculate_ingredient_weight(), which computes weight directly from the recipe quantity.
+    for ri in ingredient.recipe_items:
+        if ri.unit and ri.unit.category in volume_cats and default_cat == 'Weight':
+            return True
+    return False
+
+
 def serialize_ingredient(ingredient):
     """Converts an Ingredient ORM object to a dictionary."""
     # Try to get prices, but handle case where Ingredient_Prices table doesn't exist yet
@@ -284,7 +304,10 @@ def serialize_ingredient(ingredient):
         'price': ingredient.price,
         'price_unit_id': ingredient.price_unit_id,
         'default_unit_id': ingredient.default_unit_id,
+        'default_unit_category': ingredient.default_unit.category if ingredient.default_unit else None,
         'weight': ingredient.weight,
+        'density': ingredient.density,
+        'needs_density': ingredient_needs_density(ingredient),
         'gluten_status': ingredient.gluten_status,
         'type_id': type_id,
         'type_name': type_name,
@@ -528,6 +551,11 @@ def calculate_ingredient_weight(recipe_ingredient, units_dict=None):
     Calculate weight for a single recipe ingredient.
     Returns dict with base_weight, scaled_weight, and has_weight flag.
     The weight is in grams.
+
+    Three resolution paths:
+    1. Recipe unit is Weight -> convert recipe qty directly to grams
+    2. Recipe unit is Volume, default unit is Volume -> convert between volumes, multiply by ingredient.weight
+    3. Recipe unit is Volume, default unit is not Volume -> use ingredient.density (g/mL) if available
     """
     ingredient = recipe_ingredient.ingredient
     recipe_quantity = recipe_ingredient.quantity
@@ -535,35 +563,41 @@ def calculate_ingredient_weight(recipe_ingredient, units_dict=None):
     if not ingredient or recipe_quantity is None:
         return {'base_weight': None, 'scaled_weight': None, 'has_weight': False}
 
+    recipe_unit = recipe_ingredient.unit
+    volume_cats = {'Volume', 'Dry Volume', 'Liquid Volume'}
+
+    # Path 1: Recipe unit is Weight — compute directly, no ingredient.weight needed
+    if recipe_unit and recipe_unit.category == 'Weight' and recipe_unit.base_conversion_factor:
+        weight_grams = float(recipe_quantity) * float(recipe_unit.base_conversion_factor)
+        return {'base_weight': None, 'scaled_weight': round(weight_grams, 2), 'has_weight': True}
+
     base_weight = ingredient.weight
     default_unit_id = ingredient.default_unit_id
 
-    if base_weight is None or default_unit_id is None:
-        return {'base_weight': None, 'scaled_weight': None, 'has_weight': False}
+    if base_weight is not None and default_unit_id is not None:
+        # Path 2a: Same unit — no conversion needed
+        if recipe_unit is None or recipe_unit.unit_id == default_unit_id:
+            scaled_weight = float(base_weight) * float(recipe_quantity)
+            return {'base_weight': float(base_weight), 'scaled_weight': round(scaled_weight, 2), 'has_weight': True}
 
-    recipe_unit = recipe_ingredient.unit
+        # Path 2b: Both volume — convert between volume types, then multiply by ingredient.weight
+        if units_dict and recipe_unit and recipe_unit.category in volume_cats:
+            default_unit = units_dict.get(default_unit_id)
+            if default_unit and default_unit.category in volume_cats:
+                converted_qty = convert_unit_quantity(float(recipe_quantity), recipe_unit, default_unit)
+                if converted_qty is not None:
+                    scaled_weight = float(base_weight) * converted_qty
+                    return {'base_weight': float(base_weight), 'scaled_weight': round(scaled_weight, 2), 'has_weight': True}
 
-    if recipe_unit is None or recipe_unit.unit_id == default_unit_id:
-        # Same unit or unknown — no conversion needed
-        converted_qty = float(recipe_quantity)
-    elif units_dict:
-        default_unit = units_dict.get(default_unit_id)
-        if default_unit is None or not can_convert_units(recipe_unit, default_unit):
-            return {'base_weight': None, 'scaled_weight': None, 'has_weight': False}
-        converted_qty = convert_unit_quantity(float(recipe_quantity), recipe_unit, default_unit)
-        if converted_qty is None:
-            return {'base_weight': None, 'scaled_weight': None, 'has_weight': False}
-    else:
-        # Units differ but no units_dict supplied — can't safely compute
-        return {'base_weight': None, 'scaled_weight': None, 'has_weight': False}
+    # Path 3: Recipe unit is Volume — use density (g/mL) to bridge to weight
+    if recipe_unit and recipe_unit.category in volume_cats and recipe_unit.base_conversion_factor:
+        density = ingredient.density
+        if density:
+            volume_ml = float(recipe_quantity) * float(recipe_unit.base_conversion_factor)
+            weight_grams = volume_ml * float(density)
+            return {'base_weight': None, 'scaled_weight': round(weight_grams, 2), 'has_weight': True}
 
-    scaled_weight = float(base_weight) * converted_qty
-
-    return {
-        'base_weight': float(base_weight),
-        'scaled_weight': round(scaled_weight, 2),
-        'has_weight': True
-    }
+    return {'base_weight': None, 'scaled_weight': None, 'has_weight': False}
 
 def calculate_recipe_weight(recipe, scale_factor=1.0):
     """
@@ -865,6 +899,7 @@ def ingredients_list():
                 price_unit_id=data.get('price_unit_id'),
                 default_unit_id=data.get('default_unit_id'),
                 weight=data.get('weight'),
+                density=data.get('density'),
                 contains_peanuts=data.get('contains_peanuts', False),
                 gluten_status=data.get('gluten_status', 'Gluten-Free'),
                 type_id=data.get('type_id')
@@ -907,6 +942,8 @@ def ingredient(ingredient_id):
                 ingredient.default_unit_id = data['default_unit_id']
             if 'weight' in data:
                 ingredient.weight = data['weight']
+            if 'density' in data:
+                ingredient.density = data['density']
             if 'contains_peanuts' in data:
                 ingredient.contains_peanuts = data['contains_peanuts']
             if 'gluten_status' in data:
