@@ -428,41 +428,34 @@ def admin_update_recipe(recipe_id):
     # Handle ingredients update if provided
     if ingredients_data is not None:
         try:
-            # Get current ingredient IDs for this recipe
-            current_ingredients = {ri.ingredient_id: ri for ri in recipe.ingredients}
-            
-            # Get incoming ingredient IDs
-            incoming_ingredient_ids = set()
-            
+            current_rows = {ri.id: ri for ri in recipe.ingredients}
+            incoming_ids = set()
+
             for ing_data in ingredients_data:
                 ingredient_id = ing_data.get('ingredient_id')
                 if not ingredient_id:
                     continue
-                
-                incoming_ingredient_ids.add(ingredient_id)
-                
-                # Check if this ingredient already exists in the recipe
-                if ingredient_id in current_ingredients:
-                    # Update existing ingredient
-                    recipe_ingredient = current_ingredients[ingredient_id]
-                    recipe_ingredient.quantity = ing_data.get('quantity', recipe_ingredient.quantity)
-                    recipe_ingredient.unit_id = ing_data.get('unit_id', recipe_ingredient.unit_id)
-                    recipe_ingredient.notes = ing_data.get('notes', recipe_ingredient.notes)
+
+                row_id = ing_data.get('id')
+                if row_id and row_id in current_rows:
+                    ri = current_rows[row_id]
+                    ri.ingredient_id = ingredient_id
+                    ri.quantity = ing_data.get('quantity', ri.quantity)
+                    ri.unit_id = ing_data.get('unit_id', ri.unit_id)
+                    ri.notes = ing_data.get('notes', ri.notes)
+                    incoming_ids.add(row_id)
                 else:
-                    # Add new ingredient
-                    new_recipe_ingredient = RecipeIngredient(
+                    db.session.add(RecipeIngredient(
                         recipe_id=recipe.recipe_id,
                         ingredient_id=ingredient_id,
                         quantity=ing_data.get('quantity'),
                         unit_id=ing_data.get('unit_id'),
                         notes=ing_data.get('notes')
-                    )
-                    db.session.add(new_recipe_ingredient)
-            
-            # Remove ingredients that are no longer in the list
-            for ingredient_id in current_ingredients:
-                if ingredient_id not in incoming_ingredient_ids:
-                    db.session.delete(current_ingredients[ingredient_id])
+                    ))
+
+            for row_id, ri in current_rows.items():
+                if row_id not in incoming_ids:
+                    db.session.delete(ri)
                     
         except Exception as e:
             print(f"Error updating ingredients: {e}")

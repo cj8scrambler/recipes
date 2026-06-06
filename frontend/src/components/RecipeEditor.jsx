@@ -45,8 +45,9 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
       setInstructions(recipe.instructions || '')
       setServings(recipe.base_servings || 1)
       setParentRecipeId(recipe.parent_recipe_id || null)
-      // Ingredients from backend already have ingredient_id, quantity (in base units), unit_id, notes, group_id
+      // Ingredients from backend have id, ingredient_id, quantity (in base units), unit_id, notes, group_id
       setIngredients((recipe.ingredients || []).map(ing => ({
+        id: ing.id || null,
         ingredient_id: ing.ingredient_id || '',
         quantity: formatQuantityForInput(ing.quantity),
         unit_id: ing.unit_id || '',
@@ -265,6 +266,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
         // If we found a base unit, use converted quantity and base unit
         // Otherwise, use original quantity and unit
         return {
+          id: ing.id || null,
           ingredient_id: parseInt(ing.ingredient_id),
           quantity: baseUnit ? baseQuantity : parseFloat(ing.quantity),
           unit_id: baseUnit ? baseUnit.unit_id : parseInt(ing.unit_id),

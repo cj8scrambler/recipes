@@ -55,13 +55,15 @@ CREATE TABLE Ingredient_Groups (
 
 -- 6. Recipe_Ingredients (Junction Table)
 CREATE TABLE Recipe_Ingredients (
+    id INT NOT NULL AUTO_INCREMENT,
     recipe_id INT NOT NULL,
     ingredient_id INT NOT NULL,
     quantity DECIMAL(10, 2) NOT NULL,
     unit_id INT NOT NULL,
     notes VARCHAR(255),
     group_id INT,
-    PRIMARY KEY (recipe_id, ingredient_id),
+    PRIMARY KEY (id),
+    INDEX idx_recipe_ingredient (recipe_id, ingredient_id),
     FOREIGN KEY (recipe_id) REFERENCES Recipes(recipe_id) ON DELETE CASCADE,
     FOREIGN KEY (ingredient_id) REFERENCES Ingredients(ingredient_id),
     FOREIGN KEY (unit_id) REFERENCES Units(unit_id),

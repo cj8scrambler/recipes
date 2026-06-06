@@ -130,9 +130,9 @@ class IngredientGroup(db.Model):
 
 class RecipeIngredient(db.Model):
     __tablename__ = 'Recipe_Ingredients'
-    # Composite primary key
-    recipe_id = Column(Integer, ForeignKey('Recipes.recipe_id', ondelete='CASCADE'), primary_key=True)
-    ingredient_id = Column(Integer, ForeignKey('Ingredients.ingredient_id'), primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    recipe_id = Column(Integer, ForeignKey('Recipes.recipe_id', ondelete='CASCADE'), nullable=False)
+    ingredient_id = Column(Integer, ForeignKey('Ingredients.ingredient_id'), nullable=False)
 
     quantity = Column(Float(10, 2), nullable=False)
     unit_id = Column(Integer, ForeignKey('Units.unit_id'), nullable=False)
@@ -197,6 +197,7 @@ class RecipeListItem(db.Model):
 def serialize_recipe_ingredient(ri, include_cost=False, include_weight=False, units_dict=None):
     """Converts a RecipeIngredient ORM object to a dictionary for JSON response."""
     result = {
+        'id': ri.id,
         'ingredient_id': ri.ingredient_id,
         'name': ri.ingredient.name if ri.ingredient is not None else None,
         'quantity': ri.quantity,
@@ -215,7 +216,7 @@ def serialize_recipe_ingredient(ri, include_cost=False, include_weight=False, un
     
     # Optionally include weight information (for admin views)
     if include_weight:
-        weight_info = calculate_ingredient_weight(ri)
+        weight_info = calculate_ingredient_weight(ri, units_dict)
         result['base_weight'] = weight_info['base_weight']
         result['scaled_weight'] = weight_info['scaled_weight']
         result['has_weight_data'] = weight_info['has_weight']
@@ -522,7 +523,7 @@ def calculate_recipe_cost(recipe, units_list, scale_factor=1.0):
         'has_missing_prices': has_missing_prices
     }
 
-def calculate_ingredient_weight(recipe_ingredient):
+def calculate_ingredient_weight(recipe_ingredient, units_dict=None):
     """
     Calculate weight for a single recipe ingredient.
     Returns dict with base_weight, scaled_weight, and has_weight flag.
@@ -530,21 +531,34 @@ def calculate_ingredient_weight(recipe_ingredient):
     """
     ingredient = recipe_ingredient.ingredient
     recipe_quantity = recipe_ingredient.quantity
-    
+
     if not ingredient or recipe_quantity is None:
         return {'base_weight': None, 'scaled_weight': None, 'has_weight': False}
-    
-    # Get the ingredient's base weight (grams per default unit)
-    # Weight is only valid if BOTH weight value AND default_unit_id are set
+
     base_weight = ingredient.weight
     default_unit_id = ingredient.default_unit_id
-    
+
     if base_weight is None or default_unit_id is None:
         return {'base_weight': None, 'scaled_weight': None, 'has_weight': False}
-    
-    # Calculate scaled weight based on recipe quantity
-    scaled_weight = float(base_weight) * float(recipe_quantity)
-    
+
+    recipe_unit = recipe_ingredient.unit
+
+    if recipe_unit is None or recipe_unit.unit_id == default_unit_id:
+        # Same unit or unknown — no conversion needed
+        converted_qty = float(recipe_quantity)
+    elif units_dict:
+        default_unit = units_dict.get(default_unit_id)
+        if default_unit is None or not can_convert_units(recipe_unit, default_unit):
+            return {'base_weight': None, 'scaled_weight': None, 'has_weight': False}
+        converted_qty = convert_unit_quantity(float(recipe_quantity), recipe_unit, default_unit)
+        if converted_qty is None:
+            return {'base_weight': None, 'scaled_weight': None, 'has_weight': False}
+    else:
+        # Units differ but no units_dict supplied — can't safely compute
+        return {'base_weight': None, 'scaled_weight': None, 'has_weight': False}
+
+    scaled_weight = float(base_weight) * converted_qty
+
     return {
         'base_weight': float(base_weight),
         'scaled_weight': round(scaled_weight, 2),
@@ -557,12 +571,15 @@ def calculate_recipe_weight(recipe, scale_factor=1.0):
     Returns dict with total_weight, ingredients_weight, and missing_weights flag.
     Weight is in grams.
     """
+    units_list = db.session.execute(db.select(Unit)).scalars().all()
+    units_dict = {u.unit_id: u for u in units_list}
+
     total_weight = 0.0
     has_missing_weights = False
     ingredients_weight = []
-    
+
     for ri in recipe.ingredients:
-        weight_info = calculate_ingredient_weight(ri)
+        weight_info = calculate_ingredient_weight(ri, units_dict)
         
         if weight_info['has_weight'] and weight_info['scaled_weight'] is not None:
             scaled_weight = weight_info['scaled_weight'] * scale_factor
@@ -688,46 +705,43 @@ def recipe(recipe_id):
         # Handle ingredients update if provided
         if ingredients_data is not None:
             try:
-                # Get current ingredient IDs for this recipe
-                current_ingredients = {ri.ingredient_id: ri for ri in recipe.ingredients}
-                
-                # Get incoming ingredient IDs
-                incoming_ingredient_ids = set()
-                
+                # Key existing rows by their surrogate id
+                current_rows = {ri.id: ri for ri in recipe.ingredients}
+                incoming_ids = set()
+
                 for ing_data in ingredients_data:
                     ingredient_id = ing_data.get('ingredient_id')
                     if not ingredient_id:
                         continue
-                    
-                    incoming_ingredient_ids.add(ingredient_id)
-                    
-                    # Check if this ingredient already exists in the recipe
-                    if ingredient_id in current_ingredients:
-                        # Update existing ingredient
-                        recipe_ingredient = current_ingredients[ingredient_id]
-                        recipe_ingredient.quantity = ing_data.get('quantity', recipe_ingredient.quantity)
-                        recipe_ingredient.unit_id = ing_data.get('unit_id', recipe_ingredient.unit_id)
-                        recipe_ingredient.notes = ing_data.get('notes', recipe_ingredient.notes)
-                        recipe_ingredient.group_id = ing_data.get('group_id', recipe_ingredient.group_id)
+
+                    row_id = ing_data.get('id')
+                    if row_id and row_id in current_rows:
+                        # Update existing row
+                        ri = current_rows[row_id]
+                        ri.ingredient_id = ingredient_id
+                        ri.quantity = ing_data.get('quantity', ri.quantity)
+                        ri.unit_id = ing_data.get('unit_id', ri.unit_id)
+                        ri.notes = ing_data.get('notes', ri.notes)
+                        ri.group_id = ing_data.get('group_id', ri.group_id)
+                        incoming_ids.add(row_id)
                     else:
-                        # Add new ingredient
-                        new_recipe_ingredient = RecipeIngredient(
+                        # Insert new row
+                        db.session.add(RecipeIngredient(
                             recipe_id=recipe.recipe_id,
                             ingredient_id=ingredient_id,
                             quantity=ing_data.get('quantity'),
                             unit_id=ing_data.get('unit_id'),
                             notes=ing_data.get('notes'),
                             group_id=ing_data.get('group_id')
-                        )
-                        db.session.add(new_recipe_ingredient)
-                
-                # Remove ingredients that are no longer in the list
-                for ingredient_id in current_ingredients:
-                    if ingredient_id not in incoming_ingredient_ids:
-                        db.session.delete(current_ingredients[ingredient_id])
-                        
+                        ))
+
+                # Delete rows not present in the incoming list
+                for row_id, ri in current_rows.items():
+                    if row_id not in incoming_ids:
+                        db.session.delete(ri)
+
             except Exception as e:
-                print(f"Error updating ingredients: {e}")  # Log for debugging
+                print(f"Error updating ingredients: {e}")
                 return jsonify({"error": "Failed to update ingredients"}), 500
         
         # Handle tags update if provided
