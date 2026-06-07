@@ -1,4 +1,4 @@
--- Migration from v0.9.1 to v0.9.2
+-- Migration from v1.1.0 to v1.2.0
 -- Add density field to Ingredients for volume<->weight conversion
 --
 -- density (g/mL) allows calculating weight when a recipe specifies an ingredient

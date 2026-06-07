@@ -1,4 +1,4 @@
--- Migration from v0.9.0 to v0.9.1
+-- Migration from v1.0.0 to v1.1.0
 -- Allow the same ingredient to appear more than once in a recipe
 -- (e.g., water added at different steps)
 --
