@@ -1,20 +1,5 @@
 # TODO
 
-## Unify duplicate admin/user API endpoints
-
-The frontend `api.js` calls the general `/api/recipes`, `/api/ingredients`, etc. endpoints
-for both regular users and admins. However, `auth.py` also contains a parallel set of
-`/api/admin/recipes`, `/api/admin/ingredients`, and `/api/admin/ingredient-groups` endpoints
-that largely duplicate the same logic (some with subtle differences, e.g., the admin version
-of ingredient update in `auth.py` is missing `group_id` support).
-
-**Action:** Remove the duplicate `/api/admin/recipes`, `/api/admin/ingredients`, and
-`/api/admin/ingredient-groups` route handlers from `auth.py`. Consolidate authorization
-logic (admin-only operations like creating/deleting tags, managing users) directly onto the
-shared endpoints using role checks already available via `g.current_user.role`. The
-`/api/admin/users` endpoints in `auth.py` are fine to keep as they have no counterpart.
-
-
 ## Strengthen auth.py initialization pattern
 
 `User` and `Session` ORM models are defined inside `init_auth()` and stored in module-level
@@ -27,23 +12,6 @@ modules).
 pattern where `db` is injected (e.g., via an `init_app`-style function that only sets the
 `db` reference, not redefines the classes). This is the standard Flask extension pattern and
 will make the auth module importable and testable in isolation.
-
-
-## Fix ingredient weight calculation unit mismatch
-
-`calculate_ingredient_weight()` in `app.py` computes weight as
-`ingredient.weight × recipe_ingredient.quantity`, treating `ingredient.weight` as
-"grams per recipe unit." However, the field semantics are actually "grams per
-`ingredient.default_unit_id`." If a recipe uses a different unit than the ingredient's
-`default_unit_id`, the result is silently wrong.
-
-**Action:** Update `calculate_ingredient_weight()` to:
-1. Look up both the recipe unit and the ingredient's `default_unit_id` unit.
-2. Convert `recipe_ingredient.quantity` from the recipe unit to the default unit using
-   `convert_unit_quantity()`.
-3. Multiply the converted quantity by `ingredient.weight`.
-Return `has_weight: False` (or surface a warning) when the units are incompatible (e.g.,
-a volume recipe unit vs. a weight default unit).
 
 
 ## Add unit tests
