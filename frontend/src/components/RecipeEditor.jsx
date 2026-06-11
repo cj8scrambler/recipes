@@ -18,6 +18,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [instructions, setInstructions] = useState('')
+  const [adminNotes, setAdminNotes] = useState('')
   const [servings, setServings] = useState(1)
   const [ingredients, setIngredients] = useState([])
   const [units, setUnits] = useState([])
@@ -43,6 +44,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
       setName(recipe.name || '')
       setDescription(recipe.description || '')
       setInstructions(recipe.instructions || '')
+      setAdminNotes(recipe.admin_notes || '')
       setServings(recipe.base_servings || 1)
       setParentRecipeId(recipe.parent_recipe_id || null)
       // Ingredients from backend have id, ingredient_id, quantity (in base units), unit_id, notes, group_id
@@ -65,6 +67,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
       setName('')
       setDescription('')
       setInstructions('')
+      setAdminNotes('')
       setServings(1)
       setIngredients([])
       setSelectedTags([])
@@ -280,6 +283,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
       name,
       description,
       instructions,
+      admin_notes: adminNotes || null,
       base_servings: Number(servings),
       ingredients: processedIngredients,
       tags: selectedTags.map(tag_id => ({ tag_id })),
@@ -647,7 +651,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
                         {ingWeight.has_weight_data ? (
                           <>
                             <td style={{ textAlign: 'right', padding: '0.5em' }}>
-                              {ingWeight.base_weight.toFixed(0)}
+                              {ingWeight.base_weight !== null ? ingWeight.base_weight.toFixed(0) : '—'}
                             </td>
                             <td style={{ textAlign: 'right', padding: '0.5em', fontWeight: 'bold' }}>
                               {ingWeight.scaled_weight.toFixed(0)}
@@ -691,6 +695,17 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
         <label>
           Instructions
           <textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} placeholder="Enter cooking instructions..." />
+        </label>
+      </div>
+      <div className="form-group">
+        <label>
+          Admin Notes
+          <textarea
+            value={adminNotes}
+            onChange={(e) => setAdminNotes(e.target.value)}
+            placeholder="Private notes visible only to admins..."
+            rows="3"
+          />
         </label>
       </div>
       <div className="editor-actions">

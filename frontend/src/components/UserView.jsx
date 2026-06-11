@@ -32,6 +32,11 @@ export default function UserView({ user }) {
   const [showAddToList, setShowAddToList] = useState(false)
   const [newListName, setNewListName] = useState('')
   const [addToListLoading, setAddToListLoading] = useState(false)
+
+  // Admin notes state
+  const [editingNotes, setEditingNotes] = useState(false)
+  const [notesValue, setNotesValue] = useState('')
+  const [notesSaving, setNotesSaving] = useState(false)
   
   // Use user's setting for preferred unit system, fallback to 'US Customary'
   const preferredSystem = user?.settings?.unit === 'metric' ? 'Metric' : 'US Customary'
@@ -89,9 +94,12 @@ export default function UserView({ user }) {
     setRecipeWeight(null)
     setListMembership([])
     setShowAddToList(false)
+    setEditingNotes(false)
+    setNotesValue('')
     try {
       const full = await api.getRecipe(recipe.recipe_id)
       setSelected(full)
+      setNotesValue(full.admin_notes || '')
       // Load recipe cost and weight - scale factor is servings / base_servings
       const scaleFactor = DEFAULT_SERVINGS / (full.base_servings || 1)
       loadRecipeCost(recipe.recipe_id, scaleFactor)
@@ -127,6 +135,20 @@ export default function UserView({ user }) {
     } catch (err) {
       console.error('Failed to load recipe weight:', err)
       setRecipeWeight(null)
+    }
+  }
+
+  async function saveAdminNotes() {
+    if (!selected) return
+    setNotesSaving(true)
+    try {
+      await api.adminUpdateRecipe(selected.recipe_id, { ...selected, admin_notes: notesValue || null })
+      setSelected(prev => ({ ...prev, admin_notes: notesValue || null }))
+      setEditingNotes(false)
+    } catch (err) {
+      console.error('Failed to save admin notes:', err)
+    } finally {
+      setNotesSaving(false)
     }
   }
 
@@ -657,6 +679,50 @@ export default function UserView({ user }) {
               <h3>Instructions</h3>
               <div className="instructions">{selected.instructions}</div>
             </section>
+
+            {user.role === 'admin' && (
+              <section>
+                <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5em' }}>
+                  Admin Notes
+                  {!editingNotes && (
+                    <button
+                      className="small secondary"
+                      onClick={() => setEditingNotes(true)}
+                      style={{ fontWeight: 'normal', fontSize: '0.8em' }}
+                    >
+                      Edit
+                    </button>
+                  )}
+                </h3>
+                {editingNotes ? (
+                  <div>
+                    <textarea
+                      value={notesValue}
+                      onChange={(e) => setNotesValue(e.target.value)}
+                      placeholder="Add private admin notes..."
+                      rows="5"
+                      style={{ width: '100%', maxHeight: '300px', overflowY: 'auto', boxSizing: 'border-box' }}
+                    />
+                    <div style={{ display: 'flex', gap: '0.5em', marginTop: '0.5em' }}>
+                      <button onClick={saveAdminNotes} disabled={notesSaving}>
+                        {notesSaving ? 'Saving...' : 'Save'}
+                      </button>
+                      <button
+                        className="secondary"
+                        onClick={() => { setEditingNotes(false); setNotesValue(selected.admin_notes || '') }}
+                        disabled={notesSaving}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ whiteSpace: 'pre-wrap', color: selected.admin_notes ? 'inherit' : 'var(--gray-400)', fontStyle: selected.admin_notes ? 'normal' : 'italic' }}>
+                    {selected.admin_notes || 'No notes yet.'}
+                  </div>
+                )}
+              </section>
+            )}
           </article>
         )}
       </div>

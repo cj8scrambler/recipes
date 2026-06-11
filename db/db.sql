@@ -43,6 +43,7 @@ CREATE TABLE Recipes (
     base_servings INT NOT NULL DEFAULT 4,
     parent_recipe_id INT,
     variant_notes VARCHAR(255),
+    admin_notes TEXT,
     FOREIGN KEY (parent_recipe_id) REFERENCES Recipes(recipe_id) ON DELETE SET NULL
 );
 

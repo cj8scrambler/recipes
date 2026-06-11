@@ -114,6 +114,7 @@ class Recipe(db.Model):
 
     parent_recipe_id = Column(Integer, ForeignKey('Recipes.recipe_id', ondelete='SET NULL'))
     variant_notes = Column(String(255))
+    admin_notes = Column(db.Text)
 
     # Relationships
     parent_recipe = relationship("Recipe", remote_side=[recipe_id], backref='variants')
@@ -243,6 +244,7 @@ def serialize_recipe(recipe, include_cost=False, units_list=None):
         # Include variant information
         'parent_recipe_id': recipe.parent_recipe_id,
         'variant_notes': recipe.variant_notes,
+        'admin_notes': recipe.admin_notes,
         # Include list of variants (child recipes) with basic info
         'variants': [{'recipe_id': v.recipe_id, 'name': v.name} for v in recipe.variants] if recipe.variants else []
     }
@@ -674,7 +676,8 @@ def recipes_list():
                 instructions=data.get('instructions'),
                 base_servings=data.get('base_servings', 4),
                 parent_recipe_id=data.get('parent_recipe_id'),
-                variant_notes=data.get('variant_notes')
+                variant_notes=data.get('variant_notes'),
+                admin_notes=data.get('admin_notes')
             )
             
             db.session.add(new_recipe)
