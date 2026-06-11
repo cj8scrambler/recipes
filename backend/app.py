@@ -652,6 +652,11 @@ def read_root():
     """Simple health check endpoint."""
     return jsonify({"message": "Recipe API is running (Flask/SQLAlchemy). Connects to MySQL."})
 
+@app.route("/api/is-test-database")
+def is_test_database():
+    db_name = DATABASE_URL.rsplit('/', 1)[-1] if DATABASE_URL else ''
+    return jsonify({"is_test": db_name != 'recipes'})
+
 @app.route("/api/recipes", methods=['GET', 'POST'])
 @login_required
 def recipes_list():

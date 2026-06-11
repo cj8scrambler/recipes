@@ -1,15 +1,5 @@
 # TODO
 
-## Add test database indicator in the UI
-
-When the backend is connected to `test_recipes` (or any non-production database), show a
-visible banner or badge in the UI so it's obvious the test database is being modified.
-
-**Action:** Expose a `/api/config` or similar endpoint that returns the current environment
-(e.g. `{ "env": "test" }`), derived from `DATABASE_URL` or `FLASK_ENV`. Display a warning
-banner in the frontend (e.g. in the nav or at the top of the page) when env is not production.
-
-
 ## Unify duplicate admin/user API endpoints
 
 The frontend `api.js` calls the general `/api/recipes`, `/api/ingredients`, etc. endpoints
