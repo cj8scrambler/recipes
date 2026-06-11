@@ -5,8 +5,11 @@
 -- by volume but the ingredient's default unit is weight (or vice versa).
 -- NULL means no density data available; weight calculation will return has_weight:False
 -- for ingredients that need it.
---
--- To downgrade:
---   ALTER TABLE Ingredients DROP COLUMN density;
+
+-- ==== UPGRADE ====
 
 ALTER TABLE Ingredients ADD COLUMN density DECIMAL(8, 4) NULL AFTER weight;
+
+-- ==== DOWNGRADE ====
+
+ALTER TABLE Ingredients DROP COLUMN density;
