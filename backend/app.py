@@ -57,7 +57,7 @@ class Unit(db.Model):
 
     # Relationships
     ingredient_prices_old = relationship("Ingredient", foreign_keys="Ingredient.price_unit_id", back_populates="price_unit")
-    ingredient_defaults = relationship("Ingredient", foreign_keys="Ingredient.default_unit_id")
+    ingredient_defaults = relationship("Ingredient", foreign_keys="Ingredient.default_unit_id", back_populates="default_unit")
     recipe_ingredients = relationship("RecipeIngredient", back_populates="unit")
     ingredient_prices = relationship("IngredientPrice", back_populates="unit")
 
@@ -85,7 +85,7 @@ class Ingredient(db.Model):
 
     # Relationships
     price_unit = relationship("Unit", foreign_keys=[price_unit_id], back_populates="ingredient_prices_old")
-    default_unit = relationship("Unit", foreign_keys=[default_unit_id])
+    default_unit = relationship("Unit", foreign_keys=[default_unit_id], back_populates="ingredient_defaults")
     recipe_items = relationship("RecipeIngredient", back_populates="ingredient")
     prices = relationship("IngredientPrice", back_populates="ingredient", cascade="all, delete-orphan")
     ingredient_type = relationship("IngredientType", back_populates="ingredients")
