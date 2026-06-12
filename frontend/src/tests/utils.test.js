@@ -18,6 +18,14 @@ describe('formatRecipeUnits', () => {
     expect(formatRecipeUnits('abc', 2)).toBe('')
   })
 
+  it('returns empty string for null input', () => {
+    expect(formatRecipeUnits(null, 2)).toBe('')
+  })
+
+  it('returns empty string for undefined input', () => {
+    expect(formatRecipeUnits(undefined, 2)).toBe('')
+  })
+
   it('rounds to maxDecimals', () => {
     expect(formatRecipeUnits(1.23456, 2)).toBe('1.23')
   })

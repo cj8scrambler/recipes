@@ -9,7 +9,7 @@ export function formatRecipeUnits(number, maxDecimals) {
   const num = typeof number === 'string' ? parseFloat(number) : number;
   
   // Return empty string if not a valid number
-  if (isNaN(num)) return '';
+  if (num === null || num === undefined || isNaN(num)) return '';
   
   // Round to the specified maximum decimal places and convert to string
   const fixedString = num.toFixed(maxDecimals);

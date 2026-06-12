@@ -37,8 +37,7 @@ When creating a new release (e.g., v1.1.0 from v1.0.0):
 1. Ensure all schema changes are committed to `db/db.sql`
 2. Generate migration file:
    ```bash
-   cd backend
-   python generate_migration.py --from-tag v1.0.0 --to-tag HEAD
+   python db/generate_migration.py --from-tag v1.0.0 --to-tag HEAD
    ```
 3. Review the generated migration file in `db/migrations/migrate_1_0_0_to_1_1_0.sql`
 4. Edit the migration file to add any manual ALTER TABLE statements needed
@@ -113,7 +112,7 @@ This establishes the baseline schema that future migrations will build upon.
 
 ## Automated Migration Generation
 
-The `backend/generate_migration.py` script:
+The `db/generate_migration.py` script:
 
 1. Compares `db/db.sql` between two git tags
 2. Detects new tables, dropped tables, and modified tables
@@ -151,7 +150,7 @@ CREATE TABLE notifications (
 
 Generate migration:
 ```bash
-python backend/generate_migration.py --from-tag v1.0.0 --to-tag HEAD
+python db/generate_migration.py --from-tag v1.0.0 --to-tag HEAD
 ```
 
 The script will automatically create the CREATE TABLE and DROP TABLE statements.
@@ -174,7 +173,7 @@ CREATE TABLE users (
 
 Generate migration:
 ```bash
-python backend/generate_migration.py --from-tag v1.0.0 --to-tag HEAD
+python db/generate_migration.py --from-tag v1.0.0 --to-tag HEAD
 ```
 
 The script will flag the `users` table as modified. You must manually edit the migration file to add:
@@ -258,5 +257,5 @@ mysql -u user -p recipes_dev < db/data.sql
 ## See Also
 
 - [DEPLOYMENT.md](../../DEPLOYMENT.md) - Full deployment guide
-- [generate_migration.py](../../backend/generate_migration.py) - Migration generation script
+- [generate_migration.py](../generate_migration.py) - Migration generation script
 - [db.sql](../db.sql) - Current schema definition
