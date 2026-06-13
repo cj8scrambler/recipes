@@ -88,6 +88,7 @@ export default function AdminDashboard() {
   }
 
   async function saveIngredient(payload) {
+    setError(null)
     try {
       let savedIngredient
       if (payload.ingredient_id) {

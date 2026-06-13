@@ -6,7 +6,7 @@ import uuid
 import bcrypt
 from datetime import datetime, timedelta
 from functools import wraps
-from flask import Blueprint, request, jsonify, make_response
+from flask import Blueprint, request, jsonify, make_response, g
 from sqlalchemy import Column, String, Enum as SQLEnum, DateTime, Text
 from sqlalchemy.dialects.mysql import CHAR
 from flask_sqlalchemy import SQLAlchemy
@@ -98,6 +98,7 @@ def login_required(f):
         user = get_current_user()
         if not user:
             return jsonify({"error": "Authentication required"}), 401
+        g.current_user = user
         return f(*args, **kwargs)
     return decorated_function
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { convertUnit, toBaseUnit, fromBaseUnit, getDisplayUnit } from '../unitConversions'
+import { convertUnit, toBaseUnit, fromBaseUnit, getDisplayUnit } from '../src/unitConversions'
 
 // ---------------------------------------------------------------------------
 // Shared unit fixtures (base unit: mL for volume, g for weight)

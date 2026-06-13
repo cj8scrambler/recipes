@@ -5,6 +5,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Enum, ForeignKey, Column, Integer, String, Float, Boolean, DateTime
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import relationship
 from dotenv import load_dotenv
 
@@ -202,7 +203,7 @@ def serialize_recipe_ingredient(ri, include_cost=False, include_weight=False, un
         'id': ri.id,
         'ingredient_id': ri.ingredient_id,
         'name': ri.ingredient.name if ri.ingredient is not None else None,
-        'quantity': ri.quantity,
+        'quantity': float(ri.quantity) if ri.quantity is not None else None,
         'unit_id': ri.unit_id,
         'unit_abv': ri.unit.abbreviation if ri.unit is not None else None,
         'notes': ri.notes,
@@ -307,8 +308,8 @@ def serialize_ingredient(ingredient):
         'price_unit_id': ingredient.price_unit_id,
         'default_unit_id': ingredient.default_unit_id,
         'default_unit_category': ingredient.default_unit.category if ingredient.default_unit else None,
-        'weight': ingredient.weight,
-        'density': ingredient.density,
+        'weight': float(ingredient.weight) if ingredient.weight is not None else None,
+        'density': float(ingredient.density) if ingredient.density is not None else None,
         'needs_density': ingredient_needs_density(ingredient),
         'gluten_status': ingredient.gluten_status,
         'type_id': type_id,
@@ -705,6 +706,13 @@ def recipes_list():
                 )
                 db.session.add(new_recipe_ingredient)
             
+            # Add tags if provided
+            tags_data = data.get('tags', [])
+            for tag_data in tags_data:
+                tag_id = tag_data.get('tag_id') if isinstance(tag_data, dict) else tag_data
+                if tag_id:
+                    db.session.add(RecipeTag(recipe_id=new_recipe.recipe_id, tag_id=tag_id))
+
             db.session.commit()
             return jsonify(serialize_recipe(new_recipe)), 201
         except Exception as e:
@@ -916,6 +924,9 @@ def ingredients_list():
             db.session.add(new_ingredient)
             db.session.commit()
             return jsonify(serialize_ingredient(new_ingredient)), 201
+        except IntegrityError:
+            db.session.rollback()
+            return jsonify({"error": "An ingredient with that name already exists"}), 409
         except Exception as e:
             db.session.rollback()
             print(f"Error creating ingredient: {e}")

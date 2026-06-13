@@ -2,15 +2,15 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import App from '../App'
-import UserView from '../components/UserView'
-import { api } from '../api'
+import App from '../src/App'
+import UserView from '../src/components/UserView'
+import { api } from '../src/api'
 
 // ---------------------------------------------------------------------------
 // Mock the API module — vi.mock is hoisted so this runs before any imports
 // ---------------------------------------------------------------------------
 
-vi.mock('../api', () => ({
+vi.mock('../src/api', () => ({
   api: {
     isTestDatabase: vi.fn().mockResolvedValue({ is_test: false }),
     getMe: vi.fn(),
@@ -33,13 +33,13 @@ vi.mock('../api', () => ({
 }))
 
 // Mock heavy child components not under test in App-level tests
-vi.mock('../components/AdminDashboard', () => ({
+vi.mock('../src/components/AdminDashboard', () => ({
   default: () => <div data-testid="admin-dashboard">Admin Dashboard</div>
 }))
-vi.mock('../components/RecipeLists', () => ({
+vi.mock('../src/components/RecipeLists', () => ({
   default: () => <div data-testid="recipe-lists">My Lists</div>
 }))
-vi.mock('../components/Settings', () => ({
+vi.mock('../src/components/Settings', () => ({
   default: () => <div data-testid="settings">Settings</div>
 }))
 

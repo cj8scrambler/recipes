@@ -29,9 +29,18 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-test.txt
 
-      - name: Run tests
+      - name: Run unit tests
         working-directory: backend
-        run: python -m pytest --tb=short
+        run: python -m pytest tests/ --tb=short
+
+      - name: Run integration tests
+        env:
+          CI_DB_HOST:     ${{ secrets.CI_DB_HOST }}
+          CI_DB_PORT:     ${{ secrets.CI_DB_PORT }}
+          CI_DB_USER:     ${{ secrets.CI_DB_USER }}
+          CI_DB_PASSWORD: ${{ secrets.CI_DB_PASSWORD }}
+          CI_DB_NAME:     ${{ secrets.CI_DB_NAME }}
+        run: python -m pytest integration/tests --tb=short
 
   frontend:
     name: Frontend Tests

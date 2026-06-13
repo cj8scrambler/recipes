@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatRecipeUnits } from '../utils'
+import { formatRecipeUnits } from '../src/utils'
 
 describe('formatRecipeUnits', () => {
   it('removes trailing zeros after decimal', () => {

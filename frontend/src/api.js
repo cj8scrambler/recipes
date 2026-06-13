@@ -9,7 +9,9 @@ async function request(path, options = {}) {
   })
   if (!res.ok) {
     const text = await res.text()
-    throw new Error(`API error ${res.status}: ${text}`)
+    let message = `API error ${res.status}: ${text}`
+    try { message = JSON.parse(text).error || message } catch (_) {}
+    throw new Error(message)
   }
   return res.status === 204 ? null : res.json()
 }

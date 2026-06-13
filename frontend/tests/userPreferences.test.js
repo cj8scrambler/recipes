@@ -4,7 +4,7 @@ import {
   savePreferences,
   getPreferredUnitSystem,
   setPreferredUnitSystem,
-} from '../userPreferences'
+} from '../src/userPreferences'
 
 const KEY = 'recipe_app_preferences'
 
