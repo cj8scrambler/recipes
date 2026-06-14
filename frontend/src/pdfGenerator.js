@@ -691,6 +691,117 @@ export function generateRecipesPDF(recipes, filename = 'recipes.pdf') {
 }
 
 /**
+ * Generate a shopping list PDF for a recipe list.
+ * @param {string} listName - Name of the recipe list
+ * @param {Array} items - Array of { ingredient_name, quantity, unit_abv } (pre-display-converted)
+ * @param {string} filename - Output filename
+ */
+export function generateShoppingListPDF(listName, items, filename) {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' })
+
+  const marginX = 40
+  const marginY = 40
+  const contentWidth = PAGE_WIDTH_PT - 2 * marginX  // 532pt
+
+  // Column layout — all right-edge positions relative to marginX
+  const checkboxSize = 14
+  const checkboxGap = 10
+  const colGap = 8
+  const neededW = 92   // "Needed" — numeric, right-aligned
+  const onHandW = 88   // "On Hand" — write-in line
+  const toBuyW  = 88   // "To Buy"  — write-in line
+  const nameW = contentWidth - checkboxSize - checkboxGap - 3 * colGap - neededW - onHandW - toBuyW
+
+  const nameX   = marginX + checkboxSize + checkboxGap  // 64
+  const neededX = nameX + nameW + colGap
+  const onHandX = neededX + neededW + colGap
+  const toBuyX  = onHandX + onHandW + colGap
+
+  // Right edges used for right-aligning text and drawing lines
+  const neededRight = neededX + neededW
+  const onHandRight = onHandX + onHandW
+  const toBuyRight  = toBuyX  + toBuyW
+
+  const rowH    = 26
+  const fontSize = 11
+  const lineH   = fontSize * 1.3
+
+  let y = marginY
+
+  // ── Title block ──
+  doc.setFontSize(20)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Shopping List', marginX, y)
+  y += 26
+
+  doc.setFontSize(14)
+  doc.text(listName, marginX, y)
+  y += 20
+
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'normal')
+  doc.setTextColor(120, 120, 120)
+  doc.text(new Date().toLocaleDateString(), marginX, y)
+  doc.setTextColor(0, 0, 0)
+  y += 18
+
+  // ── Column header row ──
+  const headerH = 18
+  doc.setFillColor(220, 220, 220)
+  doc.rect(marginX, y, contentWidth, headerH, 'F')
+
+  doc.setFontSize(9)
+  doc.setFont('helvetica', 'bold')
+  const headerY = y + headerH - 4
+  doc.text('Ingredient', nameX, headerY)
+  doc.text('Needed',  neededRight,              headerY, { align: 'right' })
+  doc.text('On Hand', onHandX + onHandW / 2,   headerY, { align: 'center' })
+  doc.text('To Buy',  toBuyX  + toBuyW  / 2,   headerY, { align: 'center' })
+  y += headerH + 6
+
+  // ── Ingredient rows ──
+  doc.setFontSize(fontSize)
+  doc.setFont('helvetica', 'normal')
+
+  items.forEach((item, idx) => {
+    if (idx % 2 === 1) {
+      doc.setFillColor(247, 247, 247)
+      doc.rect(marginX, y - 2, contentWidth, rowH, 'F')
+    }
+
+    // Checkbox square
+    doc.setDrawColor(80, 80, 80)
+    doc.setLineWidth(0.75)
+    doc.rect(marginX, y + (rowH - checkboxSize) / 2 - 2, checkboxSize, checkboxSize)
+
+    // Ingredient name (wrap if long)
+    const nameLines = doc.splitTextToSize(item.ingredient_name, nameW - 4)
+    doc.setFont('helvetica', 'normal')
+    doc.text(nameLines, nameX, y + lineH - 2)
+
+    // Needed — right-aligned to match header
+    const neededText = `${formatRecipeUnits(item.quantity, 2)} ${item.unit_abv}`
+    doc.text(neededText, neededRight, y + lineH - 2, { align: 'right' })
+
+    // On Hand and To Buy — blank write-in lines
+    const writeLineY = y + rowH - 5
+    doc.setDrawColor(160, 160, 160)
+    doc.setLineWidth(0.5)
+    doc.line(onHandX, writeLineY, onHandRight - 2, writeLineY)
+    doc.line(toBuyX,  writeLineY, toBuyRight  - 2, writeLineY)
+
+    y += Math.max(rowH, nameLines.length * lineH + 6)
+
+    if (y > PAGE_HEIGHT_PT - marginY - rowH) {
+      doc.addPage()
+      y = marginY
+    }
+  })
+
+  doc.save(filename || 'shopping_list.pdf')
+}
+
+/**
  * Generate a PDF for a single recipe
  */
 export function generateSingleRecipePDF(recipe, scaledIngredients, servings, filename, recipeCost, recipeWeight) {

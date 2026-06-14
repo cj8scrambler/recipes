@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { api } from '../api'
 import { formatRecipeUnits } from '../utils'
 import { getDisplayUnit, toBaseUnit } from '../unitConversions'
-import { generateRecipesPDF } from '../pdfGenerator'
+import { generateRecipesPDF, generateShoppingListPDF } from '../pdfGenerator'
 
 export default function RecipeLists({ user }) {
   const [lists, setLists] = useState([])
@@ -18,6 +18,7 @@ export default function RecipeLists({ user }) {
   
   // PDF generation state
   const [pdfLoading, setPdfLoading] = useState(false)
+  const [shoppingPdfLoading, setShoppingPdfLoading] = useState(false)
   // Per-item cost and weight state (keyed by item_id)
   const [itemCosts, setItemCosts] = useState({})
   const [itemWeights, setItemWeights] = useState({})
@@ -406,6 +407,23 @@ export default function RecipeLists({ user }) {
     }
   }
 
+  async function generateShoppingPDF() {
+    if (!selectedList || shoppingList.length === 0) return
+    setShoppingPdfLoading(true)
+    try {
+      const displayItems = shoppingList.map(item => {
+        const display = getShoppingListDisplayItem(item)
+        return { ingredient_name: item.ingredient_name, quantity: display.quantity, unit_abv: display.unit_abv }
+      })
+      const filename = `${selectedList.name.replace(/[^a-zA-Z0-9]/g, '_')}_shopping.pdf`
+      generateShoppingListPDF(selectedList.name, displayItems, filename)
+    } catch (err) {
+      setError('Failed to generate shopping list PDF: ' + err.message)
+    } finally {
+      setShoppingPdfLoading(false)
+    }
+  }
+
   // Helper function to get cost for an item
   function getItemCost(itemId) {
     const cost = itemCosts[itemId]
@@ -548,14 +566,24 @@ export default function RecipeLists({ user }) {
                 <p className="text-muted">{selectedList.items?.length || 0} recipes</p>
               </div>
               {selectedList.items && selectedList.items.length > 0 && (
-                <button
-                  className="pdf-button"
-                  onClick={generateListPDF}
-                  disabled={pdfLoading}
-                  title="Generate PDF with all recipes"
-                >
-                  {pdfLoading ? '📄 Generating...' : '📄 Download PDF'}
-                </button>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button
+                    className="pdf-button"
+                    onClick={generateListPDF}
+                    disabled={pdfLoading}
+                    title="Generate PDF with packing and cooking instructions for all recipes"
+                  >
+                    {pdfLoading ? '📄 Generating...' : '📄 Recipe Cards PDF'}
+                  </button>
+                  <button
+                    className="pdf-button"
+                    onClick={generateShoppingPDF}
+                    disabled={shoppingPdfLoading || shoppingList.length === 0}
+                    title="Generate shopping list PDF"
+                  >
+                    {shoppingPdfLoading ? '🛒 Generating...' : '🛒 Shopping List PDF'}
+                  </button>
+                </div>
               )}
             </div>
             
