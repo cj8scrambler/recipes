@@ -20,6 +20,7 @@ const LINE_HEIGHT_FACTOR = 1.35
 // Layout thresholds
 const TWO_SECTION_LAYOUT_THRESHOLD = 0.45 // Use two-section layout if content fits
 const MIN_REMAINING_HEIGHT = 100
+const PACKING_COLUMN_GAP = 15 // Gap between two packing columns (in page pt, = horizontal gap in reading view)
 
 // Unit conversion constants
 const ML_PER_FL_OZ = 29.5735 // milliliters per fluid ounce
@@ -244,6 +245,101 @@ function drawRotatedIngredients(doc, scaledIngredients, x, y, maxWidth) {
 }
 
 /**
+ * Draw ingredient groups in two columns for the packing section.
+ * In the rotated coordinate system, higher page-Y = LEFT in reading view.
+ * Column 1 (reading LEFT, first to read) anchors at y=topY.
+ * Column 2 (reading RIGHT) anchors at y=topY - colWidth - gap.
+ */
+function drawRotatedIngredientsTwoColumn(doc, scaledIngredients, x, y, maxWidth) {
+  const lineHeight = BODY_FONT_SIZE * LINE_HEIGHT_FACTOR
+  let currentX = x + SECTION_SPACING
+
+  // Available horizontal reading width = from topY down to a small margin
+  const availableWidth = y - SMALL_MARGIN_PT
+  const colWidth = (availableWidth - PACKING_COLUMN_GAP) / 2
+
+  // "Ingredients" section header spans the full reading width
+  doc.setFontSize(SECTION_FONT_SIZE)
+  doc.setFont('helvetica', 'bold')
+  doc.text('Ingredients', currentX, y, { angle: 90 })
+  currentX += SECTION_FONT_SIZE * LINE_HEIGHT_FACTOR + 8
+
+  const contentStartX = currentX
+
+  // Build a flat list of all ingredient lines (pre-wrapped to colWidth)
+  const allItems = []
+  const sortedGroups = getSortedGroups(scaledIngredients)
+  doc.setFontSize(BODY_FONT_SIZE)
+
+  for (const [groupKey, group] of sortedGroups) {
+    const isGrouped = groupKey !== 'ungrouped'
+
+    if (isGrouped && group.name) {
+      allItems.push({ text: group.name + ':', bold: true, indent: 0 })
+    }
+
+    const indent = isGrouped ? 15 : 0
+
+    for (const ing of group.ingredients) {
+      let text = '• '
+      if (ing.quantity && ing.displayUnit) {
+        text += `${formatRecipeUnits(ing.quantity, 2)} ${ing.displayUnit.abbreviation} `
+      }
+      text += ing.name
+      if (ing.notes) text += ` (${ing.notes})`
+
+      const wrapped = doc.splitTextToSize(text, colWidth - 20 - indent)
+      wrapped.forEach(line => allItems.push({ text: line, bold: false, indent }))
+    }
+
+    allItems.push({ spacer: true })
+  }
+
+  // Find split point: roughly half the content lines, breaking at the next group boundary
+  const totalContent = allItems.filter(i => !i.spacer).length
+  const targetSplit = Math.ceil(totalContent / 2)
+  let count = 0
+  let splitIdx = allItems.length
+  for (let i = 0; i < allItems.length; i++) {
+    if (!allItems[i].spacer) count++
+    if (count >= targetSplit) {
+      // Advance to the end of this group (next spacer or end of list)
+      let j = i + 1
+      while (j < allItems.length && !allItems[j].spacer) j++
+      splitIdx = j < allItems.length ? j + 1 : allItems.length
+      break
+    }
+  }
+
+  const col1Items = allItems.slice(0, splitIdx)
+  const col2Items = allItems.slice(splitIdx)
+
+  // Y anchors: col1 = left reading column (high Y), col2 = right reading column (lower Y)
+  const col1Y = y
+  const col2Y = y - colWidth - PACKING_COLUMN_GAP
+
+  // Render column 1 (left in reading view = first ingredients)
+  let col1X = contentStartX
+  for (const item of col1Items) {
+    if (item.spacer) { col1X += 2; continue }
+    doc.setFont('helvetica', item.bold ? 'bold' : 'normal')
+    doc.text(item.text, col1X, col1Y - item.indent, { angle: 90 })
+    col1X += lineHeight
+  }
+
+  // Render column 2 (right in reading view = remaining ingredients)
+  let col2X = contentStartX
+  for (const item of col2Items) {
+    if (item.spacer) { col2X += 2; continue }
+    doc.setFont('helvetica', item.bold ? 'bold' : 'normal')
+    doc.text(item.text, col2X, col2Y - item.indent, { angle: 90 })
+    col2X += lineHeight
+  }
+
+  return Math.max(col1X, col2X)
+}
+
+/**
  * Draw ingredients summary for the cooking section
  * Lists all ingredients (ungrouped and groups) without quantities
  * Exception: 'water' shows quantity since it's not in the recipe package
@@ -334,7 +430,7 @@ function renderRecipeTwoSection(doc, recipe, scaledIngredients, servings, recipe
   const topY = halfHeight - SMALL_MARGIN_PT - LEFT_PADDING // Offset from divider to add left margin when rotated
   
   topX = drawRotatedPackingHeader(doc, recipe, servings, topX, topY, sectionWidth, recipeCost, recipeWeight)
-  topX = drawRotatedIngredients(doc, scaledIngredients, topX, topY, sectionWidth)
+  topX = drawRotatedIngredientsTwoColumn(doc, scaledIngredients, topX, topY, sectionWidth)
   
   // === BOTTOM HALF: COOKING/INSTRUCTIONS SECTION ===
   // Same rotation, positioned in bottom half with extra padding
@@ -532,27 +628,30 @@ function renderRecipeStandard(doc, recipe, scaledIngredients, servings, recipeCo
 }
 
 /**
- * Estimate if content will fit in two-section layout
+ * Estimate if content will fit in two-section layout.
+ * Packing uses two columns so can hold ~2x the ingredient lines.
+ * Cooking section is still single-column.
  */
 function estimateFitsInTwoSections(recipe, scaledIngredients, doc) {
   const lineHeight = BODY_FONT_SIZE * LINE_HEIGHT_FACTOR
-  const sectionHeight = (PAGE_HEIGHT_PT / 2) - (2 * MARGIN_PT)
-  const maxLines = Math.floor(sectionHeight / lineHeight)
-  
-  // Count ingredient lines
-  let ingredientLines = 5 // Header lines
+  // Vertical content height in reading view = page width minus margins and header padding
+  const contentHeight = PAGE_WIDTH_PT - (2 * MARGIN_PT) - (2 * LEFT_PADDING)
+  const maxLines = Math.floor(contentHeight / lineHeight)
+
+  // Count ingredient lines (rough — doesn't account for text wrapping)
+  let ingredientLines = 5 // header rows
   const sortedGroups = getSortedGroups(scaledIngredients)
   for (const [groupKey, group] of sortedGroups) {
     if (groupKey !== 'ungrouped' && group.name) ingredientLines++
     ingredientLines += group.ingredients.length
   }
-  
-  // Count instruction lines
+
+  // Count instruction lines (cooking section, single column)
   doc.setFontSize(BODY_FONT_SIZE)
   const instructionLines = doc.splitTextToSize(recipe.instructions || '', PAGE_WIDTH_PT - 60).length + 8
-  
-  // Check if both sections fit
-  return ingredientLines < maxLines * 0.85 && instructionLines < maxLines * 0.85
+
+  // Packing has two columns so capacity is doubled; cooking is single column
+  return ingredientLines < maxLines * 2 * 0.8 && instructionLines < maxLines * 0.8
 }
 
 /**
