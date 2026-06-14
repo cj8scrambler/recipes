@@ -19,7 +19,7 @@ db = None
 User = None
 Session = None
 
-def init_auth(database):
+def init_auth(database, rate_limiter=None):
     """Initialize the auth module with the database instance from app.py"""
     global db, User, Session
     db = database
@@ -311,10 +311,11 @@ def change_password():
     if len(new_password) < 6:
         return jsonify({"error": "New password must be at least 6 characters"}), 400
     
-    # Update password
+    # Update password and invalidate all existing sessions
     user.password_hash = hash_password(new_password)
+    db.session.execute(db.delete(Session).where(Session.user_id == user.id))
     db.session.commit()
-    
+
     return jsonify({"message": "Password changed successfully"})
 
 

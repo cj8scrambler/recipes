@@ -1,8 +1,10 @@
 # backend_app.py
 
 import os # Import the os module to read environment variables
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, g
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Enum, ForeignKey, Column, Integer, String, Float, Boolean, DateTime
 from sqlalchemy.exc import IntegrityError
@@ -36,11 +38,13 @@ CORS(app, resources={
     }
 })
 
+limiter = Limiter(get_remote_address, app=app, default_limits=[], storage_uri="memory://")
+
 # --- Import Authentication Module ---
 # Import the auth module and initialize it with the database
 # This must be done after db is created but before routes are defined
 from auth import auth_bp, init_auth, login_required, admin_required
-init_auth(db)
+init_auth(db, limiter)
 
 
 # --- 2. Database Models (SQLAlchemy ORM) ---
@@ -394,6 +398,14 @@ def serialize_recipe_list_item(item):
         'updated_at': item.updated_at.isoformat() if item.updated_at else None
     }
 
+# --- Authorization Helpers ---
+
+def _check_admin():
+    """Return a 403 response if the current user is not admin, else None."""
+    if g.current_user.role != 'admin':
+        return jsonify({"error": "Admin access required"}), 403
+    return None
+
 # --- Cost Calculation Helpers ---
 
 def can_convert_units(from_unit, to_unit):
@@ -671,6 +683,8 @@ def recipes_list():
             print(f"Database error in get_recipes: {e}")
             return jsonify({"error": "Failed to fetch recipes from database."}), 500
     elif request.method == 'POST':
+        err = _check_admin()
+        if err: return err
         # Create new recipe
         try:
             data = request.get_json()
@@ -732,25 +746,27 @@ def recipe(recipe_id):
     if request.method == 'GET':
         return jsonify(serialize_recipe(recipe))
     elif request.method == 'PUT':
-        #TODO: Check authorization
+        err = _check_admin()
+        if err: return err
         data = request.get_json()
         
         # Handle ingredients separately if provided
         ingredients_data = data.get('ingredients', None)
-        
-        # Filter out relationship fields that should not be directly set
-        # These are relationship fields, not column fields
-        fields_to_skip = ['ingredients', 'tags', 'parent_recipe', 'variants']
-        
+
+        # Allowlist of columns that may be updated via this endpoint
+        UPDATABLE_FIELDS = {'name', 'description', 'instructions',
+                            'base_servings', 'parent_recipe_id', 'variant_notes', 'admin_notes'}
+        # These keys are handled separately and should not be passed to setattr
+        HANDLED_SEPARATELY = {'ingredients', 'tags'}
+
         # Update basic recipe fields
         for key, value in data.items():
-            if key in fields_to_skip:
-                # Skip relationship fields - they require special handling
+            if key in HANDLED_SEPARATELY:
                 continue
-            if hasattr(recipe, key):
+            if key in UPDATABLE_FIELDS:
                 setattr(recipe, key, value)
             else:
-                return jsonify({"error": f"Invalid field {key}"}), 500
+                return jsonify({"error": f"Invalid field: {key}"}), 400
         
         # Handle ingredients update if provided
         if ingredients_data is not None:
@@ -836,6 +852,8 @@ def recipe(recipe_id):
             print(f"Database commit error: {e}")  # Log for debugging
             return jsonify({"error": "Database commit failure"}), 500
     elif request.method == 'DELETE':
+        err = _check_admin()
+        if err: return err
         # Delete recipe
         try:
             db.session.delete(recipe)
@@ -904,6 +922,8 @@ def ingredients_list():
             print(f"Database error in get_ingredients: {e}")
             return jsonify({"error": "Failed to fetch ingredients from database."}), 500
     elif request.method == 'POST':
+        err = _check_admin()
+        if err: return err
         # Create new ingredient
         try:
             data = request.get_json()
@@ -946,6 +966,8 @@ def ingredient(ingredient_id):
     if request.method == 'GET':
         return jsonify(serialize_ingredient(ingredient))
     elif request.method == 'PUT':
+        err = _check_admin()
+        if err: return err
         # Update ingredient
         try:
             data = request.get_json()
@@ -977,6 +999,8 @@ def ingredient(ingredient_id):
             print(f"Error updating ingredient: {e}")
             return jsonify({"error": "Failed to update ingredient"}), 500
     elif request.method == 'DELETE':
+        err = _check_admin()
+        if err: return err
         # Delete ingredient
         # First check if ingredient is used in any recipes
         # Explicitly query Recipe_Ingredients to avoid relationship loading issues
@@ -1042,6 +1066,8 @@ def ingredient_prices(ingredient_id):
             print(f"Error accessing ingredient prices: {e}")
             return jsonify([])
     elif request.method == 'POST':
+        err = _check_admin()
+        if err: return err
         # Create new price for this ingredient
         try:
             data = request.get_json()
@@ -1091,6 +1117,8 @@ def ingredient_price(ingredient_id, price_id):
     if request.method == 'GET':
         return jsonify(serialize_ingredient_price(price))
     elif request.method == 'PUT':
+        err = _check_admin()
+        if err: return err
         # Update price
         try:
             data = request.get_json()
@@ -1119,6 +1147,8 @@ def ingredient_price(ingredient_id, price_id):
             print(f"Error updating ingredient price: {e}")
             return jsonify({"error": "Failed to update ingredient price"}), 500
     elif request.method == 'DELETE':
+        err = _check_admin()
+        if err: return err
         # Delete price
         try:
             db.session.delete(price)
@@ -1154,10 +1184,12 @@ def ingredient_groups_list():
             print(f"Database error in get_ingredient_groups: {e}")
             return jsonify({"error": "Failed to fetch ingredient groups from database."}), 500
     elif request.method == 'POST':
+        err = _check_admin()
+        if err: return err
         # Create new ingredient group
         try:
             data = request.get_json()
-            
+
             # Create group with provided fields
             new_group = IngredientGroup(
                 name=data.get('name'),
@@ -1186,6 +1218,8 @@ def ingredient_group(group_id):
     if request.method == 'GET':
         return jsonify(serialize_ingredient_group(group))
     elif request.method == 'PUT':
+        err = _check_admin()
+        if err: return err
         # Update ingredient group
         try:
             data = request.get_json()
@@ -1203,6 +1237,8 @@ def ingredient_group(group_id):
             print(f"Error updating ingredient group: {e}")
             return jsonify({"error": "Failed to update ingredient group"}), 500
     elif request.method == 'DELETE':
+        err = _check_admin()
+        if err: return err
         # Delete ingredient group
         # Check if group is used in any recipes
         if group.recipe_ingredients:
@@ -1235,6 +1271,8 @@ def ingredient_types_list():
             print(f"Database error in get_ingredient_types: {e}")
             return jsonify({"error": "Failed to fetch ingredient types from database."}), 500
     elif request.method == 'POST':
+        err = _check_admin()
+        if err: return err
         # Create new ingredient type
         try:
             data = request.get_json()
@@ -1267,6 +1305,8 @@ def ingredient_type(type_id):
     if request.method == 'GET':
         return jsonify(serialize_ingredient_type(ingredient_type))
     elif request.method == 'PUT':
+        err = _check_admin()
+        if err: return err
         # Update ingredient type
         try:
             data = request.get_json()
@@ -1284,6 +1324,8 @@ def ingredient_type(type_id):
             print(f"Error updating ingredient type: {e}")
             return jsonify({"error": "Failed to update ingredient type"}), 500
     elif request.method == 'DELETE':
+        err = _check_admin()
+        if err: return err
         # Delete ingredient type
         # Note: ON DELETE SET NULL will automatically clear type_id from any ingredients using this type
         try:
@@ -1309,10 +1351,8 @@ def tags_list():
             print(f"Database error in get_tags: {e}")
             return jsonify({"error": "Failed to fetch tags from database."}), 500
     elif request.method == 'POST':
-        # Create new tag - admin only
-        from flask import g
-        if not hasattr(g, 'current_user') or g.current_user.role != 'admin':
-            return jsonify({"error": "Admin access required"}), 403
+        err = _check_admin()
+        if err: return err
         try:
             data = request.get_json()
             
@@ -1344,10 +1384,8 @@ def tag(tag_id):
     if request.method == 'GET':
         return jsonify(serialize_tag(tag))
     elif request.method == 'PUT':
-        # Update tag - admin only
-        from flask import g
-        if not hasattr(g, 'current_user') or g.current_user.role != 'admin':
-            return jsonify({"error": "Admin access required"}), 403
+        err = _check_admin()
+        if err: return err
         try:
             data = request.get_json()
             
@@ -1364,10 +1402,8 @@ def tag(tag_id):
             print(f"Error updating tag: {e}")
             return jsonify({"error": "Failed to update tag"}), 500
     elif request.method == 'DELETE':
-        # Delete tag - admin only
-        from flask import g
-        if not hasattr(g, 'current_user') or g.current_user.role != 'admin':
-            return jsonify({"error": "Admin access required"}), 403
+        err = _check_admin()
+        if err: return err
         # Check if tag is used in any recipes
         if tag.recipes:
             recipe_count = len(tag.recipes)
@@ -1762,6 +1798,7 @@ def recipe_list_shopping_list(list_id):
 # --- 5. Register Authentication Blueprint ---
 # The auth module was imported and initialized earlier
 app.register_blueprint(auth_bp)
+limiter.limit("10 per minute")(app.view_functions['auth.login'])
 
 
 # --- 6. Running the Application ---
