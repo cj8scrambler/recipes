@@ -1,50 +1,39 @@
 # backend_app.py
 
-import os # Import the os module to read environment variables
+import os
 from flask import Flask, jsonify, request, g
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
-from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Enum, ForeignKey, Column, Integer, String, Float, Boolean, DateTime
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import relationship
 from dotenv import load_dotenv
+from extensions import db
 
 load_dotenv()
-# --- 1. Database Configuration (MySQL) ---
-# NOTE: The connection string is read from an environment variable for security.
-# For local development, set the DATABASE_URL environment variable:
-# export DATABASE_URL='mysql+pymysql://user:password@host:port/database'
+
 DATABASE_URL = os.getenv('DATABASE_URL', 'mysql+pymysql://root:password@localhost:3306/recipe_db')
 
-# Ensure your MySQL database schema (Units, Ingredients, Recipes, etc.) is already created.
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL # Reading from the variable
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False # Recommended setting for modern Flask apps
+app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-db = SQLAlchemy(app)
+db.init_app(app)
 
-# Configure CORS to allow the React frontend to connect with credentials for session cookies
-# Allow CORS_ORIGINS to be configured via environment variable for Docker deployments
-# Default to localhost for development
 cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173')
 allowed_origins = [origin.strip() for origin in cors_origins.split(',')]
 
 CORS(app, resources={
     r"/api/*": {
         "origins": allowed_origins,
-        "supports_credentials": True  # Allow cookies to be sent
+        "supports_credentials": True
     }
 })
 
 limiter = Limiter(get_remote_address, app=app, default_limits=[], storage_uri="memory://")
 
-# --- Import Authentication Module ---
-# Import the auth module and initialize it with the database
-# This must be done after db is created but before routes are defined
-from auth import auth_bp, init_auth, login_required, admin_required
-init_auth(db, limiter)
+from auth import auth_bp, login_required, admin_required
 
 
 # --- 2. Database Models (SQLAlchemy ORM) ---

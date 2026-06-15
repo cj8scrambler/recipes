@@ -1,39 +1,5 @@
 # TODO
 
-## Strengthen auth.py initialization pattern
-
-`User` and `Session` ORM models are defined inside `init_auth()` and stored in module-level
-globals via `globals()['User'] = User`. This is fragile: calling `init_auth()` twice
-redefines the classes (breaking SQLAlchemy's mapper), and the globals pattern makes it
-impossible to import the models from `auth.py` at module level (e.g., in tests or other
-modules).
-
-**Action:** Refactor `auth.py` so `User` and `Session` are defined at module level, using a
-pattern where `db` is injected (e.g., via an `init_app`-style function that only sets the
-`db` reference, not redefines the classes). This is the standard Flask extension pattern and
-will make the auth module importable and testable in isolation.
-
-
-## Add unit tests
-
-There are currently zero automated tests in the project. Key areas to cover:
-
-- **Backend (pytest):**
-  - Unit conversion math: `convert_unit_quantity()`, `can_convert_units()`
-  - Cost calculation: `calculate_ingredient_cost()`, `calculate_recipe_cost()`
-  - Weight calculation: `calculate_ingredient_weight()` (including the unit-mismatch fix above)
-  - Auth helpers: password hashing/verification, session creation/expiry
-  - API endpoints: use Flask's test client with a SQLite in-memory DB
-
-- **Frontend (Vitest or Jest):**
-  - `unitConversions.js`: `convertUnit()`, `getDisplayUnit()`, `toBaseUnit()`/`fromBaseUnit()`
-  - `utils.js`: `formatRecipeUnits()`
-  - `pdfGenerator.js`: basic smoke test
-
-Add a `pytest.ini` (or `pyproject.toml` test config) and a frontend `vitest.config.js`.
-Run backend tests from `backend/`, frontend tests from `frontend/`.
-
-
 ## User self-registration
 
 Currently accounts can only be created by an admin. Add a self-service sign-up flow.

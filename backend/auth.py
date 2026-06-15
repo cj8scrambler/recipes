@@ -1,6 +1,3 @@
-# auth.py - Authentication and authorization module for Flask application
-# Provides session-based authentication with user login, logout, and settings management
-
 import os
 import uuid
 import bcrypt
@@ -9,46 +6,30 @@ from functools import wraps
 from flask import Blueprint, request, jsonify, make_response, g
 from sqlalchemy import Column, String, Enum as SQLEnum, DateTime, Text
 from sqlalchemy.dialects.mysql import CHAR
-from flask_sqlalchemy import SQLAlchemy
+from extensions import db
 
-# Create auth blueprint - will be registered in app.py
 auth_bp = Blueprint('auth', __name__, url_prefix='/api')
 
-# Database instance will be set from app.py
-db = None
-User = None
-Session = None
 
-def init_auth(database, rate_limiter=None):
-    """Initialize the auth module with the database instance from app.py"""
-    global db, User, Session
-    db = database
-    
-    # Define models after db is set
-    class User(db.Model):
-        """User model for authentication and authorization"""
-        __tablename__ = 'users'
-        
-        id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-        email = Column(String(255), unique=True, nullable=False)
-        password_hash = Column(String(255), nullable=False)
-        role = Column(SQLEnum('user', 'admin', name='user_role'), nullable=False, default='user')
-        settings = Column(Text)  # JSON stored as text
-        created_at = Column(DateTime, default=datetime.utcnow)
-        updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+class User(db.Model):
+    __tablename__ = 'users'
 
-    class Session(db.Model):
-        """Session model for managing user sessions"""
-        __tablename__ = 'sessions'
-        
-        session_id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-        user_id = Column(CHAR(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
-        created_at = Column(DateTime, default=datetime.utcnow)
-        expires_at = Column(DateTime, nullable=False)
-    
-    # Store globally for use in route handlers
-    globals()['User'] = User
-    globals()['Session'] = Session
+    id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    email = Column(String(255), unique=True, nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    role = Column(SQLEnum('user', 'admin', name='user_role'), nullable=False, default='user')
+    settings = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Session(db.Model):
+    __tablename__ = 'sessions'
+
+    session_id = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(CHAR(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)
 
 
 # --- Helper Functions ---
