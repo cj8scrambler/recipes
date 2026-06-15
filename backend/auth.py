@@ -144,11 +144,21 @@ def login():
     db.session.add(new_session)
     db.session.commit()
     
+    # Parse settings for response
+    import json as _json
+    settings = {}
+    if user.settings:
+        try:
+            settings = _json.loads(user.settings)
+        except:
+            settings = {}
+
     # Create response with cookie
     response = make_response(jsonify({
         "role": user.role,
         "email": user.email,
-        "id": user.id
+        "id": user.id,
+        "settings": settings
     }))
     
     # Set secure HttpOnly cookie
@@ -249,14 +259,19 @@ def update_settings():
     data = request.get_json()
     
     # Validate allowed keys
-    allowed_keys = {'unit'}
+    allowed_keys = {'unit', 'theme'}
     if not all(key in allowed_keys for key in data.keys()):
-        return jsonify({"error": "Invalid settings keys. Allowed: unit"}), 400
-    
+        return jsonify({"error": "Invalid settings keys. Allowed: unit, theme"}), 400
+
     # Validate unit value
     if 'unit' in data:
         if data['unit'] not in ['metric', 'us']:
             return jsonify({"error": "Invalid unit value. Allowed: metric, us"}), 400
+
+    # Validate theme value
+    if 'theme' in data:
+        if data['theme'] not in ['light', 'walnut', 'stone', 'carbon']:
+            return jsonify({"error": "Invalid theme value."}), 400
     
     # Parse existing settings
     import json
@@ -533,7 +548,7 @@ def register():
     db.session.commit()
 
     is_production = os.getenv('FLASK_ENV') == 'production'
-    response = make_response(jsonify({'role': new_user.role, 'email': new_user.email, 'id': new_user.id}))
+    response = make_response(jsonify({'role': new_user.role, 'email': new_user.email, 'id': new_user.id, 'settings': {'unit': 'us'}}))
     response.status_code = 201
     response.set_cookie(
         'session_id', session_id,

@@ -291,7 +291,7 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
               placeholder="e.g., 0.5 for garlic powder, 1.2 for salt"
             />
           </label>
-          <p style={{ fontSize: '0.9em', color: '#666', marginTop: '0.25em' }}>
+          <p style={{ fontSize: '0.9em', color: 'var(--gray-500)', marginTop: '0.25em' }}>
             Enables weight calculation when a recipe measures this ingredient by volume.
             Leave blank if not needed.
           </p>
@@ -307,10 +307,10 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
       {/* Weight field - show message if no default unit, otherwise show appropriate field */}
       {!selectedUnit ? (
         <div className="form-group">
-          <label style={{ color: '#666', fontStyle: 'italic' }}>
+          <label style={{ color: 'var(--gray-500)', fontStyle: 'italic' }}>
             Weight per unit (in grams)
           </label>
-          <p style={{ fontSize: '0.9em', color: '#999', marginTop: '0.25em', fontStyle: 'italic' }}>
+          <p style={{ fontSize: '0.9em', color: 'var(--gray-400)', marginTop: '0.25em', fontStyle: 'italic' }}>
             Select a default unit above to configure weight.
           </p>
         </div>
@@ -325,10 +325,10 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
                   type="number" 
                   value={calculatedWeight || ''}
                   readOnly
-                  style={{ backgroundColor: '#f5f5f5', cursor: 'not-allowed' }}
+                  style={{ backgroundColor: 'var(--bg-tertiary)', cursor: 'not-allowed' }}
                 />
               </label>
-              <p style={{ fontSize: '0.9em', color: '#666', marginTop: '0.25em' }}>
+              <p style={{ fontSize: '0.9em', color: 'var(--gray-500)', marginTop: '0.25em' }}>
                 Automatically calculated based on the weight unit conversion.
               </p>
             </>
@@ -345,7 +345,7 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
                   placeholder={`e.g., grams per ${selectedUnit.abbreviation}`}
                 />
               </label>
-              <p style={{ fontSize: '0.9em', color: '#666', marginTop: '0.25em' }}>
+              <p style={{ fontSize: '0.9em', color: 'var(--gray-500)', marginTop: '0.25em' }}>
                 Enter the weight in grams for one {selectedUnit.name.toLowerCase()}. Used to calculate total recipe weight.
               </p>
             </>
@@ -355,7 +355,7 @@ export default function IngredientEditor({ ingredient = null, onCancel, onSave }
       
       <div className="form-group">
         <label>Prices per Unit</label>
-        <p style={{ fontSize: '0.9em', color: '#666', marginBottom: '0.5em' }}>
+        <p style={{ fontSize: '0.9em', color: 'var(--gray-500)', marginBottom: '0.5em' }}>
           Add prices for different units (e.g., price per cup, price per pound). 
           This allows recipe costs to be calculated regardless of which unit is used in the recipe.
         </p>

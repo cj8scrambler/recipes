@@ -541,7 +541,7 @@ export default function RecipeLists({ user }) {
                       onClick={() => setShowDeleteConfirm(list.list_id)}
                       title="Delete list"
                     >
-                      🗑️
+                      ✕
                     </button>
                   </div>
                 </>

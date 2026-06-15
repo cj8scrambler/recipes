@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react'
 import { api } from '../api'
+import { THEMES, getTheme, applyTheme } from '../theme'
 
 export default function Settings({ user }) {
   const [settings, setSettings] = useState({ unit: 'us' })
+  const [currentTheme, setCurrentTheme] = useState(getTheme)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -99,6 +101,54 @@ export default function Settings({ user }) {
             {loading ? 'Saving...' : 'Save Preferences'}
           </button>
         </form>
+      </div>
+
+      <div className="card">
+        <h3>Appearance</h3>
+        <div className="form-group">
+          <label>Theme</label>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+            {THEMES.map(theme => (
+              <button
+                key={theme.id}
+                type="button"
+                onClick={() => { applyTheme(theme.id); setCurrentTheme(theme.id); api.updateSettings({ theme: theme.id }) }}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.75rem 1rem',
+                  border: currentTheme === theme.id
+                    ? '2px solid var(--primary)'
+                    : '2px solid var(--border-color)',
+                  borderRadius: 'var(--border-radius)',
+                  background: 'var(--bg-primary)',
+                  cursor: 'pointer',
+                  minWidth: '80px',
+                  boxShadow: currentTheme === theme.id ? 'var(--shadow-md)' : 'none',
+                  transform: 'none',
+                }}
+              >
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  <div style={{
+                    width: '22px', height: '22px', borderRadius: '50%',
+                    background: theme.primaryColor,
+                    border: '1px solid rgba(0,0,0,0.15)',
+                  }} />
+                  <div style={{
+                    width: '22px', height: '22px', borderRadius: '50%',
+                    background: theme.surfaceColor,
+                    border: '1px solid rgba(0,0,0,0.15)',
+                  }} />
+                </div>
+                <span style={{ fontSize: '0.8rem', fontWeight: currentTheme === theme.id ? 600 : 400, color: 'var(--gray-700)' }}>
+                  {theme.label}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="card">

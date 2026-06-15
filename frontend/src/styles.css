@@ -40,6 +40,14 @@
   
   /* Transitions */
   --transition: all 0.2s ease;
+
+  /* Status Colors */
+  --status-error-bg: #fef2f2;
+  --status-error-border: #fecaca;
+  --status-error-text: #991b1b;
+  --status-success-bg: #d1fae5;
+  --status-success-border: #a7f3d0;
+  --status-success-text: #065f46;
 }
 
 * {
@@ -576,9 +584,9 @@ li:last-child {
 
 /* Error Messages */
 .error {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #991b1b;
+  background: var(--status-error-bg);
+  border: 1px solid var(--status-error-border);
+  color: var(--status-error-text);
   padding: 1rem;
   border-radius: var(--border-radius-sm);
   margin-bottom: 1rem;
@@ -825,12 +833,12 @@ li:last-child {
 }
 
 .success {
-  background: #d1fae5;
-  color: #065f46;
+  background: var(--status-success-bg);
+  color: var(--status-success-text);
   padding: 0.875rem 1rem;
   border-radius: var(--border-radius-sm);
   margin-bottom: 1.25rem;
-  border: 1px solid #a7f3d0;
+  border: 1px solid var(--status-success-border);
 }
 
 /* Logout button in header */
@@ -1332,4 +1340,117 @@ li:last-child {
   main {
     padding: 1rem;
   }
+}
+
+/* ================================================
+   Themes
+   ================================================ */
+
+/* Walnut — warm dark */
+[data-theme="walnut"] {
+  --primary: #b8844a;
+  --primary-hover: #a07040;
+  --primary-light: #2e2418;
+  --accent: #4a8878;
+  --accent-hover: #3a7868;
+  --danger: #a84040;
+  --danger-hover: #983030;
+  --bg-primary: #1c1814;
+  --bg-secondary: #242018;
+  --bg-tertiary: #2e2a22;
+  --border-color: #3e3830;
+  --gray-900: #f0ede8;
+  --gray-800: #d8d0c8;
+  --gray-700: #b0a898;
+  --gray-600: #887868;
+  --gray-500: #685848;
+  --gray-400: #504038;
+  --gray-300: #3c3028;
+  --gray-200: #302820;
+  --gray-100: #242018;
+  --gray-50: #1c1814;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+  --status-error-bg: #2c1010;
+  --status-error-border: #582828;
+  --status-error-text: #e88080;
+  --status-success-bg: #0c2014;
+  --status-success-border: #1e4830;
+  --status-success-text: #60d880;
+}
+
+[data-theme="walnut"] button.danger,
+[data-theme="walnut"] button.danger:hover {
+  color: #ffffff;
+}
+
+/* Stone — warm earth / off-white */
+[data-theme="stone"] {
+  --primary: #7a6252;
+  --primary-hover: #6a5244;
+  --primary-light: #ede5de;
+  --accent: #567060;
+  --accent-hover: #446050;
+  --danger: #9e4040;
+  --danger-hover: #8a3030;
+  --bg-primary: #faf7f4;
+  --bg-secondary: #f0e9e0;
+  --bg-tertiary: #e5dbd0;
+  --border-color: #cec4b8;
+  --gray-900: #1e1914;
+  --gray-800: #302720;
+  --gray-700: #4a3c30;
+  --gray-600: #6b5848;
+  --gray-500: #8c7868;
+  --gray-400: #b8a898;
+  --gray-300: #d0c4b8;
+  --gray-200: #e5dbd0;
+  --gray-100: #f0e9e0;
+  --gray-50: #faf7f4;
+  --status-error-bg: #fdf0ec;
+  --status-error-border: #e0b8a8;
+  --status-error-text: #7a2010;
+  --status-success-bg: #edf5ee;
+  --status-success-border: #a8d8b0;
+  --status-success-text: #1a4820;
+}
+
+/* Carbon — dark mode */
+[data-theme="carbon"] {
+  --primary: #4272a0;
+  --primary-hover: #355d88;
+  --primary-light: #252830;
+  --accent: #347a60;
+  --accent-hover: #286650;
+  --danger: #b84040;
+  --danger-hover: #a03030;
+  --bg-primary: #18191c;
+  --bg-secondary: #222428;
+  --bg-tertiary: #2a2c32;
+  --border-color: #3c3f48;
+  --gray-900: #f0f0f3;
+  --gray-800: #d8d8de;
+  --gray-700: #b0b0bc;
+  --gray-600: #888894;
+  --gray-500: #646470;
+  --gray-400: #4c4c58;
+  --gray-300: #3a3a46;
+  --gray-200: #2c2c38;
+  --gray-100: #232328;
+  --gray-50: #1a1a20;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+  --status-error-bg: #2e1010;
+  --status-error-border: #5c2020;
+  --status-error-text: #f87171;
+  --status-success-bg: #0e2018;
+  --status-success-border: #1a4030;
+  --status-success-text: #4ade80;
+}
+
+[data-theme="carbon"] button.danger,
+[data-theme="carbon"] button.danger:hover {
+  color: #ffffff;
 }

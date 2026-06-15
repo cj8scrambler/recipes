@@ -78,3 +78,49 @@ class TestLogout:
     def test_logout_without_session_does_not_error(self, client):
         r = logout(client)
         assert r.status_code in (200, 401)
+
+
+class TestThemeSettings:
+    def test_login_response_includes_settings(self, client):
+        r = login(client, USER_EMAIL, USER_PASSWORD)
+        data = r.get_json()
+        assert 'settings' in data
+
+    def test_me_response_includes_settings(self, client):
+        login(client, USER_EMAIL, USER_PASSWORD)
+        r = client.get('/api/me')
+        assert 'settings' in r.get_json()
+
+    def test_save_valid_theme(self, client):
+        login(client, USER_EMAIL, USER_PASSWORD)
+        for theme in ('light', 'stone', 'walnut', 'carbon'):
+            r = client.put('/api/settings', json={'theme': theme})
+            assert r.status_code == 200
+            assert r.get_json()['theme'] == theme
+
+    def test_save_invalid_theme_returns_400(self, client):
+        login(client, USER_EMAIL, USER_PASSWORD)
+        r = client.put('/api/settings', json={'theme': 'neon'})
+        assert r.status_code == 400
+
+    def test_theme_persists_across_requests(self, client):
+        login(client, USER_EMAIL, USER_PASSWORD)
+        client.put('/api/settings', json={'theme': 'carbon'})
+        r = client.get('/api/settings')
+        assert r.get_json().get('theme') == 'carbon'
+
+    def test_theme_does_not_clobber_unit_setting(self, client):
+        login(client, USER_EMAIL, USER_PASSWORD)
+        client.put('/api/settings', json={'unit': 'metric'})
+        client.put('/api/settings', json={'theme': 'walnut'})
+        r = client.get('/api/settings')
+        data = r.get_json()
+        assert data.get('unit') == 'metric'
+        assert data.get('theme') == 'walnut'
+
+    def test_theme_included_in_login_response_after_save(self, client):
+        login(client, USER_EMAIL, USER_PASSWORD)
+        client.put('/api/settings', json={'theme': 'stone'})
+        logout(client)
+        r = login(client, USER_EMAIL, USER_PASSWORD)
+        assert r.get_json().get('settings', {}).get('theme') == 'stone'

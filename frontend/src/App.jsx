@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom'
 import { api } from './api'
+import { applyTheme } from './theme'
 import Login from './components/Login'
 import Register from './components/Register'
 import AdminDashboard from './components/AdminDashboard'
@@ -53,6 +54,7 @@ export default function App() {
     try {
       const userData = await api.getMe()
       setUser(userData)
+      if (userData.settings?.theme) applyTheme(userData.settings.theme)
     } catch (err) {
       // Not logged in
       setUser(null)
@@ -63,6 +65,7 @@ export default function App() {
 
   async function handleLogin(userData) {
     setUser(userData)
+    if (userData.settings?.theme) applyTheme(userData.settings.theme)
   }
 
   async function handleLogout() {

@@ -1,22 +1,5 @@
 # TODO
 
-## User self-registration
-
-Currently accounts can only be created by an admin. Add a self-service sign-up flow.
-
-**Action:**
-1. Add a `POST /api/auth/register` endpoint that creates a new `user`-role account (username + password, bcrypt hashed). Consider whether email verification or admin approval is needed before the account is active.
-2. Add a registration form/page in the frontend, linked from the login screen.
-3. Decide on open vs. invite-only registration (e.g., a registration token or admin-approval queue).
-
-
-## Frontend UI theme exploration
-
-The current UI has a single look. Try out some alternative visual styles to compare.
-
-**Action:** Prototype 2–3 distinct themes or layout variations (e.g., different color palette, typography, card vs. list layout for the browse view). Could be done via CSS variables/theming, a theme switcher, or separate prototype branches.
-
-
 ## Implement food allergies / allergen feature
 
 The `Ingredients` table has a `contains_peanuts` boolean and a `gluten_status` enum

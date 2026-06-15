@@ -549,7 +549,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
           <div style={{ 
             marginTop: '1em', 
             padding: '0.75em', 
-            backgroundColor: '#f5f5f5', 
+            backgroundColor: 'var(--bg-tertiary)',
             borderRadius: '4px' 
           }}>
             <h4 style={{ margin: '0 0 0.5em 0' }}>Cost Information</h4>
@@ -561,7 +561,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
                   borderCollapse: 'collapse'
                 }}>
                   <thead>
-                    <tr style={{ borderBottom: '2px solid #ddd' }}>
+                    <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
                       <th style={{ textAlign: 'left', padding: '0.5em', fontWeight: 'bold' }}>Ingredient</th>
                       <th style={{ textAlign: 'left', padding: '0.5em', fontWeight: 'bold' }}>Original Cost</th>
                       <th style={{ textAlign: 'left', padding: '0.5em', fontWeight: 'bold' }}>Recipe Cost</th>
@@ -571,7 +571,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
                   </thead>
                   <tbody>
                     {recipeCost.ingredients_cost.map((ingCost, idx) => (
-                      <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
+                      <tr key={idx} style={{ borderBottom: '1px solid var(--gray-200)' }}>
                         <td style={{ padding: '0.5em' }}>{ingCost.name}</td>
                         {ingCost.has_price_data && ingCost.details ? (
                           <>
@@ -590,7 +590,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
                           </>
                         ) : (
                           <>
-                            <td colSpan="4" style={{ padding: '0.5em', color: '#d9534f', textAlign: 'center' }}>
+                            <td colSpan="4" style={{ padding: '0.5em', color: 'var(--danger)', textAlign: 'center' }}>
                               Price not available
                             </td>
                           </>
@@ -603,7 +603,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
             )}
             {recipeCost.total_cost !== null ? (
               <div style={{ 
-                borderTop: '2px solid #ddd', 
+                borderTop: '2px solid var(--border-color)', 
                 paddingTop: '0.5em',
                 fontWeight: 'bold',
                 fontSize: '1em'
@@ -612,9 +612,9 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
               </div>
             ) : (
               <div style={{ 
-                borderTop: '2px solid #ddd', 
+                borderTop: '2px solid var(--border-color)', 
                 paddingTop: '0.5em',
-                color: '#d9534f'
+                color: 'var(--danger)'
               }}>
                 Total cost cannot be calculated - some prices missing
               </div>
@@ -626,7 +626,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
           <div style={{ 
             marginTop: '1em', 
             padding: '0.75em', 
-            backgroundColor: '#f5f5f5', 
+            backgroundColor: 'var(--bg-tertiary)',
             borderRadius: '4px' 
           }}>
             <h4 style={{ margin: '0 0 0.5em 0' }}>Weight Information</h4>
@@ -638,7 +638,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
                   borderCollapse: 'collapse'
                 }}>
                   <thead>
-                    <tr style={{ borderBottom: '2px solid #ddd' }}>
+                    <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
                       <th style={{ textAlign: 'left', padding: '0.5em', fontWeight: 'bold' }}>Ingredient</th>
                       <th style={{ textAlign: 'right', padding: '0.5em', fontWeight: 'bold' }}>Base Weight (g)</th>
                       <th style={{ textAlign: 'right', padding: '0.5em', fontWeight: 'bold' }}>Recipe Weight (g)</th>
@@ -646,7 +646,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
                   </thead>
                   <tbody>
                     {recipeWeight.ingredients_weight.map((ingWeight, idx) => (
-                      <tr key={idx} style={{ borderBottom: '1px solid #eee' }}>
+                      <tr key={idx} style={{ borderBottom: '1px solid var(--gray-200)' }}>
                         <td style={{ padding: '0.5em' }}>{ingWeight.name}</td>
                         {ingWeight.has_weight_data ? (
                           <>
@@ -659,7 +659,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
                           </>
                         ) : (
                           <>
-                            <td colSpan="2" style={{ padding: '0.5em', color: '#d9534f', textAlign: 'center' }}>
+                            <td colSpan="2" style={{ padding: '0.5em', color: 'var(--danger)', textAlign: 'center' }}>
                               Weight not available
                             </td>
                           </>
@@ -672,7 +672,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
             )}
             {recipeWeight.total_weight !== null ? (
               <div style={{ 
-                borderTop: '2px solid #ddd', 
+                borderTop: '2px solid var(--border-color)', 
                 paddingTop: '0.5em',
                 fontWeight: 'bold',
                 fontSize: '1em'
@@ -681,9 +681,9 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
               </div>
             ) : (
               <div style={{ 
-                borderTop: '2px solid #ddd', 
+                borderTop: '2px solid var(--border-color)', 
                 paddingTop: '0.5em',
-                color: '#d9534f'
+                color: 'var(--danger)'
               }}>
                 Total weight cannot be calculated - some weights missing
               </div>
