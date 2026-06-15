@@ -4,6 +4,7 @@ import { api } from './api'
 import { applyTheme } from './theme'
 import Login from './components/Login'
 import Register from './components/Register'
+import ResetPassword from './components/ResetPassword'
 import AdminDashboard from './components/AdminDashboard'
 import UserView from './components/UserView'
 import Settings from './components/Settings'
@@ -94,6 +95,8 @@ export default function App() {
         {isTestDb && <TestDatabaseBanner />}
         {location.pathname === '/register'
           ? <Register onLogin={handleLogin} />
+          : location.pathname === '/reset-password'
+          ? <ResetPassword />
           : <Login onLogin={handleLogin} />
         }
       </div>

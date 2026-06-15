@@ -86,6 +86,11 @@ export const api = {
   validateInviteToken: (token) => request(`/register/validate?token=${encodeURIComponent(token)}`),
   register: (token, email, password) => request('/register', { method: 'POST', body: JSON.stringify({ token, email, password }) }),
 
+  // Password reset
+  adminCreatePasswordReset: (userId) => request(`/admin/users/${userId}/reset-password`, { method: 'POST' }),
+  validateResetToken: (token) => request(`/reset-password/validate?token=${encodeURIComponent(token)}`),
+  resetPassword: (token, password) => request('/reset-password', { method: 'POST', body: JSON.stringify({ token, password }) }),
+
   // Admin - Tags
   adminListTags: () => request('/tags'),
   adminCreateTag: (payload) => request('/tags', { method: 'POST', body: JSON.stringify(payload) }),

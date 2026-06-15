@@ -42,6 +42,16 @@ class InviteToken(db.Model):
     used_at = Column(DateTime, nullable=True)
 
 
+class PasswordResetToken(db.Model):
+    __tablename__ = 'password_reset_tokens'
+
+    token = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(CHAR(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
+
+
 # --- Helper Functions ---
 
 def hash_password(password):
@@ -556,3 +566,75 @@ def register():
         max_age=7*24*60*60
     )
     return response
+
+
+# --- Password Reset Endpoints ---
+
+@auth_bp.route('/admin/users/<user_id>/reset-password', methods=['POST'])
+@admin_required
+def create_password_reset(user_id):
+    """Admin endpoint to generate a one-time password reset token for a user (1-hour expiry)."""
+    user = db.session.execute(
+        db.select(User).filter_by(id=user_id)
+    ).scalar_one_or_none()
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+
+    token = str(uuid.uuid4())
+    reset = PasswordResetToken(
+        token=token,
+        user_id=user.id,
+        expires_at=datetime.utcnow() + timedelta(days=1)
+    )
+    db.session.add(reset)
+    db.session.commit()
+    return jsonify({'token': token}), 201
+
+
+@auth_bp.route('/reset-password/validate', methods=['GET'])
+def validate_reset():
+    """Public endpoint to check whether a password reset token is valid and unused."""
+    token = request.args.get('token')
+    if not token:
+        return jsonify({'valid': False, 'error': 'Token required'}), 400
+    reset = db.session.execute(
+        db.select(PasswordResetToken).filter_by(token=token)
+    ).scalar_one_or_none()
+    if not reset or reset.used_at or reset.expires_at < datetime.utcnow():
+        return jsonify({'valid': False}), 200
+    return jsonify({'valid': True}), 200
+
+
+@auth_bp.route('/reset-password', methods=['POST'])
+def reset_password():
+    """Public endpoint to set a new password using a valid reset token."""
+    data = request.get_json()
+    token = data.get('token')
+    new_password = data.get('password')
+
+    if not token or not new_password:
+        return jsonify({'error': 'Token and password are required'}), 400
+    if len(new_password) < 6:
+        return jsonify({'error': 'Password must be at least 6 characters'}), 400
+
+    reset = db.session.execute(
+        db.select(PasswordResetToken).filter_by(token=token)
+    ).scalar_one_or_none()
+    if not reset or reset.used_at or reset.expires_at < datetime.utcnow():
+        return jsonify({'error': 'Invalid or expired reset link'}), 400
+
+    user = db.session.execute(
+        db.select(User).filter_by(id=reset.user_id)
+    ).scalar_one_or_none()
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+
+    user.password_hash = hash_password(new_password)
+    reset.used_at = datetime.utcnow()
+
+    # Invalidate all existing sessions for this user
+    db.session.execute(
+        db.delete(Session).where(Session.user_id == user.id)
+    )
+    db.session.commit()
+    return jsonify({'message': 'Password reset successfully'}), 200

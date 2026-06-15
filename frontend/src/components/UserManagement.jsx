@@ -10,6 +10,9 @@ export default function UserManagement({ users, onRefresh }) {
   const [inviteUrl, setInviteUrl] = useState(null)
   const [inviteLoading, setInviteLoading] = useState(false)
   const inviteInputRef = useRef(null)
+  const [resetUrls, setResetUrls] = useState({})   // keyed by user.id
+  const [resetLoading, setResetLoading] = useState({})
+  const resetInputRefs = useRef({})
 
   async function handleCreateUser(e) {
     e.preventDefault()
@@ -56,11 +59,42 @@ export default function UserManagement({ users, onRefresh }) {
     }
   }
 
+  function copyToClipboard(text, inputEl) {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text)
+        .then(() => setSuccess('Link copied to clipboard'))
+        .catch(() => { inputEl?.select(); document.execCommand('copy'); setSuccess('Link copied to clipboard') })
+    } else {
+      inputEl?.select()
+      document.execCommand('copy')
+      setSuccess('Link copied to clipboard')
+    }
+  }
+
   function handleCopyInvite() {
     if (!inviteUrl) return
-    navigator.clipboard.writeText(inviteUrl)
-      .then(() => setSuccess('Invite link copied to clipboard'))
-      .catch(() => inviteInputRef.current?.select())
+    copyToClipboard(inviteUrl, inviteInputRef.current)
+  }
+
+  async function handleGenerateReset(user) {
+    setResetLoading(prev => ({ ...prev, [user.id]: true }))
+    setResetUrls(prev => ({ ...prev, [user.id]: null }))
+    try {
+      const data = await api.adminCreatePasswordReset(user.id)
+      const url = `${window.location.origin}/reset-password?token=${data.token}`
+      setResetUrls(prev => ({ ...prev, [user.id]: url }))
+      setTimeout(() => resetInputRefs.current[user.id]?.select(), 50)
+    } catch (err) {
+      setError(err.message || 'Failed to generate reset link')
+    } finally {
+      setResetLoading(prev => ({ ...prev, [user.id]: false }))
+    }
+  }
+
+  function handleCopyReset(userId) {
+    const url = resetUrls[userId]
+    if (!url) return
+    copyToClipboard(url, resetInputRefs.current[userId])
   }
 
   async function handleDeleteUser(user) {
@@ -171,43 +205,72 @@ export default function UserManagement({ users, onRefresh }) {
 
       <ul>
         {users.map((user) => (
-          <li key={user.id}>
-            <div>
+          <React.Fragment key={user.id}>
+            <li>
               <div>
-                <strong>{user.email}</strong>
-                <span
-                  style={{
-                    marginLeft: '0.5rem',
-                    padding: '0.25rem 0.5rem',
-                    background: user.role === 'admin' ? 'var(--primary-light)' : 'var(--gray-200)',
-                    borderRadius: 'var(--border-radius-sm)',
-                    fontSize: '0.85rem',
-                    fontWeight: '500'
-                  }}
+                <div>
+                  <strong>{user.email}</strong>
+                  <span
+                    style={{
+                      marginLeft: '0.5rem',
+                      padding: '0.25rem 0.5rem',
+                      background: user.role === 'admin' ? 'var(--primary-light)' : 'var(--gray-200)',
+                      borderRadius: 'var(--border-radius-sm)',
+                      fontSize: '0.85rem',
+                      fontWeight: '500'
+                    }}
+                  >
+                    {user.role}
+                  </span>
+                </div>
+                <div className="text-muted" style={{ fontSize: '0.85rem', marginTop: '0.25rem' }}>
+                  Created: {new Date(user.created_at).toLocaleDateString()}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  className="small secondary"
+                  onClick={() => handleGenerateReset(user)}
+                  disabled={resetLoading[user.id]}
+                  title="Generate a one-time password reset link for this user"
                 >
-                  {user.role}
-                </span>
+                  {resetLoading[user.id] ? '...' : 'Reset Password'}
+                </button>
+                <button
+                  className="small secondary"
+                  onClick={() => handleToggleRole(user)}
+                  title={user.role === 'admin' ? 'Remove admin privileges' : 'Grant admin privileges'}
+                >
+                  {user.role === 'admin' ? 'Remove Admin' : 'Make Admin'}
+                </button>
+                <button
+                  className="small danger"
+                  onClick={() => handleDeleteUser(user)}
+                >
+                  Delete
+                </button>
               </div>
-              <div className="text-muted" style={{ fontSize: '0.85rem', marginTop: '0.25rem' }}>
-                Created: {new Date(user.created_at).toLocaleDateString()}
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button
-                className="small secondary"
-                onClick={() => handleToggleRole(user)}
-                title={user.role === 'admin' ? 'Remove admin privileges' : 'Grant admin privileges'}
-              >
-                {user.role === 'admin' ? 'Remove Admin' : 'Make Admin'}
-              </button>
-              <button
-                className="small danger"
-                onClick={() => handleDeleteUser(user)}
-              >
-                Delete
-              </button>
-            </div>
-          </li>
+            </li>
+            {resetUrls[user.id] && (
+              <li style={{ background: 'var(--bg-tertiary)', padding: '0.75rem 1rem', display: 'block' }}>
+                <p style={{ fontSize: '0.85rem', margin: '0 0 0.5rem 0' }}>
+                  Reset link for <strong>{user.email}</strong> — expires in 24 hours, single use:
+                </p>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input
+                    ref={el => resetInputRefs.current[user.id] = el}
+                    type="text"
+                    readOnly
+                    value={resetUrls[user.id]}
+                    style={{ flex: 1, fontFamily: 'monospace', fontSize: '0.85rem' }}
+                    onClick={e => e.target.select()}
+                  />
+                  <button className="small secondary" onClick={() => handleCopyReset(user.id)}>Copy</button>
+                  <button className="small secondary" onClick={() => setResetUrls(prev => ({ ...prev, [user.id]: null }))}>Dismiss</button>
+                </div>
+              </li>
+            )}
+          </React.Fragment>
         ))}
       </ul>
     </div>
