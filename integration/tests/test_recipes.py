@@ -70,6 +70,22 @@ class TestRecipeCRUD:
     def test_delete_nonexistent_recipe_returns_404(self, admin_client):
         assert admin_client.delete('/api/recipes/99999').status_code == 404
 
+    def test_put_full_get_response_succeeds(self, admin_client):
+        """PUT the full GET response back unchanged — simulates the frontend spread pattern."""
+        recipe = make_recipe(admin_client, name='Round Trip')
+        full = admin_client.get(f'/api/recipes/{recipe["recipe_id"]}').get_json()
+        r = admin_client.put(f'/api/recipes/{recipe["recipe_id"]}', json=full)
+        assert r.status_code == 200, r.get_json()
+
+    def test_put_full_get_response_with_change_succeeds(self, admin_client):
+        """Mutate one field on the full GET response and PUT it — catches allowlist gaps."""
+        recipe = make_recipe(admin_client, name='Mutate Test')
+        full = admin_client.get(f'/api/recipes/{recipe["recipe_id"]}').get_json()
+        full['description'] = 'Updated via round-trip'
+        r = admin_client.put(f'/api/recipes/{recipe["recipe_id"]}', json=full)
+        assert r.status_code == 200, r.get_json()
+        assert r.get_json()['description'] == 'Updated via round-trip'
+
 
 class TestRecipeIngredients:
     def test_create_recipe_with_ingredients(self, admin_client):
@@ -132,11 +148,32 @@ class TestRecipeIngredients:
         updated = admin_client.get(f'/api/recipes/{recipe["recipe_id"]}').get_json()
         assert updated['ingredients'] == []
 
-    def test_ingredient_notes_saved(self, admin_client):
+    def test_ingredient_notes_saved_on_create(self, admin_client):
         recipe = make_recipe(admin_client, ingredients=[
             {'ingredient_id': SPICE_ID, 'quantity': 1.0, 'unit_id': SPICE_UNIT, 'notes': 'freshly ground'},
         ])
         assert recipe['ingredients'][0]['notes'] == 'freshly ground'
+
+    def test_ingredient_notes_saved_on_update(self, admin_client):
+        recipe = make_recipe(admin_client, ingredients=[
+            {'ingredient_id': SPICE_ID, 'quantity': 1.0, 'unit_id': SPICE_UNIT},
+        ])
+        row_id = recipe['ingredients'][0]['id']
+        full = admin_client.get(f'/api/recipes/{recipe["recipe_id"]}').get_json()
+        full['ingredients'][0]['notes'] = 'toasted first'
+        admin_client.put(f'/api/recipes/{recipe["recipe_id"]}', json=full)
+        updated = admin_client.get(f'/api/recipes/{recipe["recipe_id"]}').get_json()
+        assert updated['ingredients'][0]['notes'] == 'toasted first'
+
+    def test_ingredient_notes_cleared_on_update(self, admin_client):
+        recipe = make_recipe(admin_client, ingredients=[
+            {'ingredient_id': SPICE_ID, 'quantity': 1.0, 'unit_id': SPICE_UNIT, 'notes': 'freshly ground'},
+        ])
+        full = admin_client.get(f'/api/recipes/{recipe["recipe_id"]}').get_json()
+        full['ingredients'][0]['notes'] = None
+        admin_client.put(f'/api/recipes/{recipe["recipe_id"]}', json=full)
+        updated = admin_client.get(f'/api/recipes/{recipe["recipe_id"]}').get_json()
+        assert updated['ingredients'][0]['notes'] is None
 
     def test_delete_recipe_cascades_ingredients(self, admin_client):
         recipe = make_recipe(admin_client, ingredients=[

@@ -29,6 +29,7 @@ CREATE TABLE Ingredients (
     contains_peanuts BOOLEAN NOT NULL DEFAULT FALSE,
     gluten_status ENUM('Contains', 'Gluten-Free', 'GF_Available') NOT NULL DEFAULT 'Gluten-Free',
     type_id INT,
+    notes VARCHAR(255),
     FOREIGN KEY (price_unit_id) REFERENCES Units(unit_id),
     FOREIGN KEY (default_unit_id) REFERENCES Units(unit_id),
     FOREIGN KEY (type_id) REFERENCES Ingredient_Types(type_id) ON DELETE SET NULL

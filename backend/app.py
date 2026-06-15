@@ -83,6 +83,7 @@ class Ingredient(db.Model):
     contains_peanuts = Column(Boolean, default=False, nullable=False)
     gluten_status = Column(Enum('Contains', 'Gluten-Free', 'GF_Available'), default='Gluten-Free', nullable=False)
     type_id = Column(Integer, ForeignKey('Ingredient_Types.type_id', ondelete='SET NULL'))
+    notes = Column(String(255))
 
     # Relationships
     price_unit = relationship("Unit", foreign_keys=[price_unit_id], back_populates="ingredient_prices_old")
@@ -322,6 +323,7 @@ def serialize_ingredient(ingredient):
         'density': float(ingredient.density) if ingredient.density is not None else None,
         'needs_density': ingredient_needs_density(ingredient),
         'gluten_status': ingredient.gluten_status,
+        'notes': ingredient.notes,
         'type_id': type_id,
         'type_name': type_name,
         'prices': prices_list
@@ -762,8 +764,8 @@ def recipe(recipe_id):
         # Allowlist of columns that may be updated via this endpoint
         UPDATABLE_FIELDS = {'name', 'description', 'instructions',
                             'base_servings', 'parent_recipe_id', 'variant_type_id', 'admin_notes'}
-        # These keys are handled separately and should not be passed to setattr
-        HANDLED_SEPARATELY = {'ingredients', 'tags'}
+        # These keys are handled separately or are read-only and should be silently skipped
+        HANDLED_SEPARATELY = {'ingredients', 'tags', 'recipe_id', 'variant_type_name', 'variants'}
 
         # Update basic recipe fields
         for key, value in data.items():
@@ -997,7 +999,9 @@ def ingredient(ingredient_id):
                 ingredient.gluten_status = data['gluten_status']
             if 'type_id' in data:
                 ingredient.type_id = data['type_id']
-            
+            if 'notes' in data:
+                ingredient.notes = data['notes'] or None
+
             db.session.commit()
             return jsonify(serialize_ingredient(ingredient))
         except Exception as e:
