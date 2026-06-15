@@ -32,6 +32,16 @@ class Session(db.Model):
     expires_at = Column(DateTime, nullable=False)
 
 
+class InviteToken(db.Model):
+    __tablename__ = 'invite_tokens'
+
+    token = Column(CHAR(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    created_by = Column(CHAR(36), db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)
+    used_at = Column(DateTime, nullable=True)
+
+
 # --- Helper Functions ---
 
 def hash_password(password):
@@ -441,3 +451,93 @@ def admin_delete_user(user_id):
         db.session.rollback()
         print(f"Error deleting user: {e}")
         return jsonify({"error": "Failed to delete user"}), 500
+
+
+# --- Invite / Self-Registration Endpoints ---
+
+@auth_bp.route('/admin/invite', methods=['POST'])
+@admin_required
+def create_invite():
+    """Admin endpoint to generate a one-time invite token (7-day expiry)."""
+    current_user = get_current_user()
+    token = str(uuid.uuid4())
+    invite = InviteToken(
+        token=token,
+        created_by=current_user.id,
+        expires_at=datetime.utcnow() + timedelta(days=7)
+    )
+    db.session.add(invite)
+    db.session.commit()
+    return jsonify({'token': token}), 201
+
+
+@auth_bp.route('/register/validate', methods=['GET'])
+def validate_invite():
+    """Public endpoint to check whether an invite token is valid and unused."""
+    token = request.args.get('token')
+    if not token:
+        return jsonify({'valid': False, 'error': 'Token required'}), 400
+    invite = db.session.execute(
+        db.select(InviteToken).filter_by(token=token)
+    ).scalar_one_or_none()
+    if not invite or invite.used_at or invite.expires_at < datetime.utcnow():
+        return jsonify({'valid': False}), 200
+    return jsonify({'valid': True}), 200
+
+
+@auth_bp.route('/register', methods=['POST'])
+def register():
+    """Public endpoint to create an account using a valid invite token."""
+    data = request.get_json()
+    token = data.get('token')
+    email = data.get('email')
+    password = data.get('password')
+
+    if not token or not email or not password:
+        return jsonify({'error': 'Token, email, and password are required'}), 400
+
+    if len(password) < 6:
+        return jsonify({'error': 'Password must be at least 6 characters'}), 400
+
+    invite = db.session.execute(
+        db.select(InviteToken).filter_by(token=token)
+    ).scalar_one_or_none()
+    if not invite or invite.used_at or invite.expires_at < datetime.utcnow():
+        return jsonify({'error': 'Invalid or expired invite link'}), 400
+
+    existing = db.session.execute(
+        db.select(User).filter_by(email=email)
+    ).scalar_one_or_none()
+    if existing:
+        return jsonify({'error': 'An account with this email already exists'}), 400
+
+    import json as _json
+    new_user = User(
+        id=str(uuid.uuid4()),
+        email=email,
+        password_hash=hash_password(password),
+        role='user',
+        settings=_json.dumps({'unit': 'us'})
+    )
+    db.session.add(new_user)
+    invite.used_at = datetime.utcnow()
+    db.session.flush()  # write user row before session FK references it
+
+    session_id = str(uuid.uuid4())
+    new_session = Session(
+        session_id=session_id,
+        user_id=new_user.id,
+        expires_at=datetime.utcnow() + timedelta(days=7)
+    )
+    db.session.add(new_session)
+    db.session.commit()
+
+    is_production = os.getenv('FLASK_ENV') == 'production'
+    response = make_response(jsonify({'role': new_user.role, 'email': new_user.email, 'id': new_user.id}))
+    response.status_code = 201
+    response.set_cookie(
+        'session_id', session_id,
+        httponly=True, secure=is_production, samesite='Lax',
+        max_age=7*24*60*60
+    )
+    return response

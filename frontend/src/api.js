@@ -80,6 +80,11 @@ export const api = {
   adminCreateUser: (payload) => request('/admin/users', { method: 'POST', body: JSON.stringify(payload) }),
   adminUpdateUser: (id, payload) => request(`/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   adminDeleteUser: (id) => request(`/admin/users/${id}`, { method: 'DELETE' }),
+  adminCreateInvite: () => request('/admin/invite', { method: 'POST' }),
+
+  // Registration (public)
+  validateInviteToken: (token) => request(`/register/validate?token=${encodeURIComponent(token)}`),
+  register: (token, email, password) => request('/register', { method: 'POST', body: JSON.stringify({ token, email, password }) }),
 
   // Admin - Tags
   adminListTags: () => request('/tags'),

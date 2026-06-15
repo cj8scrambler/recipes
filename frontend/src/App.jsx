@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { Routes, Route, NavLink, Navigate } from 'react-router-dom'
+import { Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom'
 import { api } from './api'
 import Login from './components/Login'
+import Register from './components/Register'
 import AdminDashboard from './components/AdminDashboard'
 import UserView from './components/UserView'
 import Settings from './components/Settings'
@@ -30,6 +31,7 @@ export default function App() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [isTestDb, setIsTestDb] = useState(false)
+  const location = useLocation()
 
   useEffect(() => {
     checkTestDatabase()
@@ -82,12 +84,15 @@ export default function App() {
     )
   }
 
-  // Show login screen if not authenticated
+  // Show login or register screen if not authenticated
   if (!user) {
     return (
       <div className="app">
         {isTestDb && <TestDatabaseBanner />}
-        <Login onLogin={handleLogin} />
+        {location.pathname === '/register'
+          ? <Register onLogin={handleLogin} />
+          : <Login onLogin={handleLogin} />
+        }
       </div>
     )
   }

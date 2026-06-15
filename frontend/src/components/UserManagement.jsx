@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { api } from '../api'
 
 export default function UserManagement({ users, onRefresh }) {
@@ -7,6 +7,9 @@ export default function UserManagement({ users, onRefresh }) {
   const [newUser, setNewUser] = useState({ email: '', password: '', role: 'user' })
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
+  const [inviteUrl, setInviteUrl] = useState(null)
+  const [inviteLoading, setInviteLoading] = useState(false)
+  const inviteInputRef = useRef(null)
 
   async function handleCreateUser(e) {
     e.preventDefault()
@@ -38,6 +41,28 @@ export default function UserManagement({ users, onRefresh }) {
     }
   }
 
+  async function handleGenerateInvite() {
+    setInviteLoading(true)
+    setInviteUrl(null)
+    try {
+      const data = await api.adminCreateInvite()
+      const url = `${window.location.origin}/register?token=${data.token}`
+      setInviteUrl(url)
+      setTimeout(() => inviteInputRef.current?.select(), 50)
+    } catch (err) {
+      setError(err.message || 'Failed to generate invite link')
+    } finally {
+      setInviteLoading(false)
+    }
+  }
+
+  function handleCopyInvite() {
+    if (!inviteUrl) return
+    navigator.clipboard.writeText(inviteUrl)
+      .then(() => setSuccess('Invite link copied to clipboard'))
+      .catch(() => inviteInputRef.current?.select())
+  }
+
   async function handleDeleteUser(user) {
     if (!confirm(`Delete user ${user.email}? This action cannot be undone.`)) return
     setError(null)
@@ -56,13 +81,39 @@ export default function UserManagement({ users, onRefresh }) {
     <div className="card">
       <div className="card-header">
         <h3 className="card-title">Manage Users</h3>
-        <button onClick={() => setCreatingUser(!creatingUser)}>
-          {creatingUser ? 'Cancel' : '+ New User'}
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button className="secondary" onClick={handleGenerateInvite} disabled={inviteLoading}>
+            {inviteLoading ? 'Generating...' : 'Generate Invite Link'}
+          </button>
+          <button onClick={() => { setCreatingUser(!creatingUser); setInviteUrl(null) }}>
+            {creatingUser ? 'Cancel' : '+ New User'}
+          </button>
+        </div>
       </div>
 
       {error && <div className="error">{error}</div>}
       {success && <div className="success">{success}</div>}
+
+      {inviteUrl && (
+        <div className="card" style={{ margin: '1rem', background: 'var(--bg-tertiary)' }}>
+          <h4 style={{ marginBottom: '0.5rem' }}>Invite Link (expires in 7 days)</h4>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>
+            Share this link with the person you want to invite. It can only be used once.
+          </p>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <input
+              ref={inviteInputRef}
+              type="text"
+              readOnly
+              value={inviteUrl}
+              style={{ flex: 1, fontFamily: 'monospace', fontSize: '0.85rem' }}
+              onClick={() => inviteInputRef.current?.select()}
+            />
+            <button className="secondary" onClick={handleCopyInvite}>Copy</button>
+            <button className="secondary" onClick={() => setInviteUrl(null)}>Dismiss</button>
+          </div>
+        </div>
+      )}
 
       {creatingUser && (
         <div className="card" style={{ margin: '1rem', background: 'var(--bg-tertiary)' }}>
