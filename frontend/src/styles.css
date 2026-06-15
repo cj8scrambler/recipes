@@ -68,12 +68,35 @@ body {
 }
 
 .app header > div {
-  max-width: 1400px;
-  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 1rem 2rem;
+}
+
+@media (max-width: 900px) {
+  .app header > div {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 0.75rem 1rem;
+    gap: 0.5rem;
+  }
+
+  .app header h1 {
+    font-size: 1.4rem;
+  }
+
+  .app header nav {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  .app header nav a,
+  .app header .logout-btn {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.85rem;
+  }
 }
 
 .app header h1 {
@@ -111,8 +134,6 @@ body {
 
 /* Main Content */
 main {
-  max-width: 1400px;
-  margin: 0 auto;
   padding: 2rem;
 }
 
@@ -310,15 +331,32 @@ li:last-child {
   align-items: start;
 }
 
+.sidebar {
+  position: sticky;
+  top: 100px;
+}
+
 @media (max-width: 968px) {
   .user-view {
     grid-template-columns: 1fr;
   }
-}
 
-.sidebar {
-  position: sticky;
-  top: 100px;
+  .sidebar {
+    position: static;
+  }
+
+  .user-view.mobile-detail .sidebar {
+    display: none;
+  }
+
+  .user-view:not(.mobile-detail) .content {
+    display: none;
+  }
+
+  .recipe-list ul {
+    max-height: none;
+    overflow-y: visible;
+  }
 }
 
 .content article {
@@ -412,7 +450,7 @@ li:last-child {
 
 /* Admin Dashboard */
 .admin {
-  max-width: 1200px;
+  width: 100%;
 }
 
 .admin h2 {
@@ -832,12 +870,6 @@ li:last-child {
   align-items: start;
 }
 
-@media (max-width: 968px) {
-  .recipe-lists-container {
-    grid-template-columns: 1fr;
-  }
-}
-
 .lists-sidebar {
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
@@ -846,6 +878,29 @@ li:last-child {
   box-shadow: var(--shadow-sm);
   position: sticky;
   top: 100px;
+}
+
+@media (max-width: 968px) {
+  .recipe-lists-container {
+    grid-template-columns: 1fr;
+  }
+
+  .lists-sidebar {
+    position: static;
+  }
+
+  .recipe-lists-container.mobile-detail .lists-sidebar {
+    display: none;
+  }
+
+  .recipe-lists-container:not(.mobile-detail) .lists-content {
+    display: none;
+  }
+
+  .lists-list {
+    max-height: none;
+    overflow-y: visible;
+  }
 }
 
 .lists-sidebar h2 {
@@ -1261,4 +1316,20 @@ li:last-child {
 .shopping-list .ingredient-name {
   flex: 1;
   color: var(--gray-900);
+}
+
+/* Mobile back button — hidden on desktop, shown on mobile */
+.mobile-back-btn {
+  display: none;
+}
+
+@media (max-width: 968px) {
+  .mobile-back-btn {
+    display: inline-flex;
+    margin-bottom: 1rem;
+  }
+
+  main {
+    padding: 1rem;
+  }
 }

@@ -472,7 +472,7 @@ export default function RecipeLists({ user }) {
   }
 
   return (
-    <div className="recipe-lists-container">
+    <div className={`recipe-lists-container${selectedList || selectedRecipe ? ' mobile-detail' : ''}`}>
       <div className="lists-sidebar">
         <h2>My Recipe Lists</h2>
         
@@ -552,6 +552,14 @@ export default function RecipeLists({ user }) {
       </div>
 
       <div className="lists-content">
+        {!selectedRecipe && (
+          <button
+            className="mobile-back-btn secondary"
+            onClick={() => { setSelectedList(null); setSelectedRecipe(null) }}
+          >
+            ← My Lists
+          </button>
+        )}
         {!selectedList && !selectedRecipe && (
           <div className="empty-state">
             <p>Select a recipe list to view its recipes.</p>

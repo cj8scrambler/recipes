@@ -395,11 +395,14 @@ export default function UserView({ user }) {
   }
 
   return (
-    <div className="user-view">
+    <div className={`user-view${selected ? ' mobile-detail' : ''}`}>
       <div className="sidebar">
         <RecipeList recipes={parentRecipes} onSelect={selectRecipe} />
       </div>
       <div className="content">
+        <button className="mobile-back-btn secondary" onClick={() => setSelected(null)}>
+          ← Recipes
+        </button>
         {error && <div className="error">{error}</div>}
         {!selected && (
           <div className="empty-state">
