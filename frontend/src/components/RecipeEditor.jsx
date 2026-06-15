@@ -30,6 +30,8 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
   const [recipeCost, setRecipeCost] = useState(null)
   const [recipeWeight, setRecipeWeight] = useState(null)
   const [parentRecipeId, setParentRecipeId] = useState(null)
+  const [variantTypeId, setVariantTypeId] = useState(null)
+  const [variantTypes, setVariantTypes] = useState([])
 
   useEffect(() => {
     loadUnits()
@@ -37,6 +39,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
     loadIngredientGroups()
     loadIngredientTypes()
     loadTags()
+    loadVariantTypes()
   }, [])
 
   useEffect(() => {
@@ -47,6 +50,7 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
       setAdminNotes(recipe.admin_notes || '')
       setServings(recipe.base_servings || 1)
       setParentRecipeId(recipe.parent_recipe_id || null)
+      setVariantTypeId(recipe.variant_type_id || null)
       // Ingredients from backend have id, ingredient_id, quantity (in base units), unit_id, notes, group_id
       setIngredients((recipe.ingredients || []).map(ing => ({
         id: ing.id || null,
@@ -139,6 +143,19 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
       setAllTags(tags || [])
     } catch (err) {
       console.error('Failed to load tags:', err)
+    }
+  }
+
+  async function loadVariantTypes() {
+    try {
+      const data = await api.listVariantTypes()
+      setVariantTypes(data || [])
+      // Default new recipes (no existing variant_type_id) to Base (first entry)
+      if (!recipe?.variant_type_id && data && data.length > 0) {
+        setVariantTypeId(data[0].variant_type_id)
+      }
+    } catch (err) {
+      console.error('Failed to load variant types:', err)
     }
   }
 
@@ -287,7 +304,8 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
       base_servings: Number(servings),
       ingredients: processedIngredients,
       tags: selectedTags.map(tag_id => ({ tag_id })),
-      parent_recipe_id: parentRecipeId
+      parent_recipe_id: parentRecipeId,
+      variant_type_id: variantTypeId
     })
   }
 
@@ -313,17 +331,32 @@ export default function RecipeEditor({ recipe = null, onCancel, onSave, allRecip
           </select>
         </label>
         {isVariant && (
-          <div style={{ 
-            marginTop: '0.5em', 
-            padding: '0.5em', 
-            backgroundColor: 'var(--primary-light)', 
+          <div style={{
+            marginTop: '0.5em',
+            padding: '0.5em',
+            backgroundColor: 'var(--primary-light)',
             borderRadius: '4px',
             fontSize: '0.9em',
-            color: 'var(--primary-dark)'
           }}>
-            ℹ️ This recipe is a variant and will not appear as a separate recipe in the browse list.
+            This recipe is a variant and will not appear separately in the browse list.
           </div>
         )}
+      </div>
+
+      <div className="form-group">
+        <label>
+          Variant Type
+          <select
+            value={variantTypeId || ''}
+            onChange={(e) => setVariantTypeId(e.target.value ? parseInt(e.target.value) : null)}
+            required
+          >
+            <option value="">— select —</option>
+            {variantTypes.map(t => (
+              <option key={t.variant_type_id} value={t.variant_type_id}>{t.name}</option>
+            ))}
+          </select>
+        </label>
       </div>
 
       <div className="form-group">

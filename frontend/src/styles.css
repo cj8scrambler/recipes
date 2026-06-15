@@ -1326,6 +1326,45 @@ li:last-child {
   color: var(--gray-900);
 }
 
+/* Variant Pills */
+.variant-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.variant-pill {
+  background: var(--bg-tertiary);
+  color: var(--gray-700);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 0.3rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+  transform: none;
+  box-shadow: none;
+}
+
+.variant-pill:hover {
+  background: var(--gray-200);
+  transform: none;
+  box-shadow: none;
+}
+
+.variant-pill.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.variant-pill.active:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+}
+
 /* Mobile back button — hidden on desktop, shown on mobile */
 .mobile-back-btn {
   display: none;

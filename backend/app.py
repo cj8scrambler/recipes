@@ -55,6 +55,13 @@ class Unit(db.Model):
     recipe_ingredients = relationship("RecipeIngredient", back_populates="unit")
     ingredient_prices = relationship("IngredientPrice", back_populates="unit")
 
+class VariantType(db.Model):
+    __tablename__ = 'Variant_Types'
+    variant_type_id = Column(Integer, primary_key=True)
+    name = Column(String(100), unique=True, nullable=False)
+    is_protected = Column(Boolean, default=False, nullable=False)
+
+
 class IngredientType(db.Model):
     __tablename__ = 'Ingredient_Types'
     type_id = Column(Integer, primary_key=True)
@@ -107,11 +114,12 @@ class Recipe(db.Model):
     base_servings = Column(Integer, default=4, nullable=False)
 
     parent_recipe_id = Column(Integer, ForeignKey('Recipes.recipe_id', ondelete='SET NULL'))
-    variant_notes = Column(String(255))
+    variant_type_id = Column(Integer, ForeignKey('Variant_Types.variant_type_id', ondelete='SET NULL'))
     admin_notes = Column(db.Text)
 
     # Relationships
     parent_recipe = relationship("Recipe", remote_side=[recipe_id], backref='variants')
+    variant_type = relationship("VariantType")
     ingredients = relationship("RecipeIngredient", back_populates="recipe", cascade="all, delete-orphan")
     tags = relationship("RecipeTag", back_populates="recipe", cascade="all, delete-orphan")
 
@@ -237,10 +245,19 @@ def serialize_recipe(recipe, include_cost=False, units_list=None):
         'tags': [{'tag_id': rt.tag.tag_id, 'name': rt.tag.name} for rt in recipe.tags if rt.tag],
         # Include variant information
         'parent_recipe_id': recipe.parent_recipe_id,
-        'variant_notes': recipe.variant_notes,
+        'variant_type_id': recipe.variant_type_id,
+        'variant_type_name': recipe.variant_type.name if recipe.variant_type else 'Base',
         'admin_notes': recipe.admin_notes,
         # Include list of variants (child recipes) with basic info
-        'variants': [{'recipe_id': v.recipe_id, 'name': v.name} for v in recipe.variants] if recipe.variants else []
+        'variants': [
+            {
+                'recipe_id': v.recipe_id,
+                'name': v.name,
+                'variant_type_id': v.variant_type_id,
+                'variant_type_name': v.variant_type.name if v.variant_type else 'Base'
+            }
+            for v in recipe.variants
+        ] if recipe.variants else []
     }
     
     # Optionally include total cost
@@ -381,7 +398,7 @@ def serialize_recipe_list_item(item):
         'recipe_name': item.recipe.name if item.recipe else None,
         'servings': item.servings,
         'variant_id': item.variant_id,
-        'variant_name': item.variant.name if item.variant else None,
+        'variant_type_name': item.variant.variant_type.name if item.variant and item.variant.variant_type else None,
         'notes': item.notes,
         'created_at': item.created_at.isoformat() if item.created_at else None,
         'updated_at': item.updated_at.isoformat() if item.updated_at else None
@@ -685,7 +702,7 @@ def recipes_list():
                 instructions=data.get('instructions'),
                 base_servings=data.get('base_servings', 4),
                 parent_recipe_id=data.get('parent_recipe_id'),
-                variant_notes=data.get('variant_notes'),
+                variant_type_id=data.get('variant_type_id'),
                 admin_notes=data.get('admin_notes')
             )
             
@@ -744,7 +761,7 @@ def recipe(recipe_id):
 
         # Allowlist of columns that may be updated via this endpoint
         UPDATABLE_FIELDS = {'name', 'description', 'instructions',
-                            'base_servings', 'parent_recipe_id', 'variant_notes', 'admin_notes'}
+                            'base_servings', 'parent_recipe_id', 'variant_type_id', 'admin_notes'}
         # These keys are handled separately and should not be passed to setattr
         HANDLED_SEPARATELY = {'ingredients', 'tags'}
 
@@ -1327,6 +1344,64 @@ def ingredient_type(type_id):
             return jsonify({"error": "Failed to delete ingredient type"}), 500
     else:
         return jsonify({"error": "Method not allowed."}), 405
+
+def _serialize_variant_type(vt):
+    return {'variant_type_id': vt.variant_type_id, 'name': vt.name, 'is_protected': vt.is_protected}
+
+
+@app.route('/api/variant-types', methods=['GET', 'POST'])
+@login_required
+def variant_types_list():
+    if request.method == 'GET':
+        types = db.session.execute(db.select(VariantType).order_by(VariantType.variant_type_id)).scalars().all()
+        return jsonify([_serialize_variant_type(t) for t in types])
+    err = _check_admin()
+    if err: return err
+    data = request.get_json()
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'Name is required'}), 400
+    new_type = VariantType(name=name)
+    db.session.add(new_type)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'error': 'A variant type with that name already exists'}), 400
+    return jsonify(_serialize_variant_type(new_type)), 201
+
+
+@app.route('/api/variant-types/<int:type_id>', methods=['PUT', 'DELETE'])
+@login_required
+def variant_type_detail(type_id):
+    vt = db.session.execute(db.select(VariantType).filter_by(variant_type_id=type_id)).scalar_one_or_none()
+    if not vt:
+        return jsonify({'error': 'Variant type not found'}), 404
+    err = _check_admin()
+    if err: return err
+    if request.method == 'DELETE':
+        if vt.is_protected:
+            return jsonify({'error': 'Cannot delete a protected variant type'}), 400
+        in_use = db.session.execute(db.select(Recipe).filter_by(variant_type_id=type_id)).first()
+        if in_use:
+            return jsonify({'error': 'Cannot delete a variant type that is assigned to recipes'}), 400
+        db.session.delete(vt)
+        db.session.commit()
+        return jsonify({'message': 'Deleted'}), 200
+    data = request.get_json()
+    if vt.is_protected:
+        return jsonify({'error': 'Cannot rename a protected variant type'}), 400
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'Name is required'}), 400
+    vt.name = name
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        return jsonify({'error': 'A variant type with that name already exists'}), 400
+    return jsonify(_serialize_variant_type(vt))
+
 
 @app.route("/api/tags", methods=['GET', 'POST'])
 @login_required

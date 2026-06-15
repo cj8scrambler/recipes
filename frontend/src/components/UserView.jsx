@@ -352,9 +352,9 @@ export default function UserView({ user }) {
     setAddToListLoading(true)
     try {
       await api.addRecipeToList(listId, {
-        recipe_id: selected.recipe_id,
+        recipe_id: selected.parent_recipe_id || selected.recipe_id,
         servings: Math.round(scale) || 1,
-        variant_id: selectedVersion?.recipe_id || null
+        variant_id: selected.parent_recipe_id ? selected.recipe_id : null,
       })
       await loadListMembership(selected.recipe_id)
       await loadRecipeLists()
@@ -374,9 +374,9 @@ export default function UserView({ user }) {
     try {
       const newList = await api.createRecipeList({ name: newListName.trim() })
       await api.addRecipeToList(newList.list_id, {
-        recipe_id: selected.recipe_id,
+        recipe_id: selected.parent_recipe_id || selected.recipe_id,
         servings: Math.round(scale) || 1,
-        variant_id: selectedVersion?.recipe_id || null
+        variant_id: selected.parent_recipe_id ? selected.recipe_id : null,
       })
       setNewListName('')
       await loadListMembership(selected.recipe_id)
@@ -421,64 +421,51 @@ export default function UserView({ user }) {
                 📄 PDF
               </button>
             </div>
-            {/* Recipe Variation dropdown - shown when recipe has variants or is a variant */}
-            {(currentVariants.length > 0 || selected.parent_recipe_id) && (
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '0.5rem', 
-                marginBottom: '1rem',
-                padding: '0.5rem 0.75rem',
-                backgroundColor: 'var(--bg-tertiary)',
-                borderRadius: 'var(--border-radius-sm)',
-                border: '1px solid var(--border-color)'
-              }}>
-                <label style={{ marginBottom: 0, fontWeight: 500 }}>Recipe Variation</label>
-                <select 
-                  style={{ width: 'auto', minWidth: '150px' }}
-                  value={selected.recipe_id}
-                  onChange={(e) => {
-                    const selectedId = e.target.value
-                    if (selectedId === String(selected.recipe_id)) return
-                    
-                    // Find the parent recipe id (could be current recipe if viewing parent, or parent_recipe_id if viewing variant)
-                    const parentId = selected.parent_recipe_id || selected.recipe_id
-                    const parent = recipes.find(r => r.recipe_id === parentId)
-                    
-                    if (selectedId === String(parentId) && parent) {
-                      // Selected the parent recipe
-                      selectRecipe(parent)
-                    } else {
-                      // Selected a variant
-                      selectVariant(selectedId)
-                    }
-                  }}
-                >
-                  {/* Show parent recipe as first option */}
-                  {selected.parent_recipe_id ? (
-                    // Currently viewing a variant - show parent first
-                    <>
-                      <option value={selected.parent_recipe_id}>
-                        {recipes.find(r => r.recipe_id === selected.parent_recipe_id)?.name || 'Original'}
-                      </option>
-                      {recipes
-                        .filter(r => r.parent_recipe_id === selected.parent_recipe_id)
-                        .map(v => (
-                          <option key={v.recipe_id} value={v.recipe_id}>{v.name}</option>
-                        ))}
-                    </>
-                  ) : (
-                    // Currently viewing parent - show self and variants
-                    <>
-                      <option value={selected.recipe_id}>{selected.name}</option>
-                      {currentVariants.map(v => (
-                        <option key={v.recipe_id} value={v.recipe_id}>{v.name}</option>
-                      ))}
-                    </>
-                  )}
-                </select>
-              </div>
-            )}
+            {/* Variant pills - shown when recipe has variants or is a variant */}
+            {(currentVariants.length > 0 || selected.parent_recipe_id) && (() => {
+              let pills = []
+              if (selected.parent_recipe_id) {
+                const parent = recipes.find(r => r.recipe_id === selected.parent_recipe_id)
+                const siblings = recipes.filter(r => r.parent_recipe_id === selected.parent_recipe_id)
+                if (parent) {
+                  pills = [
+                    { recipe_id: parent.recipe_id, variant_type_name: parent.variant_type_name || 'Base', isParent: true },
+                    ...siblings.map(s => ({ recipe_id: s.recipe_id, variant_type_name: s.variant_type_name || 'Variant', isParent: false }))
+                  ]
+                }
+              } else {
+                pills = [
+                  { recipe_id: selected.recipe_id, variant_type_name: selected.variant_type_name || 'Base', isParent: true },
+                  ...currentVariants.map(v => ({ recipe_id: v.recipe_id, variant_type_name: v.variant_type_name || 'Variant', isParent: false }))
+                ]
+              }
+              if (pills.length === 0) return null
+              return (
+                <div style={{ marginBottom: '1rem' }}>
+                  <div className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '0.4rem' }}>Variation</div>
+                  <div className="variant-pills">
+                    {pills.map(pill => (
+                      <button
+                        key={pill.recipe_id}
+                        className={`variant-pill${selected.recipe_id === pill.recipe_id ? ' active' : ''}`}
+                        onClick={() => {
+                          if (selected.recipe_id === pill.recipe_id) return
+                          const parentId = selected.parent_recipe_id || selected.recipe_id
+                          if (pill.isParent) {
+                            const parent = recipes.find(r => r.recipe_id === pill.recipe_id)
+                            if (parent) selectRecipe(parent)
+                          } else {
+                            selectVariant(pill.recipe_id)
+                          }
+                        }}
+                      >
+                        {pill.variant_type_name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
             
             {/* Recipe Lists Section */}
             <div className="recipe-lists-section">
@@ -529,15 +516,14 @@ export default function UserView({ user }) {
                     Create & Add
                   </button>
                 </form>
-                <p className="add-note" style={{ 
+                <p className="add-note" style={{
                   marginTop: '0.75rem',
                   padding: '0.5rem',
                   backgroundColor: 'var(--bg-tertiary)',
                   borderRadius: 'var(--border-radius-sm)',
                   fontWeight: 500
                 }}>
-                  📋 Saving with <strong>{Math.round(scale)} servings</strong>
-                  {selectedVersion && ` • ${selectedVersion.variant_notes || selectedVersion.name}`}
+                  📋 Saving <strong>{selected.variant_type_name || 'Base'}</strong> with <strong>{Math.round(scale)} servings</strong>
                 </p>
               </div>
             )}

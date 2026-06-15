@@ -91,6 +91,12 @@ export const api = {
   validateResetToken: (token) => request(`/reset-password/validate?token=${encodeURIComponent(token)}`),
   resetPassword: (token, password) => request('/reset-password', { method: 'POST', body: JSON.stringify({ token, password }) }),
 
+  // Variant Types
+  listVariantTypes: () => request('/variant-types'),
+  createVariantType: (payload) => request('/variant-types', { method: 'POST', body: JSON.stringify(payload) }),
+  updateVariantType: (id, payload) => request(`/variant-types/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+  deleteVariantType: (id) => request(`/variant-types/${id}`, { method: 'DELETE' }),
+
   // Admin - Tags
   adminListTags: () => request('/tags'),
   adminCreateTag: (payload) => request('/tags', { method: 'POST', body: JSON.stringify(payload) }),

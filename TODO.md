@@ -1,5 +1,16 @@
 # TODO
 
+## Calculate nutritional information
+
+Add per-ingredient nutritional data (calories, protein, fat, carbs, fiber, sodium) and
+aggregate it at the recipe level, scaled to the current serving count.
+
+**Action:**
+1. Add a `Ingredient_Nutrition` table (calories, protein_g, fat_g, carbs_g, fiber_g, sodium_mg per 100g or per base unit).
+2. Surface nutrition fields in the ingredient editor (admin).
+3. Compute and display a nutrition facts panel on the recipe view, scaled by servings.
+4. Consider sourcing data from a public nutrition API (e.g., USDA FoodData Central) to pre-populate values.
+
 ## Implement food allergies / allergen feature
 
 The `Ingredients` table has a `contains_peanuts` boolean and a `gluten_status` enum

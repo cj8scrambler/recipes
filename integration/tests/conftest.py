@@ -82,6 +82,8 @@ if _DB_URL:
             'Ingredients', 'Ingredient_Types', 'users',
         ]:
             database.session.execute(database.text(f'DELETE FROM `{table}`'))
+        # Remove test-created variant types but keep the protected Base entry
+        database.session.execute(database.text('DELETE FROM Variant_Types WHERE is_protected = 0'))
         database.session.execute(database.text('SET FOREIGN_KEY_CHECKS = 1'))
 
         database.session.add(Ingredient(ingredient_id=SPICE_ID, name='Test Spice', default_unit_id=SPICE_UNIT, weight=3.5))
@@ -105,9 +107,12 @@ if _DB_URL:
         flask_app.config['TESTING'] = True
         with flask_app.app_context():
             _db.create_all()
-            from app import Unit
+            from app import Unit, VariantType
             for u in _UNITS:
                 _db.session.merge(Unit(**u))
+            # Seed the protected Base variant type if not present
+            if not _db.session.execute(_db.select(VariantType).filter_by(name='Base')).scalar_one_or_none():
+                _db.session.add(VariantType(name='Base', is_protected=True))
             _db.session.commit()
         yield flask_app
         with flask_app.app_context():

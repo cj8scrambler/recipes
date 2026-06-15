@@ -31,10 +31,13 @@ USER_PASSWORD = 'userpass'
 
 
 def seed(database):
-    from app import Unit, Ingredient, Recipe, RecipeIngredient, IngredientPrice
+    from app import Unit, Ingredient, Recipe, RecipeIngredient, IngredientPrice, VariantType
 
     for u in UNITS:
         database.session.add(Unit(**u))
+    database.session.flush()
+
+    database.session.add(VariantType(variant_type_id=1, name='Base', is_protected=True))
     database.session.flush()
 
     # One spice ingredient (tsp default, weight=3.5 g/tsp)

@@ -34,7 +34,14 @@ CREATE TABLE Ingredients (
     FOREIGN KEY (type_id) REFERENCES Ingredient_Types(type_id) ON DELETE SET NULL
 );
 
--- 4. Recipes Table
+-- 4. Variant_Types Table
+CREATE TABLE Variant_Types (
+    variant_type_id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    is_protected BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+-- 5. Recipes Table
 CREATE TABLE Recipes (
     recipe_id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(255) NOT NULL,
@@ -42,9 +49,11 @@ CREATE TABLE Recipes (
     instructions TEXT,
     base_servings INT NOT NULL DEFAULT 4,
     parent_recipe_id INT,
-    variant_notes VARCHAR(255),
+    variant_type_id INT,
     admin_notes TEXT,
-    FOREIGN KEY (parent_recipe_id) REFERENCES Recipes(recipe_id) ON DELETE SET NULL
+    FOREIGN KEY (parent_recipe_id) REFERENCES Recipes(recipe_id) ON DELETE SET NULL,
+    FOREIGN KEY (variant_type_id) REFERENCES Variant_Types(variant_type_id) ON DELETE SET NULL,
+    INDEX idx_parent_recipe (parent_recipe_id)
 );
 
 -- 5. Ingredient_Groups Table

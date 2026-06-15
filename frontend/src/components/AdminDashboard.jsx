@@ -15,6 +15,9 @@ export default function AdminDashboard() {
   const [ingredientTypes, setIngredientTypes] = useState([])
   const [tags, setTags] = useState([])
   const [users, setUsers] = useState([])
+  const [variantTypes, setVariantTypes] = useState([])
+  const [editingVariantType, setEditingVariantType] = useState(null)
+  const [newVariantTypeName, setNewVariantTypeName] = useState('')
   const [editingRecipe, setEditingRecipe] = useState(null)
   const [editingIngredient, setEditingIngredient] = useState(null)
   const [editingGroup, setEditingGroup] = useState(null)
@@ -44,13 +47,14 @@ export default function AdminDashboard() {
 
   async function loadAll() {
     try {
-      const [rs, is, gs, its, ts, us] = await Promise.all([
+      const [rs, is, gs, its, ts, us, vts] = await Promise.all([
         api.adminListRecipes(),
         api.adminListIngredients(),
         api.adminListIngredientGroups(),
         api.adminListIngredientTypes(),
         api.adminListTags(),
-        api.adminListUsers()
+        api.adminListUsers(),
+        api.listVariantTypes()
       ])
       setRecipes(rs || [])
       setIngredients(is || [])
@@ -58,6 +62,52 @@ export default function AdminDashboard() {
       setIngredientTypes(its || [])
       setTags(ts || [])
       setUsers(us || [])
+      setVariantTypes(vts || [])
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  async function createVariantOf(parentRecipe) {
+    try {
+      const full = await api.getRecipe(parentRecipe.recipe_id)
+      setEditingRecipe({
+        parent_recipe_id: full.recipe_id,
+        name: full.name,
+        description: full.description,
+        instructions: full.instructions,
+        base_servings: full.base_servings,
+        ingredients: full.ingredients,
+        tags: full.tags,
+      })
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  async function saveVariantType(e) {
+    e.preventDefault()
+    const name = newVariantTypeName.trim()
+    if (!name) return
+    try {
+      if (editingVariantType?.variant_type_id) {
+        await api.updateVariantType(editingVariantType.variant_type_id, { name })
+      } else {
+        await api.createVariantType({ name })
+      }
+      setEditingVariantType(null)
+      setNewVariantTypeName('')
+      await loadAll()
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  async function removeVariantType(id) {
+    if (!confirm('Delete this variant type?')) return
+    try {
+      await api.deleteVariantType(id)
+      await loadAll()
     } catch (err) {
       setError(err.message)
     }
@@ -288,7 +338,13 @@ export default function AdminDashboard() {
         >
           Tags
         </button>
-        <button 
+        <button
+          className={`tab ${activeTab === 'variant-types' ? 'active' : ''}`}
+          onClick={() => setActiveTab('variant-types')}
+        >
+          Variant Types
+        </button>
+        <button
           className={`tab ${activeTab === 'users' ? 'active' : ''}`}
           onClick={() => setActiveTab('users')}
         >
@@ -327,6 +383,17 @@ export default function AdminDashboard() {
                       <li>
                         <div>
                           <span>{r.name}</span>
+                          <span style={{
+                            marginLeft: '0.5em',
+                            padding: '0.15rem 0.5rem',
+                            background: 'var(--bg-tertiary)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: '999px',
+                            fontSize: '0.78rem',
+                            color: 'var(--gray-600)',
+                          }}>
+                            {r.variant_type_name || 'Base'}
+                          </span>
                           {variants.length > 0 && (
                             <span className="text-muted" style={{ marginLeft: '0.5em', fontSize: '0.85em' }}>
                               ({variants.length} variant{variants.length !== 1 ? 's' : ''})
@@ -339,6 +406,7 @@ export default function AdminDashboard() {
                           )}
                         </div>
                         <div>
+                          <button className="small secondary" onClick={() => createVariantOf(r)}>+ Variant</button>
                           <button className="small secondary" onClick={() => setEditingRecipe(r)}>Edit</button>
                           <button className="small danger" onClick={() => removeRecipe(r.recipe_id)}>Delete</button>
                         </div>
@@ -348,14 +416,16 @@ export default function AdminDashboard() {
                         <li key={v.recipe_id} style={{ paddingLeft: '2rem', borderLeft: '3px solid var(--primary-light)' }}>
                           <div>
                             <span style={{ fontStyle: 'italic' }}>↳ {v.name}</span>
-                            <span className="text-muted" style={{ marginLeft: '0.5em', fontSize: '0.85em' }}>
-                              (variant)
+                            <span style={{
+                              marginLeft: '0.5em',
+                              padding: '0.15rem 0.5rem',
+                              background: 'var(--accent)',
+                              color: 'white',
+                              borderRadius: '999px',
+                              fontSize: '0.78rem',
+                            }}>
+                              {v.variant_type_name || 'Variant'}
                             </span>
-                            {v.ingredients && v.ingredients.length > 0 && (
-                              <div className="text-muted" style={{fontSize: '0.9em', marginTop: '0.25em'}}>
-                                Ingredients: {v.ingredients.map(ing => ing.name).join(', ')}
-                              </div>
-                            )}
                           </div>
                           <div>
                             <button className="small secondary" onClick={() => setEditingRecipe(v)}>Edit</button>
@@ -634,6 +704,65 @@ export default function AdminDashboard() {
             </ul>
           </div>
         </>
+      )}
+
+      {activeTab === 'variant-types' && (
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title">Manage Variant Types</h3>
+          </div>
+          <form onSubmit={saveVariantType} style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', padding: '0 0 1rem', borderBottom: '1px solid var(--border-color)' }}>
+            <input
+              type="text"
+              placeholder={editingVariantType ? 'Edit variant type name…' : 'New variant type name…'}
+              value={newVariantTypeName}
+              onChange={e => setNewVariantTypeName(e.target.value)}
+              style={{ flex: 1 }}
+            />
+            <button type="submit" disabled={!newVariantTypeName.trim()}>
+              {editingVariantType ? 'Save' : '+ Add'}
+            </button>
+            {editingVariantType && (
+              <button type="button" className="secondary" onClick={() => { setEditingVariantType(null); setNewVariantTypeName('') }}>
+                Cancel
+              </button>
+            )}
+          </form>
+          {variantTypes.length === 0 && (
+            <div className="empty-state">
+              <p>No variant types yet.</p>
+            </div>
+          )}
+          <ul>
+            {variantTypes.map(vt => (
+              <li key={vt.variant_type_id}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span>{vt.name}</span>
+                  {vt.is_protected && (
+                    <span style={{
+                      padding: '0.1rem 0.4rem',
+                      background: 'var(--bg-tertiary)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '3px',
+                      fontSize: '0.72rem',
+                      color: 'var(--gray-500)',
+                    }}>
+                      protected
+                    </span>
+                  )}
+                </div>
+                <div>
+                  {!vt.is_protected && (
+                    <>
+                      <button className="small secondary" onClick={() => { setEditingVariantType(vt); setNewVariantTypeName(vt.name) }}>Edit</button>
+                      <button className="small danger" onClick={() => removeVariantType(vt.variant_type_id)}>Delete</button>
+                    </>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
 
       {activeTab === 'users' && (

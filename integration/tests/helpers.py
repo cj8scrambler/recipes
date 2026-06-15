@@ -42,6 +42,12 @@ def make_group(client, name='Test Group'):
     return r.get_json()
 
 
+def make_variant_type(client, name):
+    r = client.post('/api/variant-types', json={'name': name})
+    assert r.status_code == 201, r.get_json()
+    return r.get_json()
+
+
 def make_list(client, name='Test List'):
     r = client.post('/api/recipe-lists', json={'name': name})
     assert r.status_code == 201, r.get_json()

@@ -654,26 +654,33 @@ export default function RecipeLists({ user }) {
                             })}
                           />
                         </div>
-                        {getRecipeVariants(item.recipe_id).length > 0 && (
-                          <div className="form-group">
-                            <label>Variant</label>
-                            <select
-                              value={editingItem.variant_id || ''}
-                              onChange={(e) => setEditingItem({
-                                ...editingItem,
-                                variant_id: e.target.value ? parseInt(e.target.value) : null
-                              })}
-                            >
-                              <option value="">Original</option>
-                              {getRecipeVariants(item.recipe_id).map(v => (
-                                <option key={v.recipe_id} value={v.recipe_id}>
-                                  {v.variant_notes || v.name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        )}
                       </div>
+                      {(() => {
+                        const variants = getRecipeVariants(item.recipe_id)
+                        if (variants.length === 0) return null
+                        const baseRecipe = recipes.find(r => r.recipe_id === item.recipe_id)
+                        const pills = [
+                          { recipe_id: null, label: baseRecipe?.variant_type_name || 'Base' },
+                          ...variants.map(v => ({ recipe_id: v.recipe_id, label: v.variant_type_name || 'Variant' }))
+                        ]
+                        return (
+                          <div className="form-group">
+                            <label>Variation</label>
+                            <div className="variant-pills">
+                              {pills.map(pill => (
+                                <button
+                                  key={pill.recipe_id ?? 'base'}
+                                  type="button"
+                                  className={`variant-pill${(editingItem.variant_id ?? null) === pill.recipe_id ? ' active' : ''}`}
+                                  onClick={() => setEditingItem({ ...editingItem, variant_id: pill.recipe_id })}
+                                >
+                                  {pill.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )
+                      })()}
                       <div className="form-group">
                         <label>Notes</label>
                         <input
@@ -687,7 +694,7 @@ export default function RecipeLists({ user }) {
                         />
                       </div>
                       <div className="button-row">
-                        <button 
+                        <button
                           onClick={() => updateItem(item.item_id, {
                             servings: editingItem.servings,
                             variant_id: editingItem.variant_id,
@@ -696,7 +703,7 @@ export default function RecipeLists({ user }) {
                         >
                           Save
                         </button>
-                        <button 
+                        <button
                           className="secondary"
                           onClick={() => setEditingItem(null)}
                         >
@@ -710,7 +717,7 @@ export default function RecipeLists({ user }) {
                         <span className="recipe-name">{item.recipe_name}</span>
                         <span className="recipe-meta">
                           {item.servings} servings
-                          {item.variant_name && ` • ${item.variant_name}`}
+                          {item.variant_type_name && ` • ${item.variant_type_name}`}
                           {getItemCost(item.item_id) !== null && (
                             ` • $${getItemCost(item.item_id).toFixed(2)}`
                           )}
