@@ -30,7 +30,7 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.frontend
       args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
     image: recipes-frontend:latest
     container_name: recipes-frontend
     restart: unless-stopped
