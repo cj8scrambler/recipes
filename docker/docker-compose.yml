@@ -16,9 +16,9 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
       GUNICORN_LOG_LEVEL: ${GUNICORN_LOG_LEVEL:-info}
     ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      - "${BIND_ADDR:-0.0.0.0}:${BACKEND_PORT:-8000}:8000"
     networks:
-      - nginx-proxy-net
+      - app-net
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/"]
       interval: 30s
@@ -35,9 +35,9 @@ services:
     container_name: recipes-frontend
     restart: unless-stopped
     ports:
-      - "${FRONTEND_PORT:-5173}:80"
+      - "${BIND_ADDR:-0.0.0.0}:${FRONTEND_PORT:-5173}:80"
     networks:
-      - nginx-proxy-net
+      - app-net
     depends_on:
       - backend
     healthcheck:
@@ -51,5 +51,5 @@ volumes:
     driver: local
 
 networks:
-  nginx-proxy-net:
+  app-net:
     external: true
